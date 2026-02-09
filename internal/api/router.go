@@ -32,6 +32,7 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, 
 	th := &threadHandler{store: s}
 	uh := &uploadHandler{store: s, uploadDir: uploadDir, transcribe: transcriber, chunker: chunker, index: idx}
 	sh := &searchHandler{index: idx}
+	sgh := &suggestHandler{store: s, translator: &search.QueryTranslator{Index: idx}}
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(jsonContent)
@@ -54,6 +55,7 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, 
 				r.Get("/chunks", nh.getChunks)
 				r.Put("/chunks", nh.setChunks)
 				r.Get("/edges", nh.getEdges)
+				r.Get("/suggest", sgh.suggest)
 			})
 		})
 

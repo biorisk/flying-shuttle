@@ -90,6 +90,13 @@ export interface SearchResult {
   score: number;
 }
 
+export interface ChunkSuggestion {
+  chunk_id: string;
+  label: string;
+  score: number;
+  confidence: number;
+}
+
 // API envelope returned by all endpoints.
 export interface ApiResponse<T> {
   data?: T;

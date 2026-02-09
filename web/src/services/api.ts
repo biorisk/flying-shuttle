@@ -3,6 +3,7 @@
 import type {
   ApiResponse,
   Chunk,
+  ChunkSuggestion,
   Edge,
   Node,
   SearchResult,
@@ -43,6 +44,10 @@ export const nodes = {
       body: JSON.stringify({ chunk_ids: chunkIds }),
     }),
   getEdges: (id: string) => request<Edge[]>(`/nodes/${id}/edges`),
+  suggest: (id: string, limit = 5) =>
+    request<ChunkSuggestion[]>(
+      `/nodes/${id}/suggest?limit=${limit}`,
+    ),
 };
 
 // --- Edges ---

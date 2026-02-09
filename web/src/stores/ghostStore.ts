@@ -1,18 +1,34 @@
 import { create } from "zustand";
 import type { GhostProposal } from "../types/ghost";
+import { nodes as nodesApi } from "../services/api";
 
-// Stub provider — returns mock proposals until the RAG clustering engine
-// (FlyingShuttle-izs) is implemented. Replace generateProposals() with
-// a real API call when the backend endpoint is ready.
-async function generateProposals(nodeTitle: string): Promise<GhostProposal[]> {
+// Generate proposals via the backend suggest endpoint. Falls back to stub
+// proposals when the backend returns empty results (e.g. no indexed chunks).
+async function generateProposals(
+  nodeId: string,
+  nodeTitle: string,
+): Promise<GhostProposal[]> {
   if (!nodeTitle || nodeTitle.trim().length < 3) return [];
 
-  // Simulate async latency.
-  await new Promise((r) => setTimeout(r, 300));
+  try {
+    const suggestions = await nodesApi.suggest(nodeId, 5);
+    if (suggestions && suggestions.length > 0) {
+      return suggestions.map((s, i) => ({
+        id: `suggest-${nodeId}-${i}`,
+        label: s.label,
+        chunkCount: 1,
+        confidence: s.confidence,
+        chunkIds: [s.chunk_id],
+      }));
+    }
+  } catch {
+    // Backend not available or node not persisted — fall through to stub.
+  }
 
-  // Generate deterministic stub proposals based on the title.
+  // Stub fallback for when the index is empty or backend is unavailable.
+  await new Promise((r) => setTimeout(r, 300));
   const hash = nodeTitle.length + nodeTitle.charCodeAt(0);
-  const stubs: GhostProposal[] = [
+  return [
     {
       id: `ghost-${hash}-1`,
       label: `${nodeTitle} — emotional context`,
@@ -34,9 +50,7 @@ async function generateProposals(nodeTitle: string): Promise<GhostProposal[]> {
       confidence: 0.61,
       chunkIds: [],
     },
-  ];
-
-  return stubs.filter((p) => p.confidence > 0.5);
+  ].filter((p) => p.confidence > 0.5);
 }
 
 interface GhostState {
@@ -73,11 +87,11 @@ export const useGhostStore = create<GhostState>((set, get) => ({
   fetchProposals: async (nodeId: string, nodeTitle: string) => {
     set((s) => ({ loading: { ...s.loading, [nodeId]: true } }));
     try {
-      const proposals = await generateProposals(nodeTitle);
+      const proposals = await generateProposals(nodeId, nodeTitle);
       const { dismissed, rejectedLabels } = get();
       const dismissedSet = dismissed[nodeId] ?? new Set();
       const filtered = proposals.filter(
-        (p) => !dismissedSet.has(p.id) && !isSuppressed(p.label, rejectedLabels)
+        (p) => !dismissedSet.has(p.id) && !isSuppressed(p.label, rejectedLabels),
       );
       set((s) => ({
         proposals: { ...s.proposals, [nodeId]: filtered },
