@@ -1,34 +1,34 @@
 import { useEffect } from "react";
-import { useNodeStore } from "../stores/nodeStore";
+import { useOutlineStore } from "../stores/outlineStore";
+import BulletItem from "./BulletItem";
 
 export default function LivingOutline() {
-  const { nodes, loading, fetchNodes, selected, selectNode } = useNodeStore();
+  const { tree, loading, fetchOutline, addRoot } = useOutlineStore();
 
   useEffect(() => {
-    fetchNodes();
-  }, [fetchNodes]);
+    fetchOutline();
+  }, [fetchOutline]);
 
   if (loading) return <p className="pane-placeholder">Loading outline...</p>;
 
-  const outlineNodes = nodes.filter((n) => n.type === "outline");
-
   return (
     <div className="living-outline">
-      {outlineNodes.length === 0 ? (
-        <p className="pane-placeholder">No outline nodes yet. Create one to begin.</p>
+      {tree.length === 0 ? (
+        <div className="outline-empty">
+          <p className="pane-placeholder">Start writing your outline.</p>
+          <button className="outline-add-root" onClick={addRoot}>
+            + Add first bullet
+          </button>
+        </div>
       ) : (
-        <ul className="outline-list">
-          {outlineNodes.map((n) => (
-            <li
-              key={n.id}
-              className={`outline-item ${selected?.id === n.id ? "selected" : ""}`}
-              onClick={() => selectNode(n.id)}
-            >
-              <strong>{n.title || "(untitled)"}</strong>
-              {n.body && <p className="outline-body">{n.body}</p>}
-            </li>
+        <div className="bullet-tree">
+          {tree.map((tn) => (
+            <BulletItem key={tn.node.id} treeNode={tn} />
           ))}
-        </ul>
+          <button className="outline-add-root outline-add-root--subtle" onClick={addRoot}>
+            +
+          </button>
+        </div>
       )}
     </div>
   );
