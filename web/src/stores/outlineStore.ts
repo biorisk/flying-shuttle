@@ -26,6 +26,7 @@ interface OutlineState {
   unindent: (nodeId: string) => Promise<void>;
   updateTitle: (nodeId: string, title: string) => Promise<void>;
   removeNode: (nodeId: string) => Promise<void>;
+  toggleLock: (nodeId: string) => Promise<void>;
   toggleCollapse: (nodeId: string) => void;
   setFocus: (nodeId: string | null) => void;
 }
@@ -274,6 +275,17 @@ export const useOutlineStore = create<OutlineState>((set, get) => ({
     if (!node) return;
     try {
       await nodesApi.update(nodeId, { ...node, title });
+      await get().fetchOutline();
+    } catch (e) {
+      set({ error: (e as Error).message });
+    }
+  },
+
+  toggleLock: async (nodeId: string) => {
+    const node = get().allNodes.find((n) => n.id === nodeId);
+    if (!node) return;
+    try {
+      await nodesApi.update(nodeId, { ...node, locked: !node.locked });
       await get().fetchOutline();
     } catch (e) {
       set({ error: (e as Error).message });

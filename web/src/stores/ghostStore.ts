@@ -36,32 +36,49 @@ async function generateProposals(nodeTitle: string): Promise<GhostProposal[]> {
     },
   ];
 
-  // Only return proposals above a confidence threshold.
   return stubs.filter((p) => p.confidence > 0.5);
 }
 
 interface GhostState {
-  // proposals keyed by node ID
   proposals: Record<string, GhostProposal[]>;
   loading: Record<string, boolean>;
   dismissed: Record<string, Set<string>>;
+  // Rejected labels used to suppress similar future proposals.
+  rejectedLabels: string[];
 
   fetchProposals: (nodeId: string, nodeTitle: string) => Promise<void>;
   dismissProposal: (nodeId: string, proposalId: string) => void;
+  rejectProposal: (nodeId: string, proposalId: string, label: string) => void;
   clearProposals: (nodeId: string) => void;
+}
+
+function isSuppressed(label: string, rejectedLabels: string[]): boolean {
+  const lower = label.toLowerCase();
+  return rejectedLabels.some((rejected) => {
+    const rejLower = rejected.toLowerCase();
+    // Suppress if the proposal label contains the rejected label's core theme.
+    // Extract the part after the dash (the theme descriptor).
+    const dashIdx = rejLower.lastIndexOf("—");
+    const theme = dashIdx >= 0 ? rejLower.slice(dashIdx + 1).trim() : rejLower;
+    return theme.length > 3 && lower.includes(theme);
+  });
 }
 
 export const useGhostStore = create<GhostState>((set, get) => ({
   proposals: {},
   loading: {},
   dismissed: {},
+  rejectedLabels: [],
 
   fetchProposals: async (nodeId: string, nodeTitle: string) => {
     set((s) => ({ loading: { ...s.loading, [nodeId]: true } }));
     try {
       const proposals = await generateProposals(nodeTitle);
-      const dismissed = get().dismissed[nodeId] ?? new Set();
-      const filtered = proposals.filter((p) => !dismissed.has(p.id));
+      const { dismissed, rejectedLabels } = get();
+      const dismissedSet = dismissed[nodeId] ?? new Set();
+      const filtered = proposals.filter(
+        (p) => !dismissedSet.has(p.id) && !isSuppressed(p.label, rejectedLabels)
+      );
       set((s) => ({
         proposals: { ...s.proposals, [nodeId]: filtered },
         loading: { ...s.loading, [nodeId]: false },
@@ -79,6 +96,19 @@ export const useGhostStore = create<GhostState>((set, get) => ({
       return {
         dismissed: { ...s.dismissed, [nodeId]: dismissed },
         proposals: { ...s.proposals, [nodeId]: proposals },
+      };
+    });
+  },
+
+  rejectProposal: (nodeId: string, proposalId: string, label: string) => {
+    set((s) => {
+      const dismissed = new Set(s.dismissed[nodeId] ?? []);
+      dismissed.add(proposalId);
+      const proposals = (s.proposals[nodeId] ?? []).filter((p) => p.id !== proposalId);
+      return {
+        dismissed: { ...s.dismissed, [nodeId]: dismissed },
+        proposals: { ...s.proposals, [nodeId]: proposals },
+        rejectedLabels: [...s.rejectedLabels, label],
       };
     });
   },

@@ -22,6 +22,7 @@ export default function BulletItem({ treeNode }: BulletItemProps) {
     unindent,
     updateTitle,
     removeNode,
+    toggleLock,
     toggleCollapse,
     setFocus,
   } = useOutlineStore();
@@ -31,6 +32,8 @@ export default function BulletItem({ treeNode }: BulletItemProps) {
   const isCollapsed = collapsed[node.id] ?? false;
   const hasChildren = children.length > 0;
   const isFocused = focusId === node.id;
+  const isLocked = node.locked;
+  const chunkCount = node.labels?._chunkCount ? parseInt(node.labels._chunkCount, 10) : 0;
 
   // Auto-focus when this bullet becomes the focus target.
   useEffect(() => {
@@ -59,6 +62,13 @@ export default function BulletItem({ treeNode }: BulletItemProps) {
       if (e.key === "j" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         fetchProposals(node.id, value);
+        return;
+      }
+
+      // Cmd+L / Ctrl+L — toggle lock.
+      if (e.key === "l" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        await toggleLock(node.id);
         return;
       }
 
@@ -106,6 +116,7 @@ export default function BulletItem({ treeNode }: BulletItemProps) {
       indent,
       unindent,
       removeNode,
+      toggleLock,
       setFocus,
       fetchProposals,
     ]
@@ -129,12 +140,17 @@ export default function BulletItem({ treeNode }: BulletItemProps) {
     setFocus(node.id);
   }, [node.id, node.title, fetchProposals, setFocus]);
 
+  const bulletRowClass = [
+    "bullet-row",
+    isFocused ? "focused" : "",
+    isLocked ? "locked" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <div className="bullet-tree-node">
-      <div
-        className={`bullet-row ${isFocused ? "focused" : ""}`}
-        style={{ paddingLeft: depth * 24 }}
-      >
+      <div className={bulletRowClass} style={{ paddingLeft: depth * 24 }}>
         {hasChildren ? (
           <button
             className="bullet-toggle"
@@ -144,28 +160,56 @@ export default function BulletItem({ treeNode }: BulletItemProps) {
             {isCollapsed ? "+" : "-"}
           </button>
         ) : (
-          <span className="bullet-dot" />
+          <span className={`bullet-dot ${isLocked ? "locked" : ""}`} />
         )}
         <input
           ref={inputRef}
-          className="bullet-input"
+          className={`bullet-input ${isLocked ? "locked" : ""}`}
           type="text"
           defaultValue={node.title}
           placeholder="Type here..."
           onKeyDown={handleKeyDown}
           onBlur={handleBlur}
           onClick={handleClick}
+          readOnly={isLocked}
         />
-        <button
-          className="ghost-trigger"
-          onClick={handleTriggerGhosts}
-          title="Get suggestions (Cmd+J)"
-          tabIndex={-1}
-        >
-          +
-        </button>
+        {isLocked && chunkCount > 0 && (
+          <span className="source-badge" title={`Backed by ${chunkCount} chunks`}>
+            {chunkCount}
+          </span>
+        )}
+        {isLocked && (
+          <button
+            className="lock-indicator"
+            onClick={() => toggleLock(node.id)}
+            title="Unlock bullet (Cmd+L)"
+            tabIndex={-1}
+          >
+            &#x1F512;
+          </button>
+        )}
+        {!isLocked && (
+          <>
+            <button
+              className="lock-btn"
+              onClick={() => toggleLock(node.id)}
+              title="Lock bullet (Cmd+L)"
+              tabIndex={-1}
+            >
+              &#x1F513;
+            </button>
+            <button
+              className="ghost-trigger"
+              onClick={handleTriggerGhosts}
+              title="Get suggestions (Cmd+J)"
+              tabIndex={-1}
+            >
+              +
+            </button>
+          </>
+        )}
       </div>
-      <GhostSubList nodeId={node.id} depth={depth} />
+      {!isLocked && <GhostSubList nodeId={node.id} depth={depth} />}
       {hasChildren && !isCollapsed && (
         <div className="bullet-children">
           {children.map((child) => (
