@@ -20,6 +20,7 @@ type uploadHandler struct {
 	store      store.Store
 	uploadDir  string
 	transcribe ingest.Transcriber
+	chunker    *ingest.Chunker
 }
 
 // list returns all uploads.
@@ -121,7 +122,57 @@ func (h *uploadHandler) transcribeAsync(uploadID, filePath string) {
 		}
 	}
 
+	// Run semantic chunking on the stored segments.
+	if h.chunker != nil && len(result.Segments) > 0 {
+		chunks, err := h.chunker.ChunkSegments(ctx, filePath, result.Segments)
+		if err != nil {
+			_ = h.store.UpdateUploadStatus(uploadID, model.UploadStatusFailed, "chunking: "+err.Error())
+			return
+		}
+		for i := range chunks {
+			if err := h.store.CreateChunk(&chunks[i]); err != nil {
+				_ = h.store.UpdateUploadStatus(uploadID, model.UploadStatusFailed, "store chunk: "+err.Error())
+				return
+			}
+		}
+	}
+
 	_ = h.store.UpdateUploadStatus(uploadID, model.UploadStatusDone, "")
+}
+
+// rechunk triggers semantic chunking for an upload's transcript segments.
+func (h *uploadHandler) rechunk(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	u, err := h.store.GetUpload(id)
+	if err != nil {
+		writeError(w, errorStatus(err), err.Error())
+		return
+	}
+
+	segs, err := h.store.ListTranscriptSegments(id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if len(segs) == 0 {
+		writeError(w, http.StatusBadRequest, "no transcript segments to chunk")
+		return
+	}
+
+	chunks, err := h.chunker.ChunkSegments(r.Context(), u.Filename, segs)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	for i := range chunks {
+		if err := h.store.CreateChunk(&chunks[i]); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+
+	writeJSON(w, http.StatusCreated, chunks)
 }
 
 // listSegments returns transcript segments for an upload.

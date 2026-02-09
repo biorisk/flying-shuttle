@@ -34,7 +34,9 @@ func main() {
 	}
 
 	transcriber := &ingest.StubTranscriber{}
-	router := api.NewRouter(s, uploadDir, transcriber)
+	embedder := &ingest.StubEmbedder{}
+	chunker := &ingest.Chunker{Embedder: embedder}
+	router := api.NewRouter(s, uploadDir, transcriber, chunker)
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      router,

@@ -11,7 +11,7 @@ import (
 )
 
 // NewRouter builds the chi router with all API routes.
-func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber) http.Handler {
+func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, chunker *ingest.Chunker) http.Handler {
 	r := chi.NewRouter()
 
 	// Global middleware
@@ -29,7 +29,7 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber) 
 	nh := &nodeHandler{store: s}
 	eh := &edgeHandler{store: s}
 	th := &threadHandler{store: s}
-	uh := &uploadHandler{store: s, uploadDir: uploadDir, transcribe: transcriber}
+	uh := &uploadHandler{store: s, uploadDir: uploadDir, transcribe: transcriber, chunker: chunker}
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(jsonContent)
@@ -84,6 +84,7 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber) 
 			r.Route("/{id}", func(r chi.Router) {
 				r.Get("/", uh.get)
 				r.Get("/segments", uh.listSegments)
+				r.Post("/rechunk", uh.rechunk)
 			})
 		})
 
