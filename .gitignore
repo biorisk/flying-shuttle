@@ -1,0 +1,4 @@
+.beads/*
+!.beads/issues.jsonl
+!.beads/config.yaml
+!.beads/.gitignore
