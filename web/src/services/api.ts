@@ -7,6 +7,7 @@ import type {
   Edge,
   Node,
   SearchResult,
+  StitchResult,
   Thread,
   ThreadNode,
   TranscriptSegment,
@@ -121,6 +122,16 @@ export const uploads = {
 export const search = {
   query: (q: string, limit = 10) =>
     request<SearchResult[]>(`/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+};
+
+// --- Stitch ---
+
+export const stitching = {
+  stitch: (chunkIds: string[], glueLevel = 50) =>
+    request<StitchResult>("/stitch", {
+      method: "POST",
+      body: JSON.stringify({ chunk_ids: chunkIds, glue_level: glueLevel }),
+    }),
 };
 
 // --- DAG ---

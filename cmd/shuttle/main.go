@@ -12,6 +12,7 @@ import (
 	"github.com/biorisk/flying-shuttle/internal/api"
 	"github.com/biorisk/flying-shuttle/internal/ingest"
 	"github.com/biorisk/flying-shuttle/internal/search"
+	"github.com/biorisk/flying-shuttle/internal/stitch"
 	"github.com/biorisk/flying-shuttle/internal/store"
 )
 
@@ -47,7 +48,9 @@ func main() {
 	idx.IndexChunks(existingChunks)
 	log.Printf("indexed %d chunks", len(existingChunks))
 
-	router := api.NewRouter(s, uploadDir, transcriber, chunker, idx)
+	stitcher := &stitch.StubStitcher{}
+
+	router := api.NewRouter(s, uploadDir, transcriber, chunker, idx, stitcher)
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      router,

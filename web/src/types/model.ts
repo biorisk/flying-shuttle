@@ -97,6 +97,28 @@ export interface ChunkSuggestion {
   confidence: number;
 }
 
+export type SpanType = "chunk" | "glue";
+
+export interface StitchSpan {
+  type: SpanType;
+  chunk_index?: number;
+  chunk_id?: string;
+  text: string;
+}
+
+export interface StitchStats {
+  chunk_chars: number;
+  glue_chars: number;
+  total_chars: number;
+  glue_ratio: number;
+}
+
+export interface StitchResult {
+  spans: StitchSpan[];
+  text: string;
+  stats: StitchStats;
+}
+
 // API envelope returned by all endpoints.
 export interface ApiResponse<T> {
   data?: T;
