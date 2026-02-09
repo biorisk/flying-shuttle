@@ -509,8 +509,14 @@ body,
 
 /* --- Evidence Drawer --- */
 
-.evidence-drawer h3 {
+.evidence-drawer {
+  font-size: 0.9rem;
+}
+
+.evidence-title {
   margin: 0 0 12px;
+  font-size: 1rem;
+  word-break: break-word;
 }
 
 .evidence-meta {
@@ -526,17 +532,113 @@ body,
 }
 
 .evidence-body,
-.evidence-labels {
+.evidence-labels,
+.evidence-chunks {
   margin-top: 12px;
 }
 
 .evidence-body h4,
-.evidence-labels h4 {
+.evidence-labels h4,
+.evidence-chunks h4 {
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   opacity: 0.5;
-  margin: 0 0 6px;
+  margin: 0 0 8px;
+}
+
+.evidence-loading,
+.evidence-empty {
+  font-size: 0.85rem;
+  font-style: italic;
+  opacity: 0.4;
+}
+
+/* Chunk cards */
+
+.evidence-chunk {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 8px;
+  transition: border-color 0.15s;
+}
+
+.evidence-chunk:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.evidence-chunk.fidelity-high {
+  border-left: 3px solid #4caf50;
+}
+
+.evidence-chunk.fidelity-medium {
+  border-left: 3px solid rgba(100, 108, 255, 0.6);
+}
+
+.evidence-chunk.fidelity-low {
+  border-left: 3px solid rgba(255, 193, 7, 0.5);
+}
+
+.chunk-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.fidelity-badge {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.fidelity-badge--high {
+  background-color: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+}
+
+.fidelity-badge--medium {
+  background-color: rgba(100, 108, 255, 0.15);
+  color: rgba(100, 108, 255, 0.9);
+}
+
+.fidelity-badge--low {
+  background-color: rgba(255, 193, 7, 0.15);
+  color: #ffc107;
+}
+
+.chunk-speaker {
+  font-size: 0.75rem;
+  font-weight: 600;
+  opacity: 0.6;
+}
+
+.chunk-time {
+  font-size: 0.7rem;
+  opacity: 0.4;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.chunk-content {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  border-left: 2px solid rgba(255, 255, 255, 0.1);
+  opacity: 0.8;
+  word-break: break-word;
+}
+
+.chunk-source {
+  font-size: 0.7rem;
+  opacity: 0.3;
+  margin-top: 4px;
+  text-align: right;
 }
 
 .evidence-labels ul {
@@ -630,5 +732,26 @@ body,
   .upload-badge--failed {
     background-color: rgba(244, 67, 54, 0.12);
     color: #d32f2f;
+  }
+  .evidence-chunk {
+    border-color: rgba(0, 0, 0, 0.1);
+  }
+  .evidence-chunk:hover {
+    border-color: rgba(0, 0, 0, 0.2);
+  }
+  .chunk-content {
+    border-left-color: rgba(0, 0, 0, 0.12);
+  }
+  .fidelity-badge--high {
+    background-color: rgba(76, 175, 80, 0.12);
+    color: #388e3c;
+  }
+  .fidelity-badge--medium {
+    background-color: rgba(100, 108, 255, 0.1);
+    color: #5c6bc0;
+  }
+  .fidelity-badge--low {
+    background-color: rgba(255, 193, 7, 0.12);
+    color: #e6a800;
   }
 }
