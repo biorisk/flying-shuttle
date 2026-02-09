@@ -243,6 +243,109 @@ body,
   border-radius: 2px;
 }
 
+/* Ghost trigger (hover + icon on each bullet) */
+
+.ghost-trigger {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+
+.bullet-row:hover .ghost-trigger,
+.bullet-row.focused .ghost-trigger {
+  opacity: 0.3;
+}
+
+.ghost-trigger:hover {
+  opacity: 0.8 !important;
+}
+
+/* --- Ghost Sub-List (proposals) --- */
+
+.ghost-sublist {
+  padding: 2px 0 4px;
+}
+
+.ghost-loading {
+  font-size: 0.8rem;
+  font-style: italic;
+  opacity: 0.3;
+  padding: 2px 24px;
+}
+
+.ghost-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  margin-bottom: 2px;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.ghost-item:hover {
+  opacity: 0.8;
+  border-color: rgba(100, 108, 255, 0.3);
+}
+
+.ghost-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: currentColor;
+  opacity: 0.2;
+  flex-shrink: 0;
+  margin: 0 4px;
+}
+
+.ghost-label {
+  flex: 1;
+  font-size: 0.85rem;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.5);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ghost-meta {
+  font-size: 0.75rem;
+  opacity: 0.4;
+  flex-shrink: 0;
+}
+
+.ghost-accept,
+.ghost-dismiss {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 0 3px;
+  opacity: 0.3;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+
+.ghost-accept:hover {
+  opacity: 1;
+  color: #4caf50;
+}
+
+.ghost-dismiss:hover {
+  opacity: 1;
+  color: #f44336;
+}
+
 /* --- Evidence Drawer --- */
 
 .evidence-drawer h3 {
@@ -326,5 +429,14 @@ body,
   }
   .evidence-labels code {
     background-color: rgba(0, 0, 0, 0.06);
+  }
+  .ghost-item {
+    border-color: rgba(0, 0, 0, 0.12);
+  }
+  .ghost-item:hover {
+    border-color: rgba(100, 108, 255, 0.25);
+  }
+  .ghost-label {
+    color: rgba(0, 0, 0, 0.4);
   }
 }
