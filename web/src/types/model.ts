@@ -85,6 +85,11 @@ export interface TranscriptSegment {
   created_at: string;
 }
 
+export interface SearchResult {
+  chunk_id: string;
+  score: number;
+}
+
 // API envelope returned by all endpoints.
 export interface ApiResponse<T> {
   data?: T;

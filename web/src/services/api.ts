@@ -5,6 +5,7 @@ import type {
   Chunk,
   Edge,
   Node,
+  SearchResult,
   Thread,
   ThreadNode,
   TranscriptSegment,
@@ -103,6 +104,13 @@ export const uploads = {
   },
   segments: (id: string) =>
     request<TranscriptSegment[]>(`/uploads/${id}/segments`),
+};
+
+// --- Search ---
+
+export const search = {
+  query: (q: string, limit = 10) =>
+    request<SearchResult[]>(`/search?q=${encodeURIComponent(q)}&limit=${limit}`),
 };
 
 // --- DAG ---

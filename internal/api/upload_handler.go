@@ -11,6 +11,7 @@ import (
 
 	"github.com/biorisk/flying-shuttle/internal/ingest"
 	"github.com/biorisk/flying-shuttle/internal/model"
+	"github.com/biorisk/flying-shuttle/internal/search"
 	"github.com/biorisk/flying-shuttle/internal/store"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -21,6 +22,7 @@ type uploadHandler struct {
 	uploadDir  string
 	transcribe ingest.Transcriber
 	chunker    *ingest.Chunker
+	index      *search.HybridIndex
 }
 
 // list returns all uploads.
@@ -134,6 +136,9 @@ func (h *uploadHandler) transcribeAsync(uploadID, filePath string) {
 				_ = h.store.UpdateUploadStatus(uploadID, model.UploadStatusFailed, "store chunk: "+err.Error())
 				return
 			}
+			if h.index != nil {
+				h.index.IndexChunk(&chunks[i])
+			}
 		}
 	}
 
@@ -169,6 +174,9 @@ func (h *uploadHandler) rechunk(w http.ResponseWriter, r *http.Request) {
 		if err := h.store.CreateChunk(&chunks[i]); err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
+		}
+		if h.index != nil {
+			h.index.IndexChunk(&chunks[i])
 		}
 	}
 

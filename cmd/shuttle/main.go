@@ -11,6 +11,7 @@ import (
 
 	"github.com/biorisk/flying-shuttle/internal/api"
 	"github.com/biorisk/flying-shuttle/internal/ingest"
+	"github.com/biorisk/flying-shuttle/internal/search"
 	"github.com/biorisk/flying-shuttle/internal/store"
 )
 
@@ -36,7 +37,17 @@ func main() {
 	transcriber := &ingest.StubTranscriber{}
 	embedder := &ingest.StubEmbedder{}
 	chunker := &ingest.Chunker{Embedder: embedder}
-	router := api.NewRouter(s, uploadDir, transcriber, chunker)
+
+	// Build hybrid search index from existing chunks.
+	idx := search.NewHybridIndex(embedder)
+	existingChunks, err := s.ListChunks()
+	if err != nil {
+		log.Fatalf("load chunks for index: %v", err)
+	}
+	idx.IndexChunks(existingChunks)
+	log.Printf("indexed %d chunks", len(existingChunks))
+
+	router := api.NewRouter(s, uploadDir, transcriber, chunker, idx)
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      router,

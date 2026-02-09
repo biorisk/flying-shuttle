@@ -5,13 +5,14 @@ import (
 
 	"github.com/biorisk/flying-shuttle/internal/dag"
 	"github.com/biorisk/flying-shuttle/internal/ingest"
+	"github.com/biorisk/flying-shuttle/internal/search"
 	"github.com/biorisk/flying-shuttle/internal/store"
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
 )
 
 // NewRouter builds the chi router with all API routes.
-func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, chunker *ingest.Chunker) http.Handler {
+func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, chunker *ingest.Chunker, idx *search.HybridIndex) http.Handler {
 	r := chi.NewRouter()
 
 	// Global middleware
@@ -29,7 +30,8 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, 
 	nh := &nodeHandler{store: s}
 	eh := &edgeHandler{store: s}
 	th := &threadHandler{store: s}
-	uh := &uploadHandler{store: s, uploadDir: uploadDir, transcribe: transcriber, chunker: chunker}
+	uh := &uploadHandler{store: s, uploadDir: uploadDir, transcribe: transcriber, chunker: chunker, index: idx}
+	sh := &searchHandler{index: idx}
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(jsonContent)
@@ -87,6 +89,9 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, 
 				r.Post("/rechunk", uh.rechunk)
 			})
 		})
+
+		// Search
+		r.Get("/search", sh.query)
 
 		// DAG operations
 		r.Route("/dag", func(r chi.Router) {
