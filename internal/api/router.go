@@ -78,12 +78,12 @@ func NewRouter(s store.Store) http.Handler {
 		// DAG operations
 		r.Route("/dag", func(r chi.Router) {
 			r.Get("/validate", func(w http.ResponseWriter, r *http.Request) {
-				_, err := dag.TopologicalSort(s)
+				report, err := dag.ValidateGraph(s)
 				if err != nil {
-					writeJSON(w, http.StatusOK, map[string]any{"valid": false, "error": err.Error()})
+					writeError(w, http.StatusInternalServerError, err.Error())
 					return
 				}
-				writeJSON(w, http.StatusOK, map[string]any{"valid": true})
+				writeJSON(w, http.StatusOK, report)
 			})
 			r.Get("/roots", func(w http.ResponseWriter, r *http.Request) {
 				roots, err := dag.FindRoots(s)

@@ -34,6 +34,12 @@ func (h *edgeHandler) create(w http.ResponseWriter, r *http.Request) {
 		e.Type = model.EdgeTypeLinear
 	}
 
+	// Reject self-links.
+	if e.FromNode == e.ToNode {
+		writeError(w, http.StatusBadRequest, "self-links are not allowed")
+		return
+	}
+
 	// Validate acyclicity before creating.
 	cycle, err := dag.WouldCreateCycle(h.store, e.FromNode, e.ToNode)
 	if err != nil {

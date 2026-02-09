@@ -121,6 +121,86 @@ func TestTopologicalSort(t *testing.T) {
 	}
 }
 
+func TestValidateGraph_Clean(t *testing.T) {
+	s := newTestStore(t)
+
+	a := makeNode(t, s, "A")
+	b := makeNode(t, s, "B")
+	makeEdge(t, s, a.ID, b.ID)
+
+	report, err := ValidateGraph(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !report.Valid {
+		t.Fatalf("expected valid graph, got issues: %v", report.Issues)
+	}
+}
+
+func TestValidateGraph_SelfLink(t *testing.T) {
+	s := newTestStore(t)
+
+	a := makeNode(t, s, "A")
+	// Insert self-link directly via store (bypassing API validation).
+	e := &model.Edge{ID: uuid.NewString(), FromNode: a.ID, ToNode: a.ID, Type: model.EdgeTypeLinear}
+	if err := s.CreateEdge(e); err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := ValidateGraph(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Valid {
+		t.Fatal("expected invalid graph")
+	}
+	found := false
+	for _, issue := range report.Issues {
+		if issue.Type == "self_link" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected self_link issue, got: %v", report.Issues)
+	}
+}
+
+func TestValidateGraph_DanglingThreadRef(t *testing.T) {
+	s := newTestStore(t)
+
+	a := makeNode(t, s, "A")
+	th := &model.Thread{ID: uuid.NewString(), Name: "thread"}
+	if err := s.CreateThread(th); err != nil {
+		t.Fatal(err)
+	}
+	// Point thread at a valid node and a bogus node ID.
+	nodes := []model.ThreadNode{
+		{ThreadID: th.ID, NodeID: a.ID, Position: 0},
+		{ThreadID: th.ID, NodeID: "nonexistent-node-id", Position: 1},
+	}
+	if err := s.SetThreadNodes(th.ID, nodes); err != nil {
+		// FK constraint may block this in SQLite — if so, skip the test.
+		t.Skipf("FK constraint prevented dangling ref insertion: %v", err)
+	}
+
+	report, err := ValidateGraph(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Valid {
+		t.Fatal("expected invalid graph")
+	}
+	found := false
+	for _, issue := range report.Issues {
+		if issue.Type == "orphan_thread_ref" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected orphan_thread_ref issue, got: %v", report.Issues)
+	}
+}
+
 func TestLinearize(t *testing.T) {
 	s := newTestStore(t)
 
