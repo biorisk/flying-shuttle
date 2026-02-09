@@ -2,3 +2,12 @@
 !.beads/issues.jsonl
 !.beads/config.yaml
 !.beads/.gitignore
+
+# Go
+/bin/
+/vendor/
+
+# SQLite
+*.db
+*.db-shm
+*.db-wal
