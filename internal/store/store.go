@@ -22,6 +22,7 @@ type Store interface {
 	// Node ↔ Chunk associations
 	GetNodeChunks(nodeID string) ([]model.Chunk, error)
 	SetNodeChunks(nodeID string, chunkIDs []string) error
+	ListUsedChunkIDs() ([]string, error) // all chunk IDs associated with any node
 
 	// Edges
 	CreateEdge(e *model.Edge) error

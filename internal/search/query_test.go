@@ -107,6 +107,58 @@ func TestTranslate_limit(t *testing.T) {
 	}
 }
 
+func TestTranslate_excludeUsedChunks(t *testing.T) {
+	qt, ctx := setupTestTranslator()
+
+	// Get all results first.
+	all, err := qt.Translate(ctx, "hero", "", "", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(all) == 0 {
+		t.Fatal("expected results before exclusion")
+	}
+
+	// Exclude the first result's chunk.
+	excludeID := all[0].ChunkID
+	filtered, err := qt.TranslateWithOpts(ctx, TranslateOpts{
+		Title:      "hero",
+		Limit:      10,
+		ExcludeIDs: map[string]bool{excludeID: true},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range filtered {
+		if s.ChunkID == excludeID {
+			t.Fatalf("excluded chunk %s still appeared in results", excludeID)
+		}
+	}
+	if len(filtered) >= len(all) {
+		t.Fatalf("expected fewer results after exclusion: got %d vs %d", len(filtered), len(all))
+	}
+}
+
+func TestTranslate_excludeAll(t *testing.T) {
+	qt, ctx := setupTestTranslator()
+
+	// Exclude every chunk.
+	exclude := map[string]bool{
+		"c1": true, "c2": true, "c3": true, "c4": true, "c5": true,
+	}
+	results, err := qt.TranslateWithOpts(ctx, TranslateOpts{
+		Title:      "hero",
+		Limit:      10,
+		ExcludeIDs: exclude,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 0 {
+		t.Fatalf("expected 0 results when all excluded, got %d", len(results))
+	}
+}
+
 func TestExtractKeywords(t *testing.T) {
 	tests := []struct {
 		input, expected string

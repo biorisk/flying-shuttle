@@ -197,6 +197,59 @@ func TestNodeChunks(t *testing.T) {
 	}
 }
 
+func TestListUsedChunkIDs(t *testing.T) {
+	s := newTestStore(t)
+
+	// No used chunks initially.
+	used, err := s.ListUsedChunkIDs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(used) != 0 {
+		t.Fatalf("expected 0 used chunks, got %d", len(used))
+	}
+
+	// Create nodes and chunks, then associate.
+	n1 := &model.Node{ID: uuid.NewString(), Type: model.NodeTypeChunkRef, Title: "ref1"}
+	n2 := &model.Node{ID: uuid.NewString(), Type: model.NodeTypeChunkRef, Title: "ref2"}
+	s.CreateNode(n1)
+	s.CreateNode(n2)
+
+	c1 := &model.Chunk{ID: uuid.NewString(), SourceFile: "a.txt", Content: "aaa", EndOffset: 3}
+	c2 := &model.Chunk{ID: uuid.NewString(), SourceFile: "b.txt", Content: "bbb", EndOffset: 3}
+	c3 := &model.Chunk{ID: uuid.NewString(), SourceFile: "c.txt", Content: "ccc", EndOffset: 3}
+	s.CreateChunk(c1)
+	s.CreateChunk(c2)
+	s.CreateChunk(c3)
+
+	// Associate c1 and c2 with n1, c2 with n2 (c2 used by both, c3 unused).
+	s.SetNodeChunks(n1.ID, []string{c1.ID, c2.ID})
+	s.SetNodeChunks(n2.ID, []string{c2.ID})
+
+	used, err = s.ListUsedChunkIDs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	usedSet := make(map[string]bool)
+	for _, id := range used {
+		usedSet[id] = true
+	}
+
+	if !usedSet[c1.ID] {
+		t.Fatal("expected c1 to be used")
+	}
+	if !usedSet[c2.ID] {
+		t.Fatal("expected c2 to be used")
+	}
+	if usedSet[c3.ID] {
+		t.Fatal("expected c3 to NOT be used")
+	}
+	// DISTINCT — c2 should appear only once.
+	if len(used) != 2 {
+		t.Fatalf("expected 2 distinct used chunks, got %d", len(used))
+	}
+}
+
 func TestThreadNodes(t *testing.T) {
 	s := newTestStore(t)
 

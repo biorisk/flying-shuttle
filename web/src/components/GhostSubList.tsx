@@ -35,6 +35,10 @@ export default function GhostSubList({ nodeId, depth }: GhostSubListProps) {
               _sourceProposal: proposal.id,
             },
           });
+          // Associate chunks with the node so they're tracked as "used".
+          if (proposal.chunkIds.length > 0) {
+            await nodesApi.setChunks(newId, proposal.chunkIds);
+          }
           await fetchOutline();
         }
       }

@@ -19,9 +19,34 @@ type QueryTranslator struct {
 	Index *HybridIndex
 }
 
+// TranslateOpts configures a Translate call.
+type TranslateOpts struct {
+	Title       string
+	Body        string
+	ParentTitle string
+	Limit       int
+	// ExcludeIDs is a set of chunk IDs to omit from results (already used).
+	ExcludeIDs map[string]bool
+}
+
 // Translate takes a node's title and optional body/context, generates multiple
 // query variants, searches the hybrid index with each, and merges results.
+// Deprecated: use TranslateWithOpts for exclusion support.
 func (qt *QueryTranslator) Translate(ctx context.Context, title, body, parentTitle string, limit int) ([]Suggestion, error) {
+	return qt.TranslateWithOpts(ctx, TranslateOpts{
+		Title:       title,
+		Body:        body,
+		ParentTitle: parentTitle,
+		Limit:       limit,
+	})
+}
+
+// TranslateWithOpts is the full-featured translation with exclusion support.
+func (qt *QueryTranslator) TranslateWithOpts(ctx context.Context, opts TranslateOpts) ([]Suggestion, error) {
+	title := opts.Title
+	body := opts.Body
+	parentTitle := opts.ParentTitle
+	limit := opts.Limit
 	if limit <= 0 {
 		limit = 5
 	}
@@ -44,6 +69,18 @@ func (qt *QueryTranslator) Translate(ctx context.Context, title, body, parentTit
 
 	// Fuse across all query variants.
 	fused := reciprocalRankFusionK(60, allResults...)
+
+	// Filter out already-used chunks.
+	if len(opts.ExcludeIDs) > 0 {
+		filtered := fused[:0]
+		for _, r := range fused {
+			if !opts.ExcludeIDs[r.ChunkID] {
+				filtered = append(filtered, r)
+			}
+		}
+		fused = filtered
+	}
+
 	if len(fused) > limit {
 		fused = fused[:limit]
 	}

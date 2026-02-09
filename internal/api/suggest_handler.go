@@ -15,6 +15,7 @@ type suggestHandler struct {
 }
 
 // suggest translates a node's content into chunk suggestions via the hybrid index.
+// Already-used chunks (associated with any node) are excluded from results.
 func (h *suggestHandler) suggest(w http.ResponseWriter, r *http.Request) {
 	nodeID := chi.URLParam(r, "id")
 	node, err := h.store.GetNode(nodeID)
@@ -40,7 +41,22 @@ func (h *suggestHandler) suggest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	suggestions, err := h.translator.Translate(r.Context(), node.Title, node.Body, parentTitle, limit)
+	// Build exclusion set from already-used chunks.
+	excludeIDs := make(map[string]bool)
+	usedIDs, err := h.store.ListUsedChunkIDs()
+	if err == nil {
+		for _, id := range usedIDs {
+			excludeIDs[id] = true
+		}
+	}
+
+	suggestions, err := h.translator.TranslateWithOpts(r.Context(), search.TranslateOpts{
+		Title:       node.Title,
+		Body:        node.Body,
+		ParentTitle: parentTitle,
+		Limit:       limit,
+		ExcludeIDs:  excludeIDs,
+	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

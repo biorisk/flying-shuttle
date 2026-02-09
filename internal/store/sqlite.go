@@ -212,6 +212,23 @@ func (s *SQLiteStore) SetNodeChunks(nodeID string, chunkIDs []string) error {
 	return tx.Commit()
 }
 
+func (s *SQLiteStore) ListUsedChunkIDs() ([]string, error) {
+	rows, err := s.db.Query(`SELECT DISTINCT chunk_id FROM node_chunks`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
 // --- Edges ---
 
 func (s *SQLiteStore) CreateEdge(e *model.Edge) error {
