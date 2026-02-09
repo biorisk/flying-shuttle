@@ -24,6 +24,9 @@ type Store interface {
 	SetNodeChunks(nodeID string, chunkIDs []string) error
 	ListUsedChunkIDs() ([]string, error) // all chunk IDs associated with any node
 
+	// Node move (atomic reparent + reorder)
+	MoveNode(nodeID, newParentID string, position int) error
+
 	// Edges
 	CreateEdge(e *model.Edge) error
 	GetEdge(id string) (*model.Edge, error)

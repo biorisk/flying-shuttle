@@ -48,6 +48,11 @@ export const nodes = {
     request<ChunkSuggestion[]>(
       `/nodes/${id}/suggest?limit=${limit}`,
     ),
+  move: (id: string, parentId: string | null, position: number) =>
+    request<void>(`/nodes/${id}/move`, {
+      method: "POST",
+      body: JSON.stringify({ parent_id: parentId ?? "", position }),
+    }),
 };
 
 // --- Edges ---

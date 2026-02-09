@@ -113,6 +113,23 @@ func (h *nodeHandler) setChunks(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *nodeHandler) move(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var body struct {
+		ParentID string `json:"parent_id"`
+		Position int    `json:"position"`
+	}
+	if err := decodeJSON(r, &body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+	if err := h.store.MoveNode(id, body.ParentID, body.Position); err != nil {
+		writeError(w, errorStatus(err), err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *nodeHandler) getEdges(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	edges, err := h.store.ListEdgesFrom(id)

@@ -24,6 +24,7 @@ interface OutlineState {
   addRoot: () => Promise<string | null>;
   indent: (nodeId: string) => Promise<void>;
   unindent: (nodeId: string) => Promise<void>;
+  moveNode: (nodeId: string, newParentId: string | null, position: number) => Promise<void>;
   updateTitle: (nodeId: string, title: string) => Promise<void>;
   removeNode: (nodeId: string) => Promise<void>;
   toggleLock: (nodeId: string) => Promise<void>;
@@ -264,6 +265,15 @@ export const useOutlineStore = create<OutlineState>((set, get) => ({
       }
       // If grandparent is root level, node becomes root (no edge needed).
 
+      await get().fetchOutline();
+    } catch (e) {
+      set({ error: (e as Error).message });
+    }
+  },
+
+  moveNode: async (nodeId: string, newParentId: string | null, position: number) => {
+    try {
+      await nodesApi.move(nodeId, newParentId, position);
       await get().fetchOutline();
     } catch (e) {
       set({ error: (e as Error).message });

@@ -55,6 +55,7 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, 
 				r.Get("/chunks", nh.getChunks)
 				r.Put("/chunks", nh.setChunks)
 				r.Get("/edges", nh.getEdges)
+				r.Post("/move", nh.move)
 				r.Get("/suggest", sgh.suggest)
 			})
 		})

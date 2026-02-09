@@ -1,15 +1,19 @@
 import { useCallback, useEffect, useRef } from "react";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
 import type { TreeNode } from "../stores/outlineStore";
 import { flattenTree, useOutlineStore } from "../stores/outlineStore";
 import { useNodeStore } from "../stores/nodeStore";
 import { useGhostStore } from "../stores/ghostStore";
 import GhostSubList from "./GhostSubList";
+import type { DropTarget } from "./LivingOutline";
 
 interface BulletItemProps {
   treeNode: TreeNode;
+  activeId: string | null;
+  dropTarget: DropTarget | null;
 }
 
-export default function BulletItem({ treeNode }: BulletItemProps) {
+export default function BulletItem({ treeNode, activeId, dropTarget }: BulletItemProps) {
   const { node, children, depth } = treeNode;
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -34,15 +38,43 @@ export default function BulletItem({ treeNode }: BulletItemProps) {
   const isFocused = focusId === node.id;
   const isLocked = node.locked;
   const chunkCount = node.labels?._chunkCount ? parseInt(node.labels._chunkCount, 10) : 0;
+  const isDragging = activeId === node.id;
+
+  // dnd-kit hooks
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDragRef,
+    transform,
+  } = useDraggable({ id: node.id });
+
+  const { setNodeRef: setDropRef } = useDroppable({ id: node.id });
+
+  // Combine refs for the bullet row.
+  const rowRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      setDragRef(el);
+      setDropRef(el);
+    },
+    [setDragRef, setDropRef]
+  );
+
+  // Determine which drop indicator to show.
+  const showDropBefore =
+    dropTarget?.nodeId === node.id && dropTarget.zone === "before";
+  const showDropAfter =
+    dropTarget?.nodeId === node.id && dropTarget.zone === "after";
+  const showDropChild =
+    dropTarget?.nodeId === node.id && dropTarget.zone === "child";
 
   // Auto-focus when this bullet becomes the focus target.
   useEffect(() => {
-    if (isFocused && inputRef.current) {
+    if (isFocused && inputRef.current && !isDragging) {
       inputRef.current.focus();
       const len = inputRef.current.value.length;
       inputRef.current.setSelectionRange(len, len);
     }
-  }, [isFocused]);
+  }, [isFocused, isDragging]);
 
   // Ambient fetch: load proposals when bullet is focused and has content.
   useEffect(() => {
@@ -144,13 +176,33 @@ export default function BulletItem({ treeNode }: BulletItemProps) {
     "bullet-row",
     isFocused ? "focused" : "",
     isLocked ? "locked" : "",
+    isDragging ? "dragging" : "",
+    showDropChild ? "drop-child" : "",
   ]
     .filter(Boolean)
     .join(" ");
 
+  const dragStyle = transform
+    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
+    : undefined;
+
   return (
     <div className="bullet-tree-node">
-      <div className={bulletRowClass} style={{ paddingLeft: depth * 24 }}>
+      {showDropBefore && (
+        <div
+          className="drop-indicator"
+          style={{ marginLeft: depth * 24 + 24 }}
+        />
+      )}
+      <div
+        ref={rowRef}
+        className={bulletRowClass}
+        style={{ paddingLeft: depth * 24, ...dragStyle }}
+        {...attributes}
+      >
+        <span className="drag-handle" {...listeners} title="Drag to reorder">
+          &#x2630;
+        </span>
         {hasChildren ? (
           <button
             className="bullet-toggle"
@@ -209,11 +261,22 @@ export default function BulletItem({ treeNode }: BulletItemProps) {
           </>
         )}
       </div>
+      {showDropAfter && (
+        <div
+          className="drop-indicator"
+          style={{ marginLeft: depth * 24 + 24 }}
+        />
+      )}
       {!isLocked && <GhostSubList nodeId={node.id} depth={depth} />}
       {hasChildren && !isCollapsed && (
         <div className="bullet-children">
           {children.map((child) => (
-            <BulletItem key={child.node.id} treeNode={child} />
+            <BulletItem
+              key={child.node.id}
+              treeNode={child}
+              activeId={activeId}
+              dropTarget={dropTarget}
+            />
           ))}
         </div>
       )}

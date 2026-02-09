@@ -507,6 +507,83 @@ body,
   color: #f44336;
 }
 
+/* --- Drag and Drop --- */
+
+.drag-handle {
+  cursor: grab;
+  opacity: 0;
+  font-size: 0.7rem;
+  padding: 0 2px;
+  line-height: 1;
+  flex-shrink: 0;
+  user-select: none;
+  transition: opacity 0.15s;
+}
+
+.bullet-row:hover .drag-handle {
+  opacity: 0.3;
+}
+
+.drag-handle:hover {
+  opacity: 0.7 !important;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.bullet-row.dragging {
+  opacity: 0.3;
+}
+
+.bullet-row.drop-child {
+  outline: 2px solid rgba(100, 108, 255, 0.5);
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+.drop-indicator {
+  height: 2px;
+  background-color: rgba(100, 108, 255, 0.7);
+  border-radius: 1px;
+  margin: -1px 0;
+  position: relative;
+  z-index: 10;
+}
+
+.drop-indicator::before {
+  content: "";
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: rgba(100, 108, 255, 0.7);
+}
+
+.drag-overlay {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  background-color: rgba(30, 30, 40, 0.95);
+  border: 1px solid rgba(100, 108, 255, 0.4);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  white-space: nowrap;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drag-overlay-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* --- Evidence Drawer --- */
 
 .evidence-drawer {
@@ -732,6 +809,11 @@ body,
   .upload-badge--failed {
     background-color: rgba(244, 67, 54, 0.12);
     color: #d32f2f;
+  }
+  .drag-overlay {
+    background-color: rgba(255, 255, 255, 0.95);
+    border-color: rgba(100, 108, 255, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   }
   .evidence-chunk {
     border-color: rgba(0, 0, 0, 0.1);

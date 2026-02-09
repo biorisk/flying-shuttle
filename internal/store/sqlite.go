@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/biorisk/flying-shuttle/internal/model"
+	"github.com/google/uuid"
 	_ "modernc.org/sqlite"
 )
 
@@ -227,6 +228,52 @@ func (s *SQLiteStore) ListUsedChunkIDs() ([]string, error) {
 		ids = append(ids, id)
 	}
 	return ids, rows.Err()
+}
+
+// --- Node Move ---
+
+// MoveNode atomically moves a node to a new parent at a given sibling position.
+// If newParentID is empty, the node becomes a root (no incoming linear edge).
+func (s *SQLiteStore) MoveNode(nodeID, newParentID string, position int) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// 1. Delete all incoming linear edges to this node.
+	if _, err := tx.Exec(
+		`DELETE FROM edges WHERE to_node = ? AND type = 'linear'`, nodeID,
+	); err != nil {
+		return err
+	}
+
+	// 2. If reparenting (not becoming root), create a new edge.
+	if newParentID != "" {
+		now := time.Now().UTC()
+		newID := uuid.NewString()
+
+		// Reweight existing children of the new parent: shift those at position
+		// or later up by 1 to make room.
+		if _, err := tx.Exec(
+			`UPDATE edges SET weight = weight + 1
+			 WHERE from_node = ? AND type = 'linear' AND weight >= ?`,
+			newParentID, position,
+		); err != nil {
+			return err
+		}
+
+		if _, err := tx.Exec(
+			`INSERT INTO edges (id, from_node, to_node, type, condition, weight, created_at)
+			 VALUES (?, ?, ?, 'linear', NULL, ?, ?)`,
+			newID, newParentID, nodeID, position,
+			now.Format(time.RFC3339Nano),
+		); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
 }
 
 // --- Edges ---

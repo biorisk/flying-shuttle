@@ -250,6 +250,100 @@ func TestListUsedChunkIDs(t *testing.T) {
 	}
 }
 
+func TestMoveNode_reorderSiblings(t *testing.T) {
+	s := newTestStore(t)
+
+	parent := &model.Node{ID: uuid.NewString(), Type: model.NodeTypeOutline, Title: "Parent"}
+	a := &model.Node{ID: uuid.NewString(), Type: model.NodeTypeOutline, Title: "A"}
+	b := &model.Node{ID: uuid.NewString(), Type: model.NodeTypeOutline, Title: "B"}
+	c := &model.Node{ID: uuid.NewString(), Type: model.NodeTypeOutline, Title: "C"}
+	s.CreateNode(parent)
+	s.CreateNode(a)
+	s.CreateNode(b)
+	s.CreateNode(c)
+
+	// Parent -> A(0), B(1), C(2)
+	s.CreateEdge(&model.Edge{ID: uuid.NewString(), FromNode: parent.ID, ToNode: a.ID, Type: model.EdgeTypeLinear, Weight: 0})
+	s.CreateEdge(&model.Edge{ID: uuid.NewString(), FromNode: parent.ID, ToNode: b.ID, Type: model.EdgeTypeLinear, Weight: 1})
+	s.CreateEdge(&model.Edge{ID: uuid.NewString(), FromNode: parent.ID, ToNode: c.ID, Type: model.EdgeTypeLinear, Weight: 2})
+
+	// Move C to position 0 (before A).
+	if err := s.MoveNode(c.ID, parent.ID, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	edges, err := s.ListEdgesFrom(parent.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(edges) != 3 {
+		t.Fatalf("expected 3 edges, got %d", len(edges))
+	}
+	// Order should be C(0), A(1), B(2).
+	order := make(map[string]int)
+	for _, e := range edges {
+		order[e.ToNode] = e.Weight
+	}
+	if order[c.ID] != 0 {
+		t.Fatalf("expected C at 0, got %d", order[c.ID])
+	}
+	if order[a.ID] < order[c.ID] {
+		t.Fatalf("expected A after C")
+	}
+}
+
+func TestMoveNode_reparent(t *testing.T) {
+	s := newTestStore(t)
+
+	p1 := &model.Node{ID: uuid.NewString(), Type: model.NodeTypeOutline, Title: "P1"}
+	p2 := &model.Node{ID: uuid.NewString(), Type: model.NodeTypeOutline, Title: "P2"}
+	child := &model.Node{ID: uuid.NewString(), Type: model.NodeTypeOutline, Title: "Child"}
+	s.CreateNode(p1)
+	s.CreateNode(p2)
+	s.CreateNode(child)
+
+	s.CreateEdge(&model.Edge{ID: uuid.NewString(), FromNode: p1.ID, ToNode: child.ID, Type: model.EdgeTypeLinear, Weight: 0})
+
+	// Move child from P1 to P2.
+	if err := s.MoveNode(child.ID, p2.ID, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	// P1 should have no children.
+	from1, _ := s.ListEdgesFrom(p1.ID)
+	if len(from1) != 0 {
+		t.Fatalf("expected 0 edges from P1, got %d", len(from1))
+	}
+
+	// P2 should have 1 child.
+	from2, _ := s.ListEdgesFrom(p2.ID)
+	if len(from2) != 1 || from2[0].ToNode != child.ID {
+		t.Fatalf("expected child under P2, got %v", from2)
+	}
+}
+
+func TestMoveNode_toRoot(t *testing.T) {
+	s := newTestStore(t)
+
+	parent := &model.Node{ID: uuid.NewString(), Type: model.NodeTypeOutline, Title: "Parent"}
+	child := &model.Node{ID: uuid.NewString(), Type: model.NodeTypeOutline, Title: "Child"}
+	s.CreateNode(parent)
+	s.CreateNode(child)
+
+	s.CreateEdge(&model.Edge{ID: uuid.NewString(), FromNode: parent.ID, ToNode: child.ID, Type: model.EdgeTypeLinear, Weight: 0})
+
+	// Move child to root (empty parentID).
+	if err := s.MoveNode(child.ID, "", 0); err != nil {
+		t.Fatal(err)
+	}
+
+	// No incoming edges to child.
+	to, _ := s.ListEdgesTo(child.ID)
+	if len(to) != 0 {
+		t.Fatalf("expected 0 incoming edges, got %d", len(to))
+	}
+}
+
 func TestThreadNodes(t *testing.T) {
 	s := newTestStore(t)
 
