@@ -38,3 +38,12 @@ bd sync               # Sync with git
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
 
+# Flying Shuttle Architecture Baseline
+- **Concept**: A DAG-based writing engine for transforming audio transcriptions into books by writing an outline and finding existing text that fills in outline.
+- **Data Model**: Directed Acyclic Graph (DAG) for non-linear and multi-linear narratives.
+- **Stack**: Go (Backend), React (Frontend), qwen3-embedding (Vectors), BM25 (Lexical).
+- **Core Principles**:
+  - Immutability: Never alter raw transcript chunks.
+  - Synthesis: AI only provides "glue" text between chunks.
+  - Audience Threads: Separate paths allow audiences to read different chapter sequences through the DAG.
+- **Workflow**: Outline nodes -> Retrieval (Hybrid) -> Locked Bullets -> Synthesis.
