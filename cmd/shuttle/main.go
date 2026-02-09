@@ -10,12 +10,14 @@ import (
 	"time"
 
 	"github.com/biorisk/flying-shuttle/internal/api"
+	"github.com/biorisk/flying-shuttle/internal/ingest"
 	"github.com/biorisk/flying-shuttle/internal/store"
 )
 
 func main() {
 	dbPath := env("SHUTTLE_DB", "shuttle.db")
 	addr := env("SHUTTLE_ADDR", ":8080")
+	uploadDir := env("SHUTTLE_UPLOAD_DIR", "uploads")
 
 	s, err := store.NewSQLiteStore(dbPath)
 	if err != nil {
@@ -27,7 +29,12 @@ func main() {
 		log.Fatalf("migrate: %v", err)
 	}
 
-	router := api.NewRouter(s)
+	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
+		log.Fatalf("create upload dir: %v", err)
+	}
+
+	transcriber := &ingest.StubTranscriber{}
+	router := api.NewRouter(s, uploadDir, transcriber)
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      router,

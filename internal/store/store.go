@@ -41,4 +41,14 @@ type Store interface {
 	// Thread ↔ Node ordering
 	GetThreadNodes(threadID string) ([]model.ThreadNode, error)
 	SetThreadNodes(threadID string, nodes []model.ThreadNode) error
+
+	// Uploads
+	CreateUpload(u *model.Upload) error
+	GetUpload(id string) (*model.Upload, error)
+	ListUploads() ([]model.Upload, error)
+	UpdateUploadStatus(id string, status model.UploadStatus, errMsg string) error
+
+	// Transcript segments
+	CreateTranscriptSegment(seg *model.TranscriptSegment) error
+	ListTranscriptSegments(uploadID string) ([]model.TranscriptSegment, error)
 }

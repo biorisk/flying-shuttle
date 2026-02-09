@@ -42,12 +42,18 @@ func NewSQLiteStore(dsn string) (*SQLiteStore, error) {
 func (s *SQLiteStore) Close() error { return s.db.Close() }
 
 func (s *SQLiteStore) Migrate() error {
-	data, err := migrationFS.ReadFile("migrations/001_initial_schema.sql")
-	if err != nil {
-		return fmt.Errorf("read migration: %w", err)
+	migrations := []string{
+		"migrations/001_initial_schema.sql",
+		"migrations/002_uploads.sql",
 	}
-	if _, err := s.db.Exec(string(data)); err != nil {
-		return fmt.Errorf("exec migration: %w", err)
+	for _, name := range migrations {
+		data, err := migrationFS.ReadFile(name)
+		if err != nil {
+			return fmt.Errorf("read %s: %w", name, err)
+		}
+		if _, err := s.db.Exec(string(data)); err != nil {
+			return fmt.Errorf("exec %s: %w", name, err)
+		}
 	}
 	return nil
 }
@@ -477,6 +483,111 @@ func scanThread(s scanner) (*model.Thread, error) {
 }
 
 func scanThreadRows(r *sql.Rows) (*model.Thread, error) { return scanThread(r) }
+
+// --- Uploads ---
+
+func (s *SQLiteStore) CreateUpload(u *model.Upload) error {
+	now := time.Now().UTC()
+	u.Status = model.UploadStatusPending
+	u.CreatedAt = now
+	u.UpdatedAt = now
+	_, err := s.db.Exec(
+		`INSERT INTO uploads (id, filename, format, size_bytes, status, error, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		u.ID, u.Filename, u.Format, u.SizeBytes, string(u.Status), u.Error,
+		now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano),
+	)
+	return err
+}
+
+func (s *SQLiteStore) GetUpload(id string) (*model.Upload, error) {
+	row := s.db.QueryRow(
+		`SELECT id, filename, format, size_bytes, status, error, created_at, updated_at FROM uploads WHERE id = ?`, id)
+	return scanUpload(row)
+}
+
+func (s *SQLiteStore) ListUploads() ([]model.Upload, error) {
+	rows, err := s.db.Query(
+		`SELECT id, filename, format, size_bytes, status, error, created_at, updated_at FROM uploads ORDER BY created_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []model.Upload
+	for rows.Next() {
+		u, err := scanUpload(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *u)
+	}
+	return out, rows.Err()
+}
+
+func (s *SQLiteStore) UpdateUploadStatus(id string, status model.UploadStatus, errMsg string) error {
+	now := time.Now().UTC()
+	res, err := s.db.Exec(
+		`UPDATE uploads SET status=?, error=?, updated_at=? WHERE id=?`,
+		string(status), errMsg, now.Format(time.RFC3339Nano), id,
+	)
+	if err != nil {
+		return err
+	}
+	affected, _ := res.RowsAffected()
+	if affected == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// --- Transcript Segments ---
+
+func (s *SQLiteStore) CreateTranscriptSegment(seg *model.TranscriptSegment) error {
+	now := time.Now().UTC()
+	seg.CreatedAt = now
+	_, err := s.db.Exec(
+		`INSERT INTO transcript_segments (id, upload_id, speaker, text, start_ms, end_ms, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		seg.ID, seg.UploadID, seg.Speaker, seg.Text, seg.StartMs, seg.EndMs,
+		now.Format(time.RFC3339Nano),
+	)
+	return err
+}
+
+func (s *SQLiteStore) ListTranscriptSegments(uploadID string) ([]model.TranscriptSegment, error) {
+	rows, err := s.db.Query(
+		`SELECT id, upload_id, speaker, text, start_ms, end_ms, created_at
+		 FROM transcript_segments WHERE upload_id = ? ORDER BY start_ms`, uploadID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []model.TranscriptSegment
+	for rows.Next() {
+		var seg model.TranscriptSegment
+		var ts string
+		if err := rows.Scan(&seg.ID, &seg.UploadID, &seg.Speaker, &seg.Text, &seg.StartMs, &seg.EndMs, &ts); err != nil {
+			return nil, err
+		}
+		seg.CreatedAt, _ = time.Parse(time.RFC3339Nano, ts)
+		out = append(out, seg)
+	}
+	return out, rows.Err()
+}
+
+func scanUpload(sc scanner) (*model.Upload, error) {
+	var u model.Upload
+	var createdAt, updatedAt string
+	if err := sc.Scan(&u.ID, &u.Filename, &u.Format, &u.SizeBytes, &u.Status, &u.Error, &createdAt, &updatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	u.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAt)
+	u.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updatedAt)
+	return &u, nil
+}
 
 func boolToInt(b bool) int {
 	if b {

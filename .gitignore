@@ -11,3 +11,6 @@
 *.db
 *.db-shm
 *.db-wal
+
+# Uploaded audio files
+/uploads/

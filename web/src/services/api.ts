@@ -7,6 +7,8 @@ import type {
   Node,
   Thread,
   ThreadNode,
+  TranscriptSegment,
+  Upload,
   ValidationReport,
 } from "../types/model";
 
@@ -84,6 +86,23 @@ export const chunks = {
   get: (id: string) => request<Chunk>(`/chunks/${id}`),
   create: (chunk: Partial<Chunk>) =>
     request<Chunk>("/chunks", { method: "POST", body: JSON.stringify(chunk) }),
+};
+
+// --- Uploads ---
+
+export const uploads = {
+  list: () => request<Upload[]>("/uploads"),
+  get: (id: string) => request<Upload>(`/uploads/${id}`),
+  create: async (file: File): Promise<Upload> => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`${BASE}/uploads`, { method: "POST", body: form });
+    const body: ApiResponse<Upload> = await res.json();
+    if (body.error) throw new Error(body.error);
+    return body.data as Upload;
+  },
+  segments: (id: string) =>
+    request<TranscriptSegment[]>(`/uploads/${id}/segments`),
 };
 
 // --- DAG ---

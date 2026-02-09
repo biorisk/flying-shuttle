@@ -4,13 +4,14 @@ import (
 	"net/http"
 
 	"github.com/biorisk/flying-shuttle/internal/dag"
+	"github.com/biorisk/flying-shuttle/internal/ingest"
 	"github.com/biorisk/flying-shuttle/internal/store"
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
 )
 
 // NewRouter builds the chi router with all API routes.
-func NewRouter(s store.Store) http.Handler {
+func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber) http.Handler {
 	r := chi.NewRouter()
 
 	// Global middleware
@@ -28,6 +29,7 @@ func NewRouter(s store.Store) http.Handler {
 	nh := &nodeHandler{store: s}
 	eh := &edgeHandler{store: s}
 	th := &threadHandler{store: s}
+	uh := &uploadHandler{store: s, uploadDir: uploadDir, transcribe: transcriber}
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(jsonContent)
@@ -72,6 +74,16 @@ func NewRouter(s store.Store) http.Handler {
 				r.Get("/nodes", th.getNodes)
 				r.Put("/nodes", th.setNodes)
 				r.Get("/render", th.render)
+			})
+		})
+
+		// Uploads (multipart create, no JSON content-type override)
+		r.Route("/uploads", func(r chi.Router) {
+			r.Get("/", uh.list)
+			r.Post("/", uh.create)
+			r.Route("/{id}", func(r chi.Router) {
+				r.Get("/", uh.get)
+				r.Get("/segments", uh.listSegments)
 			})
 		})
 

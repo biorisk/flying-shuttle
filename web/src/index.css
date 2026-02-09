@@ -133,6 +133,104 @@ body,
   background-color: rgba(255, 255, 255, 0.06);
 }
 
+/* --- Audio Upload --- */
+
+.audio-upload-zone {
+  border: 2px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 16px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
+  margin-bottom: 12px;
+}
+
+.audio-upload-zone:hover {
+  border-color: rgba(100, 108, 255, 0.4);
+  background-color: rgba(100, 108, 255, 0.04);
+}
+
+.audio-upload-zone.dragging {
+  border-color: rgba(100, 108, 255, 0.6);
+  background-color: rgba(100, 108, 255, 0.08);
+}
+
+.upload-prompt {
+  font-size: 0.85rem;
+  opacity: 0.5;
+}
+
+.upload-prompt u {
+  text-decoration-color: rgba(100, 108, 255, 0.5);
+}
+
+.upload-status {
+  font-size: 0.85rem;
+  opacity: 0.6;
+  font-style: italic;
+}
+
+.upload-error {
+  display: block;
+  font-size: 0.8rem;
+  color: #f44336;
+  margin-top: 6px;
+}
+
+.section-heading {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.4;
+  margin: 12px 0 6px;
+  font-weight: 600;
+}
+
+.upload-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.upload-filename {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-badge {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.upload-badge--pending {
+  background-color: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+}
+
+.upload-badge--transcribing {
+  background-color: rgba(100, 108, 255, 0.2);
+  color: rgba(100, 108, 255, 0.9);
+}
+
+.upload-badge--done {
+  background-color: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+}
+
+.upload-badge--failed {
+  background-color: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+}
+
 /* --- Living Outline --- */
 
 .outline-empty {
@@ -509,5 +607,28 @@ body,
   }
   .ghost-label {
     color: rgba(0, 0, 0, 0.4);
+  }
+  .audio-upload-zone {
+    border-color: rgba(0, 0, 0, 0.15);
+  }
+  .audio-upload-zone:hover {
+    border-color: rgba(100, 108, 255, 0.3);
+    background-color: rgba(100, 108, 255, 0.04);
+  }
+  .audio-upload-zone.dragging {
+    border-color: rgba(100, 108, 255, 0.5);
+    background-color: rgba(100, 108, 255, 0.06);
+  }
+  .upload-badge--pending {
+    background-color: rgba(255, 193, 7, 0.15);
+    color: #e6a800;
+  }
+  .upload-badge--done {
+    background-color: rgba(76, 175, 80, 0.12);
+    color: #388e3c;
+  }
+  .upload-badge--failed {
+    background-color: rgba(244, 67, 54, 0.12);
+    color: #d32f2f;
   }
 }

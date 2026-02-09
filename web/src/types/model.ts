@@ -62,6 +62,29 @@ export interface ValidationIssue {
   id: string;
 }
 
+export type UploadStatus = "pending" | "transcribing" | "done" | "failed";
+
+export interface Upload {
+  id: string;
+  filename: string;
+  format: string;
+  size_bytes: number;
+  status: UploadStatus;
+  error?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TranscriptSegment {
+  id: string;
+  upload_id: string;
+  speaker: string;
+  text: string;
+  start_ms: number;
+  end_ms: number;
+  created_at: string;
+}
+
 // API envelope returned by all endpoints.
 export interface ApiResponse<T> {
   data?: T;
