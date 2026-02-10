@@ -6,6 +6,7 @@ import { useNodeStore } from "../stores/nodeStore";
 import { useGhostStore } from "../stores/ghostStore";
 import { useThreadStore } from "../stores/threadStore";
 import GhostSubList from "./GhostSubList";
+import ExitWidget from "./ExitWidget";
 import type { DropTarget } from "./LivingOutline";
 
 interface BulletItemProps {
@@ -311,6 +312,7 @@ export default function BulletItem({ treeNode, activeId, dropTarget, threadActiv
         />
       )}
       {!isLocked && <GhostSubList nodeId={node.id} depth={depth} />}
+      {isLocked && <ExitWidget nodeId={node.id} depth={depth} />}
       {hasChildren && !isCollapsed && (
         <div className="bullet-children">
           {children.map((child) => (

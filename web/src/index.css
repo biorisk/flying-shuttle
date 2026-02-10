@@ -616,6 +616,163 @@ body,
   color: rgba(100, 108, 255, 0.9);
 }
 
+/* --- CYOA Exit Widget --- */
+
+.exit-widget {
+  padding: 4px 0;
+}
+
+.exit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 4px;
+}
+
+.exit-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.exit-item--linear {
+  border-left: 2px solid rgba(76, 175, 80, 0.5);
+}
+
+.exit-item--branch {
+  border-left: 2px solid rgba(100, 108, 255, 0.5);
+}
+
+.exit-type-badge {
+  font-size: 0.7rem;
+  opacity: 0.5;
+}
+
+.exit-target {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.exit-condition {
+  font-size: 0.6rem;
+  opacity: 0.4;
+  font-style: italic;
+}
+
+.exit-remove-btn {
+  background: none;
+  border: none;
+  color: inherit;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 0.6rem;
+  padding: 0 2px;
+  transition: opacity 0.15s;
+}
+
+.exit-item:hover .exit-remove-btn {
+  opacity: 0.5;
+}
+
+.exit-remove-btn:hover {
+  opacity: 1 !important;
+  color: #f44336;
+}
+
+.exit-proposals {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.exit-proposals-label {
+  font-size: 0.6rem;
+  opacity: 0.4;
+}
+
+.exit-proposal-btn {
+  background: rgba(100, 108, 255, 0.08);
+  border: 1px solid rgba(100, 108, 255, 0.15);
+  color: inherit;
+  font-size: 0.65rem;
+  padding: 1px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.exit-proposal-btn:hover {
+  opacity: 1;
+  border-color: rgba(100, 108, 255, 0.4);
+}
+
+.exit-add-btn {
+  background: none;
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  color: inherit;
+  opacity: 0.3;
+  font-size: 0.7rem;
+  padding: 1px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.exit-add-btn:hover {
+  opacity: 0.6;
+}
+
+.exit-add-form {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.exit-type-select,
+.exit-target-select {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: inherit;
+  font-size: 0.7rem;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.exit-target-select {
+  flex: 1;
+  max-width: 200px;
+}
+
+.exit-confirm-btn,
+.exit-cancel-btn {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.75rem;
+  opacity: 0.5;
+  padding: 2px 4px;
+}
+
+.exit-confirm-btn:hover {
+  opacity: 1;
+  color: #4caf50;
+}
+
+.exit-cancel-btn:hover {
+  opacity: 1;
+  color: #f44336;
+}
+
 /* --- Thread Brush --- */
 
 .thread-brush-btn {
@@ -1189,6 +1346,17 @@ body,
   .bullet-row.brush-painted {
     background-color: rgba(255, 152, 0, 0.08);
     border-left-color: rgba(255, 152, 0, 0.5);
+  }
+  .exit-item {
+    background: rgba(0, 0, 0, 0.02);
+  }
+  .exit-type-select,
+  .exit-target-select {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.15);
+  }
+  .exit-add-btn {
+    border-color: rgba(0, 0, 0, 0.15);
   }
   .center-tab:hover {
     background-color: rgba(0, 0, 0, 0.05);
