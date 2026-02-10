@@ -39,6 +39,9 @@ export default function BulletItem({ treeNode, activeId, dropTarget, threadActiv
   const toggleNodeInThread = useThreadStore((s) => s.toggleNodeInThread);
   const threadSelected = useThreadStore((s) => s.selected);
   const threadNodeIds = useThreadStore((s) => s.threadNodeIds);
+  const brushMode = useThreadStore((s) => s.brushMode);
+  const brushOrder = useThreadStore((s) => s.brushOrder);
+  const brushPaint = useThreadStore((s) => s.brushPaint);
 
   const isCollapsed = collapsed[node.id] ?? false;
   const hasChildren = children.length > 0;
@@ -47,6 +50,8 @@ export default function BulletItem({ treeNode, activeId, dropTarget, threadActiv
   const chunkCount = node.labels?._chunkCount ? parseInt(node.labels._chunkCount, 10) : 0;
   const isDragging = activeId === node.id;
   const contextWarning = contextWarnings[node.id] ?? null;
+  const brushIndex = brushMode ? brushOrder.indexOf(node.id) : -1;
+  const isPainted = brushIndex >= 0;
 
   // dnd-kit hooks
   const {
@@ -170,9 +175,13 @@ export default function BulletItem({ treeNode, activeId, dropTarget, threadActiv
   }, [node.id, node.title, updateTitle]);
 
   const handleClick = useCallback(() => {
+    if (brushMode && threadSelected) {
+      brushPaint(node.id);
+      return;
+    }
     selectNode(node.id);
     setFocus(node.id);
-  }, [node.id, selectNode, setFocus]);
+  }, [node.id, selectNode, setFocus, brushMode, threadSelected, brushPaint]);
 
   const handleTriggerGhosts = useCallback(() => {
     const value = inputRef.current?.value ?? node.title;
@@ -188,6 +197,8 @@ export default function BulletItem({ treeNode, activeId, dropTarget, threadActiv
     showDropChild ? "drop-child" : "",
     threadActive === false ? "thread-dimmed" : "",
     threadActive === true ? "thread-active" : "",
+    brushMode && isPainted ? "brush-painted" : "",
+    brushMode ? "brush-mode" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -223,6 +234,9 @@ export default function BulletItem({ treeNode, activeId, dropTarget, threadActiv
           </button>
         ) : (
           <span className={`bullet-dot ${isLocked ? "locked" : ""}`} />
+        )}
+        {brushMode && isPainted && (
+          <span className="brush-order-badge">{brushIndex + 1}</span>
         )}
         <input
           ref={inputRef}

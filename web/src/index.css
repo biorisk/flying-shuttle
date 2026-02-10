@@ -616,6 +616,54 @@ body,
   color: rgba(100, 108, 255, 0.9);
 }
 
+/* --- Thread Brush --- */
+
+.thread-brush-btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: inherit;
+  font-size: 0.75rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.15s, background-color 0.15s;
+}
+
+.thread-brush-btn:hover {
+  opacity: 0.8;
+}
+
+.thread-brush-btn.active {
+  opacity: 1;
+  background-color: rgba(255, 152, 0, 0.2);
+  border-color: rgba(255, 152, 0, 0.4);
+}
+
+.bullet-row.brush-mode {
+  cursor: crosshair;
+}
+
+.bullet-row.brush-painted {
+  background-color: rgba(255, 152, 0, 0.1);
+  border-left: 3px solid rgba(255, 152, 0, 0.6);
+}
+
+.brush-order-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  border-radius: 50%;
+  background: rgba(255, 152, 0, 0.8);
+  color: #fff;
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+
 /* --- Context Warning Badge --- */
 
 .context-warning {
@@ -1130,6 +1178,17 @@ body,
     background: rgba(255, 100, 50, 0.1);
     color: #d84315;
     border-color: rgba(255, 100, 50, 0.25);
+  }
+  .thread-brush-btn {
+    border-color: rgba(0, 0, 0, 0.15);
+  }
+  .thread-brush-btn.active {
+    background-color: rgba(255, 152, 0, 0.15);
+    border-color: rgba(255, 152, 0, 0.3);
+  }
+  .bullet-row.brush-painted {
+    background-color: rgba(255, 152, 0, 0.08);
+    border-left-color: rgba(255, 152, 0, 0.5);
   }
   .center-tab:hover {
     background-color: rgba(0, 0, 0, 0.05);

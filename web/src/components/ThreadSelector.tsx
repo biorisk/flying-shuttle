@@ -7,10 +7,12 @@ export default function ThreadSelector() {
     threads,
     selected,
     threadNodeIds,
+    brushMode,
     fetchThreads,
     selectThread,
     createThread,
     deleteThread,
+    setBrushMode,
   } = useThreadStore();
   const allNodes = useOutlineStore((s) => s.allNodes);
   const [creating, setCreating] = useState(false);
@@ -97,6 +99,16 @@ export default function ThreadSelector() {
             &#x2713;
           </button>
         </span>
+      )}
+
+      {selected && (
+        <button
+          className={`thread-brush-btn ${brushMode ? "active" : ""}`}
+          onClick={() => setBrushMode(!brushMode)}
+          title={brushMode ? "Exit brush mode" : "Paint thread path"}
+        >
+          &#x1F58C;
+        </button>
       )}
 
       {selected && (

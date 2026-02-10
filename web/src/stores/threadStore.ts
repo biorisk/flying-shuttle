@@ -6,6 +6,8 @@ interface ThreadState {
   threads: Thread[];
   selected: Thread | null;
   threadNodeIds: Set<string>; // node IDs belonging to the selected thread
+  brushMode: boolean; // thread brush painting mode
+  brushOrder: string[]; // ordered list of node IDs painted in brush mode
   loading: boolean;
   error: string | null;
 
@@ -15,12 +17,16 @@ interface ThreadState {
   updateThread: (id: string, thread: Partial<Thread>) => Promise<void>;
   deleteThread: (id: string) => Promise<void>;
   toggleNodeInThread: (nodeId: string) => Promise<void>;
+  setBrushMode: (on: boolean) => void;
+  brushPaint: (nodeId: string) => Promise<void>;
 }
 
 export const useThreadStore = create<ThreadState>((set, get) => ({
   threads: [],
   selected: null,
   threadNodeIds: new Set(),
+  brushMode: false,
+  brushOrder: [],
   loading: false,
   error: null,
 
@@ -99,6 +105,46 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
     try {
       await api.setNodes(selected.id, threadNodes);
       set({ threadNodeIds: newIds });
+    } catch (e) {
+      set({ error: (e as Error).message });
+    }
+  },
+
+  setBrushMode: (on: boolean) => {
+    if (on) {
+      // Initialize brush order from current thread node ordering.
+      const { threadNodeIds } = get();
+      set({ brushMode: true, brushOrder: Array.from(threadNodeIds) });
+    } else {
+      set({ brushMode: false, brushOrder: [] });
+    }
+  },
+
+  brushPaint: async (nodeId: string) => {
+    const { selected, brushOrder } = get();
+    if (!selected) return;
+
+    let newOrder: string[];
+    if (brushOrder.includes(nodeId)) {
+      // Remove from brush path (unpaint).
+      newOrder = brushOrder.filter((id) => id !== nodeId);
+    } else {
+      // Append to brush path.
+      newOrder = [...brushOrder, nodeId];
+    }
+
+    const threadNodes: ThreadNode[] = newOrder.map((nid, i) => ({
+      thread_id: selected.id,
+      node_id: nid,
+      position: i,
+    }));
+
+    try {
+      await api.setNodes(selected.id, threadNodes);
+      set({
+        brushOrder: newOrder,
+        threadNodeIds: new Set(newOrder),
+      });
     } catch (e) {
       set({ error: (e as Error).message });
     }
