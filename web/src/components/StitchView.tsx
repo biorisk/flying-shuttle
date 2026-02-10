@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from "react";
 import { useStitchStore } from "../stores/stitchStore";
 import { useThreadStore } from "../stores/threadStore";
+import { exporting } from "../services/api";
 
 export default function StitchView() {
   const {
@@ -77,6 +78,17 @@ export default function StitchView() {
         >
           &#x21bb;
         </button>
+        <a
+          className="stitch-export-btn"
+          href={exporting.downloadUrl(
+            threadId ?? undefined,
+            threadId ? threads.find((t) => t.id === threadId)?.name : "Manuscript",
+          )}
+          download
+          title="Export as Markdown"
+        >
+          &#x2913; .md
+        </a>
       </div>
 
       {loading && <p className="stitch-loading">Stitching...</p>}

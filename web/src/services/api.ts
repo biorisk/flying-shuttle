@@ -7,6 +7,7 @@ import type {
   ClusterSuggestion,
   ContextCheck,
   Edge,
+  ExportResult,
   LinearizeResult,
   Node,
   SearchResult,
@@ -148,6 +149,22 @@ export const stitching = {
       method: "POST",
       body: JSON.stringify({ chunk_ids: chunkIds, glue_level: glueLevel }),
     }),
+};
+
+// --- Export ---
+
+export const exporting = {
+  markdown: (threadId?: string, glueLevel = 50, title = "Manuscript") =>
+    request<ExportResult>("/export/markdown", {
+      method: "POST",
+      body: JSON.stringify({
+        thread_id: threadId ?? "",
+        glue_level: glueLevel,
+        title,
+      }),
+    }),
+  downloadUrl: (threadId?: string, title = "Manuscript") =>
+    `${BASE}/export/markdown/download?thread_id=${encodeURIComponent(threadId ?? "")}&title=${encodeURIComponent(title)}`,
 };
 
 // --- DAG ---

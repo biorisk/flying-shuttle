@@ -137,6 +137,11 @@ export interface LinearizeResult {
   stitch: StitchResult;
 }
 
+export interface ExportResult {
+  format: string;
+  content: string;
+}
+
 // API envelope returned by all endpoints.
 export interface ApiResponse<T> {
   data?: T;

@@ -38,6 +38,7 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, 
 	sth := &stitchHandler{store: s, stitcher: stitcher}
 	lh := &linearizeHandler{store: s, stitcher: stitcher}
 	cxh := &contextHandler{store: s, checker: &search.ContextChecker{Index: idx}}
+	exh := &exportHandler{store: s, stitcher: stitcher}
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(jsonContent)
@@ -106,6 +107,12 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, 
 
 		// Stitch
 		r.Post("/stitch", sth.stitch)
+
+		// Export
+		r.Route("/export", func(r chi.Router) {
+			r.Post("/markdown", exh.exportMarkdown)
+			r.Get("/markdown/download", exh.downloadMarkdown)
+		})
 
 		// DAG operations
 		r.Route("/dag", func(r chi.Router) {
