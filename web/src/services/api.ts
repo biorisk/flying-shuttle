@@ -6,6 +6,7 @@ import type {
   ChunkSuggestion,
   ClusterSuggestion,
   Edge,
+  LinearizeResult,
   Node,
   SearchResult,
   StitchResult,
@@ -94,6 +95,10 @@ export const threads = {
       body: JSON.stringify({ nodes }),
     }),
   render: (id: string) => request<Node[]>(`/threads/${id}/render`),
+  linearize: (id: string, glueLevel = 50) =>
+    request<LinearizeResult>(
+      `/threads/${id}/linearize?glue_level=${glueLevel}`,
+    ),
 };
 
 // --- Chunks ---
@@ -144,4 +149,6 @@ export const stitching = {
 export const dag = {
   validate: () => request<ValidationReport>("/dag/validate"),
   roots: () => request<Node[]>("/dag/roots"),
+  linearize: (glueLevel = 50) =>
+    request<LinearizeResult>(`/dag/linearize?glue_level=${glueLevel}`),
 };

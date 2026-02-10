@@ -126,6 +126,11 @@ export interface StitchResult {
   stats: StitchStats;
 }
 
+export interface LinearizeResult {
+  nodes: Node[];
+  stitch: StitchResult;
+}
+
 // API envelope returned by all endpoints.
 export interface ApiResponse<T> {
   data?: T;

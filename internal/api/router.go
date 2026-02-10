@@ -36,6 +36,7 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, 
 	clusterer := &search.EmbeddingClusterer{Embedder: chunker.Embedder}
 	sgh := &suggestHandler{store: s, translator: &search.QueryTranslator{Index: idx}, clusterer: clusterer}
 	sth := &stitchHandler{store: s, stitcher: stitcher}
+	lh := &linearizeHandler{store: s, stitcher: stitcher}
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(jsonContent)
@@ -83,6 +84,7 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, 
 				r.Get("/nodes", th.getNodes)
 				r.Put("/nodes", th.setNodes)
 				r.Get("/render", th.render)
+			r.Get("/linearize", lh.linearizeThread)
 			})
 		})
 
@@ -105,6 +107,7 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, 
 
 		// DAG operations
 		r.Route("/dag", func(r chi.Router) {
+			r.Get("/linearize", lh.linearizeManuscript)
 			r.Get("/validate", func(w http.ResponseWriter, r *http.Request) {
 				report, err := dag.ValidateGraph(s)
 				if err != nil {
