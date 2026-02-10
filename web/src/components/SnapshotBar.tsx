@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useSnapshotStore } from "../stores/snapshotStore";
 import { useOutlineStore } from "../stores/outlineStore";
 import { useThreadStore } from "../stores/threadStore";
+import { snapshots as snapshotApi } from "../services/api";
 
 export default function SnapshotBar() {
   const {
@@ -14,12 +15,16 @@ export default function SnapshotBar() {
     restoreSnapshot,
   } = useSnapshotStore();
   const fetchOutline = useOutlineStore((s) => s.fetchOutline);
+  const diffActive = useOutlineStore((s) => s.diffActive);
+  const computeDiff = useOutlineStore((s) => s.computeDiff);
+  const clearDiff = useOutlineStore((s) => s.clearDiff);
   const fetchThreads = useThreadStore((s) => s.fetchThreads);
 
   const [selectedId, setSelectedId] = useState("");
   const [showSaveInput, setShowSaveInput] = useState(false);
   const [label, setLabel] = useState("");
   const [confirmRestore, setConfirmRestore] = useState(false);
+  const [comparing, setComparing] = useState(false);
 
   useEffect(() => {
     fetchSnapshots();
@@ -53,6 +58,17 @@ export default function SnapshotBar() {
     setSelectedId("");
   }, [selectedId, deleteSnapshot]);
 
+  const handleCompare = useCallback(async () => {
+    if (!selectedId) return;
+    setComparing(true);
+    try {
+      const snap = await snapshotApi.get(selectedId);
+      computeDiff(snap.data);
+    } finally {
+      setComparing(false);
+    }
+  }, [selectedId, computeDiff]);
+
   const formatDate = (iso: string) => {
     const d = new Date(iso);
     return d.toLocaleDateString(undefined, {
@@ -73,6 +89,7 @@ export default function SnapshotBar() {
         onChange={(e) => {
           setSelectedId(e.target.value);
           setConfirmRestore(false);
+          if (diffActive) clearDiff();
         }}
       >
         <option value="">Select...</option>
@@ -117,6 +134,22 @@ export default function SnapshotBar() {
 
       {selectedId && (
         <>
+          {!diffActive ? (
+            <button
+              className="snapshot-compare-btn"
+              onClick={handleCompare}
+              disabled={comparing}
+            >
+              {comparing ? "..." : "Compare"}
+            </button>
+          ) : (
+            <button
+              className="snapshot-clear-diff-btn"
+              onClick={clearDiff}
+            >
+              Clear Diff
+            </button>
+          )}
           <button
             className={`snapshot-restore-btn ${confirmRestore ? "confirm" : ""}`}
             onClick={handleRestore}

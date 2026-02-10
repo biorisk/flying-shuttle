@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Edge, Node } from "../types/model";
+import type { Edge, Node, SnapshotData } from "../types/model";
 import { edges as edgesApi, nodes as nodesApi } from "../services/api";
 
 export interface TreeNode {
@@ -7,6 +7,14 @@ export interface TreeNode {
   children: TreeNode[];
   parentId: string | null;
   depth: number;
+}
+
+export type DiffStatus = "added" | "removed" | "changed";
+
+export interface DiffGhostNode extends TreeNode {
+  isGhost: true;
+  originalParentId: string | null;
+  originalWeight: number;
 }
 
 interface OutlineState {
@@ -18,6 +26,9 @@ interface OutlineState {
   loading: boolean;
   error: string | null;
   contextWarnings: Record<string, string>; // nodeId → warning message
+  diffActive: boolean;
+  diffNodeStatus: Map<string, DiffStatus>;
+  diffGhostNodes: DiffGhostNode[];
 
   fetchOutline: () => Promise<void>;
   addSibling: (afterId: string) => Promise<string | null>;
@@ -32,6 +43,9 @@ interface OutlineState {
   toggleCollapse: (nodeId: string) => void;
   setFocus: (nodeId: string | null) => void;
   clearContextWarning: (nodeId: string) => void;
+  computeDiff: (snapshotData: SnapshotData) => void;
+  clearDiff: () => void;
+  rescueNode: (ghost: DiffGhostNode) => Promise<void>;
 }
 
 function buildTree(nodes: Node[], edges: Edge[]): TreeNode[] {
@@ -114,6 +128,9 @@ export const useOutlineStore = create<OutlineState>((set, get) => ({
   loading: false,
   error: null,
   contextWarnings: {},
+  diffActive: false,
+  diffNodeStatus: new Map(),
+  diffGhostNodes: [],
 
   fetchOutline: async () => {
     set({ loading: true, error: null });
@@ -356,5 +373,99 @@ export const useOutlineStore = create<OutlineState>((set, get) => ({
       const { [nodeId]: _, ...rest } = s.contextWarnings;
       return { contextWarnings: rest };
     });
+  },
+
+  computeDiff: (snapshotData: SnapshotData) => {
+    const { allNodes, allEdges } = get();
+    const currentById = new Map<string, Node>();
+    for (const n of allNodes) {
+      if (n.type === "outline") currentById.set(n.id, n);
+    }
+    const snapById = new Map<string, Node>();
+    for (const n of snapshotData.nodes) {
+      if (n.type === "outline") snapById.set(n.id, n);
+    }
+
+    const status = new Map<string, DiffStatus>();
+
+    // Added: in current but not in snapshot
+    for (const id of currentById.keys()) {
+      if (!snapById.has(id)) status.set(id, "added");
+    }
+
+    // Changed: in both but title, body, or locked differ
+    for (const [id, cur] of currentById) {
+      const snap = snapById.get(id);
+      if (snap && (cur.title !== snap.title || cur.body !== snap.body || cur.locked !== snap.locked)) {
+        status.set(id, "changed");
+      }
+    }
+
+    // Removed: in snapshot but not in current → build ghost nodes
+    // Index snapshot edges to find parent relationships
+    const snapParent = new Map<string, { parentId: string; weight: number }>();
+    for (const e of snapshotData.edges) {
+      if (e.type === "linear" && snapById.has(e.from_node) && snapById.has(e.to_node)) {
+        snapParent.set(e.to_node, { parentId: e.from_node, weight: e.weight });
+      }
+    }
+
+    const ghosts: DiffGhostNode[] = [];
+    for (const [id, snapNode] of snapById) {
+      if (currentById.has(id)) continue;
+      // Walk up the snapshot parent chain to find nearest surviving ancestor
+      let originalParentId: string | null = null;
+      let originalWeight = snapParent.get(id)?.weight ?? 0;
+      let cursor = snapParent.get(id)?.parentId ?? null;
+      while (cursor) {
+        if (currentById.has(cursor)) {
+          originalParentId = cursor;
+          break;
+        }
+        cursor = snapParent.get(cursor)?.parentId ?? null;
+      }
+
+      ghosts.push({
+        node: snapNode,
+        children: [],
+        parentId: originalParentId,
+        depth: 0, // depth is set for rendering context, not critical here
+        isGhost: true,
+        originalParentId,
+        originalWeight,
+      });
+    }
+
+    set({ diffActive: true, diffNodeStatus: status, diffGhostNodes: ghosts });
+  },
+
+  clearDiff: () => {
+    set({ diffActive: false, diffNodeStatus: new Map(), diffGhostNodes: [] });
+  },
+
+  rescueNode: async (ghost: DiffGhostNode) => {
+    try {
+      const node = await nodesApi.create({
+        title: ghost.node.title,
+        body: ghost.node.body,
+        type: "outline",
+        locked: ghost.node.locked,
+      });
+      if (ghost.originalParentId) {
+        await edgesApi.create({
+          from_node: ghost.originalParentId,
+          to_node: node.id,
+          type: "linear",
+          weight: ghost.originalWeight,
+        });
+      }
+      await get().fetchOutline();
+      // Remove rescued ghost from state
+      set((s) => ({
+        diffGhostNodes: s.diffGhostNodes.filter((g) => g.node.id !== ghost.node.id),
+      }));
+    } catch (e) {
+      set({ error: (e as Error).message });
+    }
   },
 }));

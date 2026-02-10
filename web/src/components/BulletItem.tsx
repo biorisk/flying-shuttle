@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
-import type { TreeNode } from "../stores/outlineStore";
+import type { TreeNode, DiffStatus, DiffGhostNode } from "../stores/outlineStore";
 import { flattenTree, useOutlineStore } from "../stores/outlineStore";
 import { useNodeStore } from "../stores/nodeStore";
 import { useGhostStore } from "../stores/ghostStore";
@@ -14,9 +14,12 @@ interface BulletItemProps {
   activeId: string | null;
   dropTarget: DropTarget | null;
   threadActive: boolean | null; // null = no thread selected, true = in thread, false = dimmed
+  diffStatus?: DiffStatus | null;
+  isGhost?: boolean;
+  onRescue?: () => void;
 }
 
-export default function BulletItem({ treeNode, activeId, dropTarget, threadActive }: BulletItemProps) {
+export default function BulletItem({ treeNode, activeId, dropTarget, threadActive, diffStatus, isGhost, onRescue }: BulletItemProps) {
   const { node, children, depth } = treeNode;
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -35,6 +38,10 @@ export default function BulletItem({ treeNode, activeId, dropTarget, threadActiv
     contextWarnings,
     clearContextWarning,
   } = useOutlineStore();
+  const diffActive = useOutlineStore((s) => s.diffActive);
+  const diffNodeStatus = useOutlineStore((s) => s.diffNodeStatus);
+  const diffGhostNodes = useOutlineStore((s) => s.diffGhostNodes);
+  const rescueNode = useOutlineStore((s) => s.rescueNode);
   const { selectNode } = useNodeStore();
   const fetchProposals = useGhostStore((s) => s.fetchProposals);
   const toggleNodeInThread = useThreadStore((s) => s.toggleNodeInThread);
@@ -200,6 +207,9 @@ export default function BulletItem({ treeNode, activeId, dropTarget, threadActiv
     threadActive === true ? "thread-active" : "",
     brushMode && isPainted ? "brush-painted" : "",
     brushMode ? "brush-mode" : "",
+    diffStatus === "added" ? "diff-added" : "",
+    diffStatus === "changed" ? "diff-changed" : "",
+    diffStatus === "removed" ? "diff-removed" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -207,6 +217,31 @@ export default function BulletItem({ treeNode, activeId, dropTarget, threadActiv
   const dragStyle = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : undefined;
+
+  // Ghost node: simplified read-only row
+  if (isGhost) {
+    return (
+      <div className="bullet-tree-node">
+        <div
+          className="bullet-row diff-ghost"
+          style={{ paddingLeft: depth * 24 }}
+        >
+          <span className="bullet-dot" />
+          <span className="diff-ghost-title">{node.title || "Untitled"}</span>
+          {onRescue && (
+            <button className="diff-rescue-btn" onClick={onRescue}>
+              Rescue
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Compute ghost children for this node
+  const ghostChildren = diffActive
+    ? diffGhostNodes.filter((g) => g.originalParentId === node.id)
+    : [];
 
   return (
     <div className="bullet-tree-node">
@@ -322,10 +357,22 @@ export default function BulletItem({ treeNode, activeId, dropTarget, threadActiv
               activeId={activeId}
               dropTarget={dropTarget}
               threadActive={threadSelected ? threadNodeIds.has(child.node.id) : null}
+              diffStatus={diffActive ? diffNodeStatus.get(child.node.id) ?? null : null}
             />
           ))}
         </div>
       )}
+      {ghostChildren.map((ghost) => (
+        <BulletItem
+          key={`ghost-${ghost.node.id}`}
+          treeNode={{ ...ghost, depth: depth + 1 }}
+          activeId={null}
+          dropTarget={null}
+          threadActive={null}
+          isGhost
+          onRescue={() => rescueNode(ghost)}
+        />
+      ))}
     </div>
   );
 }

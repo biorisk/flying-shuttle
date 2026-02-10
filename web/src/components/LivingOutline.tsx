@@ -17,6 +17,10 @@ interface LivingOutlineProps {
 
 export default function LivingOutline({ activeId, dropTarget }: LivingOutlineProps) {
   const { tree, loading, fetchOutline, addRoot } = useOutlineStore();
+  const diffActive = useOutlineStore((s) => s.diffActive);
+  const diffNodeStatus = useOutlineStore((s) => s.diffNodeStatus);
+  const diffGhostNodes = useOutlineStore((s) => s.diffGhostNodes);
+  const rescueNode = useOutlineStore((s) => s.rescueNode);
   const threadSelected = useThreadStore((s) => s.selected);
   const threadNodeIds = useThreadStore((s) => s.threadNodeIds);
 
@@ -46,8 +50,23 @@ export default function LivingOutline({ activeId, dropTarget }: LivingOutlinePro
               activeId={activeId}
               dropTarget={dropTarget}
               threadActive={threadSelected ? threadNodeIds.has(tn.node.id) : null}
+              diffStatus={diffActive ? diffNodeStatus.get(tn.node.id) ?? null : null}
             />
           ))}
+          {diffActive &&
+            diffGhostNodes
+              .filter((g) => g.originalParentId === null)
+              .map((ghost) => (
+                <BulletItem
+                  key={`ghost-${ghost.node.id}`}
+                  treeNode={{ ...ghost, depth: 0 }}
+                  activeId={null}
+                  dropTarget={null}
+                  threadActive={null}
+                  isGhost
+                  onRescue={() => rescueNode(ghost)}
+                />
+              ))}
           <button
             className="outline-add-root outline-add-root--subtle"
             onClick={addRoot}

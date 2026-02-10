@@ -11,6 +11,7 @@ import type {
   LinearizeResult,
   Node,
   SearchResult,
+  Snapshot,
   SnapshotSummary,
   StitchResult,
   Thread,
@@ -172,7 +173,7 @@ export const exporting = {
 
 export const snapshots = {
   list: () => request<SnapshotSummary[]>("/snapshots"),
-  get: (id: string) => request<SnapshotSummary>(`/snapshots/${id}`),
+  get: (id: string) => request<Snapshot>(`/snapshots/${id}`),
   create: (label: string) =>
     request<SnapshotSummary>("/snapshots", {
       method: "POST",

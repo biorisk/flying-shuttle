@@ -1018,6 +1018,84 @@ body,
   margin-right: 4px;
 }
 
+/* --- Diff Overlay --- */
+
+.bullet-row.diff-added {
+  background-color: rgba(76, 175, 80, 0.1);
+  border-left: 3px solid rgba(76, 175, 80, 0.6);
+}
+
+.bullet-row.diff-changed {
+  background-color: rgba(255, 193, 7, 0.1);
+  border-left: 3px solid rgba(255, 193, 7, 0.6);
+}
+
+.bullet-row.diff-removed {
+  background-color: rgba(244, 67, 54, 0.1);
+  border-left: 3px solid rgba(244, 67, 54, 0.6);
+}
+
+.bullet-row.diff-ghost {
+  border: 1px dashed rgba(244, 67, 54, 0.4);
+  opacity: 0.6;
+}
+
+.diff-ghost-title {
+  flex: 1;
+  font-size: 0.9rem;
+  font-style: italic;
+  text-decoration: line-through;
+  color: rgba(244, 67, 54, 0.7);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diff-rescue-btn {
+  background-color: rgba(76, 175, 80, 0.15);
+  border: 1px solid rgba(76, 175, 80, 0.4);
+  color: #4caf50;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+
+.diff-rescue-btn:hover {
+  background-color: rgba(76, 175, 80, 0.25);
+}
+
+.snapshot-compare-btn,
+.snapshot-clear-diff-btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: inherit;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.snapshot-compare-btn:hover {
+  opacity: 0.9;
+}
+
+.snapshot-clear-diff-btn {
+  opacity: 0.8;
+  background-color: rgba(100, 108, 255, 0.12);
+  border-color: rgba(100, 108, 255, 0.3);
+}
+
+.snapshot-clear-diff-btn:hover {
+  opacity: 1;
+}
+
 /* --- Context Warning Badge --- */
 
 .context-warning {
@@ -1632,6 +1710,37 @@ body,
   .exit-target-select {
     background: rgba(0, 0, 0, 0.04);
     border-color: rgba(0, 0, 0, 0.15);
+  }
+  .bullet-row.diff-added {
+    background-color: rgba(76, 175, 80, 0.08);
+    border-left-color: rgba(76, 175, 80, 0.5);
+  }
+  .bullet-row.diff-changed {
+    background-color: rgba(255, 193, 7, 0.08);
+    border-left-color: rgba(255, 193, 7, 0.5);
+  }
+  .bullet-row.diff-removed {
+    background-color: rgba(244, 67, 54, 0.08);
+    border-left-color: rgba(244, 67, 54, 0.5);
+  }
+  .bullet-row.diff-ghost {
+    border-color: rgba(244, 67, 54, 0.3);
+  }
+  .diff-ghost-title {
+    color: rgba(211, 47, 47, 0.7);
+  }
+  .diff-rescue-btn {
+    background-color: rgba(76, 175, 80, 0.1);
+    border-color: rgba(76, 175, 80, 0.3);
+    color: #388e3c;
+  }
+  .snapshot-compare-btn,
+  .snapshot-clear-diff-btn {
+    border-color: rgba(0, 0, 0, 0.15);
+  }
+  .snapshot-clear-diff-btn {
+    background-color: rgba(100, 108, 255, 0.08);
+    border-color: rgba(100, 108, 255, 0.2);
   }
   .exit-add-btn {
     border-color: rgba(0, 0, 0, 0.15);
