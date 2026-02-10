@@ -142,6 +142,33 @@ export interface ExportResult {
   content: string;
 }
 
+export interface SnapshotSummary {
+  id: string;
+  label: string;
+  created_at: string;
+}
+
+export interface Snapshot {
+  id: string;
+  label: string;
+  data: SnapshotData;
+  created_at: string;
+}
+
+export interface SnapshotData {
+  nodes: Node[];
+  edges: Edge[];
+  threads: Thread[];
+  thread_nodes: ThreadNode[];
+  node_chunks: NodeChunkAssoc[];
+}
+
+export interface NodeChunkAssoc {
+  node_id: string;
+  chunk_id: string;
+  position: number;
+}
+
 // API envelope returned by all endpoints.
 export interface ApiResponse<T> {
   data?: T;

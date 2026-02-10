@@ -11,6 +11,7 @@ import type {
   LinearizeResult,
   Node,
   SearchResult,
+  SnapshotSummary,
   StitchResult,
   Thread,
   ThreadNode,
@@ -165,6 +166,22 @@ export const exporting = {
     }),
   downloadUrl: (threadId?: string, title = "Manuscript") =>
     `${BASE}/export/markdown/download?thread_id=${encodeURIComponent(threadId ?? "")}&title=${encodeURIComponent(title)}`,
+};
+
+// --- Snapshots ---
+
+export const snapshots = {
+  list: () => request<SnapshotSummary[]>("/snapshots"),
+  get: (id: string) => request<SnapshotSummary>(`/snapshots/${id}`),
+  create: (label: string) =>
+    request<SnapshotSummary>("/snapshots", {
+      method: "POST",
+      body: JSON.stringify({ label }),
+    }),
+  delete: (id: string) =>
+    request<void>(`/snapshots/${id}`, { method: "DELETE" }),
+  restore: (id: string) =>
+    request<void>(`/snapshots/${id}/restore`, { method: "POST" }),
 };
 
 // --- DAG ---

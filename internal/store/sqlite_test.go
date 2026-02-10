@@ -371,3 +371,121 @@ func TestThreadNodes(t *testing.T) {
 		t.Fatalf("unexpected thread nodes: %v", got)
 	}
 }
+
+func TestSnapshotCRUD(t *testing.T) {
+	s := newTestStore(t)
+
+	// Create some data to snapshot.
+	n := &model.Node{ID: uuid.NewString(), Type: model.NodeTypeOutline, Title: "Snap Node"}
+	s.CreateNode(n)
+
+	// Create a snapshot.
+	summary, err := s.CreateSnapshot("v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if summary.Label != "v1" {
+		t.Fatalf("expected label v1, got %q", summary.Label)
+	}
+
+	// List snapshots.
+	list, err := s.ListSnapshots()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 || list[0].ID != summary.ID {
+		t.Fatalf("expected 1 snapshot, got %d", len(list))
+	}
+
+	// Get snapshot with data.
+	snap, err := s.GetSnapshot(summary.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snap.Data.Nodes) != 1 || snap.Data.Nodes[0].Title != "Snap Node" {
+		t.Fatalf("snapshot data mismatch: %v", snap.Data.Nodes)
+	}
+
+	// Delete snapshot.
+	if err := s.DeleteSnapshot(summary.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.GetSnapshot(summary.ID); err != ErrNotFound {
+		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+}
+
+func TestSnapshotRestore(t *testing.T) {
+	s := newTestStore(t)
+
+	// Build an outline: parent -> child, with a thread and chunk association.
+	parent := &model.Node{ID: uuid.NewString(), Type: model.NodeTypeOutline, Title: "Parent"}
+	child := &model.Node{ID: uuid.NewString(), Type: model.NodeTypeOutline, Title: "Child"}
+	s.CreateNode(parent)
+	s.CreateNode(child)
+
+	e := &model.Edge{ID: uuid.NewString(), FromNode: parent.ID, ToNode: child.ID, Type: model.EdgeTypeLinear, Weight: 0}
+	s.CreateEdge(e)
+
+	th := &model.Thread{ID: uuid.NewString(), Name: "Main"}
+	s.CreateThread(th)
+	s.SetThreadNodes(th.ID, []model.ThreadNode{
+		{ThreadID: th.ID, NodeID: parent.ID, Position: 0},
+	})
+
+	c := &model.Chunk{ID: uuid.NewString(), SourceFile: "a.txt", Content: "chunk content", EndOffset: 13}
+	s.CreateChunk(c)
+	s.SetNodeChunks(parent.ID, []string{c.ID})
+
+	// Snapshot this state.
+	summary, err := s.CreateSnapshot("before-edits")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Mutate: delete everything.
+	s.DeleteEdge(e.ID)
+	s.DeleteThread(th.ID)
+	s.DeleteNode(child.ID)
+	s.DeleteNode(parent.ID)
+
+	// Verify empty.
+	nodes, _ := s.ListNodes()
+	if len(nodes) != 0 {
+		t.Fatalf("expected 0 nodes after delete, got %d", len(nodes))
+	}
+
+	// Restore.
+	if err := s.RestoreSnapshot(summary.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify restored.
+	nodes, err = s.ListNodes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(nodes) != 2 {
+		t.Fatalf("expected 2 nodes after restore, got %d", len(nodes))
+	}
+
+	edges, _ := s.ListEdges()
+	if len(edges) != 1 || edges[0].ID != e.ID {
+		t.Fatalf("expected 1 edge after restore, got %d", len(edges))
+	}
+
+	threads, _ := s.ListThreads()
+	if len(threads) != 1 || threads[0].ID != th.ID {
+		t.Fatalf("expected 1 thread after restore, got %d", len(threads))
+	}
+
+	tn, _ := s.GetThreadNodes(th.ID)
+	if len(tn) != 1 || tn[0].NodeID != parent.ID {
+		t.Fatalf("expected 1 thread node after restore, got %v", tn)
+	}
+
+	chunks, _ := s.GetNodeChunks(parent.ID)
+	if len(chunks) != 1 || chunks[0].ID != c.ID {
+		t.Fatalf("expected 1 node_chunk after restore, got %v", chunks)
+	}
+}

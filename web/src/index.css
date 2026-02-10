@@ -586,6 +586,89 @@ body,
   font-size: 0.9rem;
 }
 
+/* --- Snapshot Bar --- */
+
+.snapshot-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.snapshot-bar-label {
+  opacity: 0.5;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.snapshot-bar-dropdown {
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: inherit;
+  padding: 3px 6px;
+  font-size: 0.8rem;
+  min-width: 120px;
+}
+
+.snapshot-save-btn,
+.snapshot-restore-btn,
+.snapshot-delete-btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: inherit;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.snapshot-save-btn:hover,
+.snapshot-restore-btn:hover {
+  opacity: 0.9;
+}
+
+.snapshot-restore-btn.confirm {
+  opacity: 1;
+  background-color: rgba(255, 152, 0, 0.2);
+  border-color: rgba(255, 152, 0, 0.4);
+  color: #ffb74d;
+}
+
+.snapshot-delete-btn:hover {
+  opacity: 0.8;
+  color: #f44336;
+}
+
+.snapshot-save-inline {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.snapshot-save-input {
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  color: inherit;
+  padding: 2px 6px;
+  font-size: 0.8rem;
+  width: 120px;
+}
+
+.snapshot-save-confirm {
+  background: none;
+  border: none;
+  color: #4caf50;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
 /* Thread node highlighting */
 
 .bullet-row.thread-dimmed {
@@ -1482,6 +1565,22 @@ body,
   }
   .thread-create-input {
     background-color: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.15);
+  }
+  .snapshot-bar {
+    border-bottom-color: rgba(0, 0, 0, 0.08);
+  }
+  .snapshot-bar-dropdown {
+    background-color: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.15);
+  }
+  .snapshot-save-input {
+    background-color: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.15);
+  }
+  .snapshot-save-btn,
+  .snapshot-restore-btn,
+  .snapshot-delete-btn {
     border-color: rgba(0, 0, 0, 0.15);
   }
   .drag-overlay {

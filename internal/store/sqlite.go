@@ -46,6 +46,7 @@ func (s *SQLiteStore) Migrate() error {
 	migrations := []string{
 		"migrations/001_initial_schema.sql",
 		"migrations/002_uploads.sql",
+		"migrations/003_snapshots.sql",
 	}
 	for _, name := range migrations {
 		data, err := migrationFS.ReadFile(name)
@@ -658,4 +659,195 @@ func boolToInt(b bool) int {
 		return 1
 	}
 	return 0
+}
+
+// --- Snapshots ---
+
+func (s *SQLiteStore) CreateSnapshot(label string) (*model.SnapshotSummary, error) {
+	// Gather current DAG state.
+	nodes, err := s.ListNodes()
+	if err != nil {
+		return nil, fmt.Errorf("snapshot nodes: %w", err)
+	}
+	edges, err := s.ListEdges()
+	if err != nil {
+		return nil, fmt.Errorf("snapshot edges: %w", err)
+	}
+	threads, err := s.ListThreads()
+	if err != nil {
+		return nil, fmt.Errorf("snapshot threads: %w", err)
+	}
+
+	var allThreadNodes []model.ThreadNode
+	for _, t := range threads {
+		tn, err := s.GetThreadNodes(t.ID)
+		if err != nil {
+			return nil, fmt.Errorf("snapshot thread_nodes %s: %w", t.ID, err)
+		}
+		allThreadNodes = append(allThreadNodes, tn...)
+	}
+
+	rows, err := s.db.Query(`SELECT node_id, chunk_id, position FROM node_chunks ORDER BY node_id, position`)
+	if err != nil {
+		return nil, fmt.Errorf("snapshot node_chunks: %w", err)
+	}
+	defer rows.Close()
+	var allNodeChunks []model.NodeChunkAssoc
+	for rows.Next() {
+		var nc model.NodeChunkAssoc
+		if err := rows.Scan(&nc.NodeID, &nc.ChunkID, &nc.Position); err != nil {
+			return nil, err
+		}
+		allNodeChunks = append(allNodeChunks, nc)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	data := model.SnapshotData{
+		Nodes:       nodes,
+		Edges:       edges,
+		Threads:     threads,
+		ThreadNodes: allThreadNodes,
+		NodeChunks:  allNodeChunks,
+	}
+	blob, err := json.Marshal(data)
+	if err != nil {
+		return nil, fmt.Errorf("marshal snapshot: %w", err)
+	}
+
+	now := time.Now().UTC()
+	id := uuid.NewString()
+	if _, err := s.db.Exec(
+		`INSERT INTO snapshots (id, label, data, created_at) VALUES (?, ?, ?, ?)`,
+		id, label, string(blob), now.Format(time.RFC3339Nano),
+	); err != nil {
+		return nil, err
+	}
+
+	return &model.SnapshotSummary{ID: id, Label: label, CreatedAt: now}, nil
+}
+
+func (s *SQLiteStore) GetSnapshot(id string) (*model.Snapshot, error) {
+	var snap model.Snapshot
+	var dataBlob, ts string
+	err := s.db.QueryRow(
+		`SELECT id, label, data, created_at FROM snapshots WHERE id = ?`, id,
+	).Scan(&snap.ID, &snap.Label, &dataBlob, &ts)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	snap.CreatedAt, _ = time.Parse(time.RFC3339Nano, ts)
+	if err := json.Unmarshal([]byte(dataBlob), &snap.Data); err != nil {
+		return nil, fmt.Errorf("unmarshal snapshot: %w", err)
+	}
+	return &snap, nil
+}
+
+func (s *SQLiteStore) ListSnapshots() ([]model.SnapshotSummary, error) {
+	rows, err := s.db.Query(`SELECT id, label, created_at FROM snapshots ORDER BY created_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []model.SnapshotSummary
+	for rows.Next() {
+		var ss model.SnapshotSummary
+		var ts string
+		if err := rows.Scan(&ss.ID, &ss.Label, &ts); err != nil {
+			return nil, err
+		}
+		ss.CreatedAt, _ = time.Parse(time.RFC3339Nano, ts)
+		out = append(out, ss)
+	}
+	return out, rows.Err()
+}
+
+func (s *SQLiteStore) DeleteSnapshot(id string) error {
+	res, err := s.db.Exec(`DELETE FROM snapshots WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	affected, _ := res.RowsAffected()
+	if affected == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (s *SQLiteStore) RestoreSnapshot(id string) error {
+	snap, err := s.GetSnapshot(id)
+	if err != nil {
+		return err
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Delete in dependency order.
+	for _, table := range []string{"node_chunks", "thread_nodes", "edges", "threads", "nodes"} {
+		if _, err := tx.Exec("DELETE FROM " + table); err != nil {
+			return fmt.Errorf("clear %s: %w", table, err)
+		}
+	}
+
+	// Re-insert in dependency order.
+	for _, n := range snap.Data.Nodes {
+		labels, _ := json.Marshal(n.Labels)
+		if _, err := tx.Exec(
+			`INSERT INTO nodes (id, type, title, body, labels, locked, version, created_at, updated_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			n.ID, string(n.Type), n.Title, n.Body, string(labels), boolToInt(n.Locked), n.Version,
+			n.CreatedAt.Format(time.RFC3339Nano), n.UpdatedAt.Format(time.RFC3339Nano),
+		); err != nil {
+			return fmt.Errorf("restore node %s: %w", n.ID, err)
+		}
+	}
+
+	for _, e := range snap.Data.Edges {
+		if _, err := tx.Exec(
+			`INSERT INTO edges (id, from_node, to_node, type, condition, weight, created_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			e.ID, e.FromNode, e.ToNode, string(e.Type), e.Condition, e.Weight,
+			e.CreatedAt.Format(time.RFC3339Nano),
+		); err != nil {
+			return fmt.Errorf("restore edge %s: %w", e.ID, err)
+		}
+	}
+
+	for _, t := range snap.Data.Threads {
+		if _, err := tx.Exec(
+			`INSERT INTO threads (id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
+			t.ID, t.Name, t.Description,
+			t.CreatedAt.Format(time.RFC3339Nano), t.UpdatedAt.Format(time.RFC3339Nano),
+		); err != nil {
+			return fmt.Errorf("restore thread %s: %w", t.ID, err)
+		}
+	}
+
+	for _, tn := range snap.Data.ThreadNodes {
+		if _, err := tx.Exec(
+			`INSERT INTO thread_nodes (thread_id, node_id, position) VALUES (?, ?, ?)`,
+			tn.ThreadID, tn.NodeID, tn.Position,
+		); err != nil {
+			return fmt.Errorf("restore thread_node: %w", err)
+		}
+	}
+
+	for _, nc := range snap.Data.NodeChunks {
+		if _, err := tx.Exec(
+			`INSERT INTO node_chunks (node_id, chunk_id, position) VALUES (?, ?, ?)`,
+			nc.NodeID, nc.ChunkID, nc.Position,
+		); err != nil {
+			return fmt.Errorf("restore node_chunk: %w", err)
+		}
+	}
+
+	return tx.Commit()
 }

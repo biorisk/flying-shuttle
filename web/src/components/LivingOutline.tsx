@@ -3,6 +3,7 @@ import { useOutlineStore, type TreeNode } from "../stores/outlineStore";
 import { useThreadStore } from "../stores/threadStore";
 import BulletItem from "./BulletItem";
 import ThreadSelector from "./ThreadSelector";
+import SnapshotBar from "./SnapshotBar";
 
 export interface DropTarget {
   nodeId: string;
@@ -28,6 +29,7 @@ export default function LivingOutline({ activeId, dropTarget }: LivingOutlinePro
   return (
     <div className="living-outline">
       <ThreadSelector />
+      <SnapshotBar />
       {tree.length === 0 ? (
         <div className="outline-empty">
           <p className="pane-placeholder">Start writing your outline.</p>

@@ -55,4 +55,11 @@ type Store interface {
 	// Transcript segments
 	CreateTranscriptSegment(seg *model.TranscriptSegment) error
 	ListTranscriptSegments(uploadID string) ([]model.TranscriptSegment, error)
+
+	// Snapshots
+	CreateSnapshot(label string) (*model.SnapshotSummary, error)
+	GetSnapshot(id string) (*model.Snapshot, error)
+	ListSnapshots() ([]model.SnapshotSummary, error)
+	DeleteSnapshot(id string) error
+	RestoreSnapshot(id string) error
 }
