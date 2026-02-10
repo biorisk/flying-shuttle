@@ -24,6 +24,62 @@ func Linearize(s store.Store, threadID string) ([]model.Node, error) {
 	return nodes, nil
 }
 
+// ConditionalWalk performs a DFS from the given start nodes, following only
+// edges whose conditions are satisfied by the given EvalContext. Nodes are
+// visited in the order they are reached, skipping already-visited nodes.
+// This enables audience-aware navigation through the DAG.
+func ConditionalWalk(s store.Store, startIDs []string, ctx *EvalContext) ([]model.Node, error) {
+	if ctx == nil {
+		ctx = &EvalContext{}
+	}
+	if ctx.ReadNodes == nil {
+		ctx.ReadNodes = make(map[string]bool)
+	}
+
+	var result []model.Node
+	visited := make(map[string]bool)
+
+	var walk func(id string) error
+	walk = func(id string) error {
+		if visited[id] {
+			return nil
+		}
+		visited[id] = true
+
+		n, err := s.GetNode(id)
+		if err != nil {
+			return fmt.Errorf("node %s: %w", id, err)
+		}
+		result = append(result, *n)
+		ctx.ReadNodes[id] = true
+
+		// Follow outgoing edges, filtered by condition and sorted by weight.
+		edges, err := s.ListEdgesFrom(id)
+		if err != nil {
+			return fmt.Errorf("edges from %s: %w", id, err)
+		}
+		for _, e := range edges {
+			cond := ""
+			if e.Condition != nil {
+				cond = *e.Condition
+			}
+			if EvalCondition(cond, ctx) {
+				if err := walk(e.ToNode); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+
+	for _, id := range startIDs {
+		if err := walk(id); err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
+}
+
 // TopologicalSort returns all nodes in topological order (Kahn's algorithm).
 // Returns an error if the graph contains a cycle.
 func TopologicalSort(s store.Store) ([]model.Node, error) {
