@@ -507,6 +507,115 @@ body,
   color: #f44336;
 }
 
+/* --- Thread Selector --- */
+
+.thread-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.thread-selector-label {
+  opacity: 0.5;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.thread-selector-dropdown {
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: inherit;
+  padding: 3px 6px;
+  font-size: 0.8rem;
+  min-width: 120px;
+}
+
+.thread-coverage {
+  font-size: 0.75rem;
+  opacity: 0.4;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.thread-create-btn,
+.thread-delete-btn {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.4;
+  padding: 2px 6px;
+  font-size: 0.85rem;
+}
+
+.thread-create-btn:hover,
+.thread-delete-btn:hover {
+  opacity: 0.8;
+}
+
+.thread-delete-btn:hover {
+  color: #f44336;
+}
+
+.thread-create-inline {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.thread-create-input {
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  color: inherit;
+  padding: 2px 6px;
+  font-size: 0.8rem;
+  width: 120px;
+}
+
+.thread-create-confirm {
+  background: none;
+  border: none;
+  color: #4caf50;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+/* Thread node highlighting */
+
+.bullet-row.thread-dimmed {
+  opacity: 0.35;
+}
+
+.bullet-row.thread-active {
+  border-left: 2px solid rgba(100, 108, 255, 0.6);
+}
+
+.thread-toggle {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.3;
+  padding: 0 4px;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.thread-toggle:hover {
+  opacity: 0.7;
+}
+
+.thread-toggle.in-thread {
+  opacity: 0.8;
+  color: rgba(100, 108, 255, 0.9);
+}
+
 /* --- Drag and Drop --- */
 
 .drag-handle {
@@ -809,6 +918,17 @@ body,
   .upload-badge--failed {
     background-color: rgba(244, 67, 54, 0.12);
     color: #d32f2f;
+  }
+  .thread-selector {
+    border-bottom-color: rgba(0, 0, 0, 0.08);
+  }
+  .thread-selector-dropdown {
+    background-color: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.15);
+  }
+  .thread-create-input {
+    background-color: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.15);
   }
   .drag-overlay {
     background-color: rgba(255, 255, 255, 0.95);

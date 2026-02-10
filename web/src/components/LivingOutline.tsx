@@ -10,7 +10,9 @@ import {
   type DragOverEvent,
 } from "@dnd-kit/core";
 import { useOutlineStore, type TreeNode } from "../stores/outlineStore";
+import { useThreadStore } from "../stores/threadStore";
 import BulletItem from "./BulletItem";
+import ThreadSelector from "./ThreadSelector";
 
 export interface DropTarget {
   nodeId: string;
@@ -20,6 +22,8 @@ export interface DropTarget {
 export default function LivingOutline() {
   const { tree, loading, fetchOutline, addRoot, moveNode } =
     useOutlineStore();
+  const threadSelected = useThreadStore((s) => s.selected);
+  const threadNodeIds = useThreadStore((s) => s.threadNodeIds);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const lastOverRef = useRef<DragOverEvent | null>(null);
@@ -143,6 +147,7 @@ export default function LivingOutline() {
       onDragCancel={handleDragCancel}
     >
       <div className="living-outline">
+        <ThreadSelector />
         {tree.length === 0 ? (
           <div className="outline-empty">
             <p className="pane-placeholder">Start writing your outline.</p>
@@ -158,6 +163,7 @@ export default function LivingOutline() {
                 treeNode={tn}
                 activeId={activeId}
                 dropTarget={dropTarget}
+                threadActive={threadSelected ? threadNodeIds.has(tn.node.id) : null}
               />
             ))}
             <button

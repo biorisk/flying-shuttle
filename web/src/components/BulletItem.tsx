@@ -4,6 +4,7 @@ import type { TreeNode } from "../stores/outlineStore";
 import { flattenTree, useOutlineStore } from "../stores/outlineStore";
 import { useNodeStore } from "../stores/nodeStore";
 import { useGhostStore } from "../stores/ghostStore";
+import { useThreadStore } from "../stores/threadStore";
 import GhostSubList from "./GhostSubList";
 import type { DropTarget } from "./LivingOutline";
 
@@ -11,9 +12,10 @@ interface BulletItemProps {
   treeNode: TreeNode;
   activeId: string | null;
   dropTarget: DropTarget | null;
+  threadActive: boolean | null; // null = no thread selected, true = in thread, false = dimmed
 }
 
-export default function BulletItem({ treeNode, activeId, dropTarget }: BulletItemProps) {
+export default function BulletItem({ treeNode, activeId, dropTarget, threadActive }: BulletItemProps) {
   const { node, children, depth } = treeNode;
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -32,6 +34,9 @@ export default function BulletItem({ treeNode, activeId, dropTarget }: BulletIte
   } = useOutlineStore();
   const { selectNode } = useNodeStore();
   const fetchProposals = useGhostStore((s) => s.fetchProposals);
+  const toggleNodeInThread = useThreadStore((s) => s.toggleNodeInThread);
+  const threadSelected = useThreadStore((s) => s.selected);
+  const threadNodeIds = useThreadStore((s) => s.threadNodeIds);
 
   const isCollapsed = collapsed[node.id] ?? false;
   const hasChildren = children.length > 0;
@@ -178,6 +183,8 @@ export default function BulletItem({ treeNode, activeId, dropTarget }: BulletIte
     isLocked ? "locked" : "",
     isDragging ? "dragging" : "",
     showDropChild ? "drop-child" : "",
+    threadActive === false ? "thread-dimmed" : "",
+    threadActive === true ? "thread-active" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -260,6 +267,16 @@ export default function BulletItem({ treeNode, activeId, dropTarget }: BulletIte
             </button>
           </>
         )}
+        {threadSelected && (
+          <button
+            className={`thread-toggle ${threadActive ? "in-thread" : ""}`}
+            onClick={() => toggleNodeInThread(node.id)}
+            title={threadActive ? "Remove from thread" : "Add to thread"}
+            tabIndex={-1}
+          >
+            {threadActive ? "&#x25C9;" : "&#x25CB;"}
+          </button>
+        )}
       </div>
       {showDropAfter && (
         <div
@@ -276,6 +293,7 @@ export default function BulletItem({ treeNode, activeId, dropTarget }: BulletIte
               treeNode={child}
               activeId={activeId}
               dropTarget={dropTarget}
+              threadActive={threadSelected ? threadNodeIds.has(child.node.id) : null}
             />
           ))}
         </div>
