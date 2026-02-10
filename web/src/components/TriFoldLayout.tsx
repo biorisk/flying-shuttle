@@ -6,7 +6,7 @@ interface TriFoldLayoutProps {
   center: ReactNode;
   right: ReactNode;
   leftTitle?: string;
-  centerTitle?: string;
+  centerTitle?: ReactNode;
   rightTitle?: string;
 }
 
