@@ -126,6 +126,12 @@ export interface StitchResult {
   stats: StitchStats;
 }
 
+export interface ContextCheck {
+  in_context: boolean;
+  score: number;
+  message?: string;
+}
+
 export interface LinearizeResult {
   nodes: Node[];
   stitch: StitchResult;

@@ -31,6 +31,8 @@ export default function BulletItem({ treeNode, activeId, dropTarget, threadActiv
     toggleLock,
     toggleCollapse,
     setFocus,
+    contextWarnings,
+    clearContextWarning,
   } = useOutlineStore();
   const { selectNode } = useNodeStore();
   const fetchProposals = useGhostStore((s) => s.fetchProposals);
@@ -44,6 +46,7 @@ export default function BulletItem({ treeNode, activeId, dropTarget, threadActiv
   const isLocked = node.locked;
   const chunkCount = node.labels?._chunkCount ? parseInt(node.labels._chunkCount, 10) : 0;
   const isDragging = activeId === node.id;
+  const contextWarning = contextWarnings[node.id] ?? null;
 
   // dnd-kit hooks
   const {
@@ -266,6 +269,15 @@ export default function BulletItem({ treeNode, activeId, dropTarget, threadActiv
               +
             </button>
           </>
+        )}
+        {contextWarning && (
+          <span
+            className="context-warning"
+            title={`${contextWarning} — click to dismiss`}
+            onClick={() => clearContextWarning(node.id)}
+          >
+            {contextWarning}
+          </span>
         )}
         {threadSelected && (
           <button

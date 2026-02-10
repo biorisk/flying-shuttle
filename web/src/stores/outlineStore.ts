@@ -17,6 +17,7 @@ interface OutlineState {
   focusId: string | null;
   loading: boolean;
   error: string | null;
+  contextWarnings: Record<string, string>; // nodeId → warning message
 
   fetchOutline: () => Promise<void>;
   addSibling: (afterId: string) => Promise<string | null>;
@@ -30,6 +31,7 @@ interface OutlineState {
   toggleLock: (nodeId: string) => Promise<void>;
   toggleCollapse: (nodeId: string) => void;
   setFocus: (nodeId: string | null) => void;
+  clearContextWarning: (nodeId: string) => void;
 }
 
 function buildTree(nodes: Node[], edges: Edge[]): TreeNode[] {
@@ -111,6 +113,7 @@ export const useOutlineStore = create<OutlineState>((set, get) => ({
   focusId: null,
   loading: false,
   error: null,
+  contextWarnings: {},
 
   fetchOutline: async () => {
     set({ loading: true, error: null });
@@ -275,6 +278,26 @@ export const useOutlineStore = create<OutlineState>((set, get) => ({
     try {
       await nodesApi.move(nodeId, newParentId, position);
       await get().fetchOutline();
+
+      // Clear any existing warning for this node.
+      set((s) => {
+        const { [nodeId]: _, ...rest } = s.contextWarnings;
+        return { contextWarnings: rest };
+      });
+
+      // Async context check — non-blocking, fires after move completes.
+      if (newParentId) {
+        nodesApi.checkContext(nodeId, newParentId).then((check) => {
+          if (!check.in_context) {
+            const msg = check.message ?? "Out of Context";
+            set((s) => ({
+              contextWarnings: { ...s.contextWarnings, [nodeId]: msg },
+            }));
+          }
+        }).catch(() => {
+          // Silently ignore context check failures.
+        });
+      }
     } catch (e) {
       set({ error: (e as Error).message });
     }
@@ -326,5 +349,12 @@ export const useOutlineStore = create<OutlineState>((set, get) => ({
 
   setFocus: (nodeId: string | null) => {
     set({ focusId: nodeId });
+  },
+
+  clearContextWarning: (nodeId: string) => {
+    set((s) => {
+      const { [nodeId]: _, ...rest } = s.contextWarnings;
+      return { contextWarnings: rest };
+    });
   },
 }));

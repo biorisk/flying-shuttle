@@ -37,6 +37,7 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, 
 	sgh := &suggestHandler{store: s, translator: &search.QueryTranslator{Index: idx}, clusterer: clusterer}
 	sth := &stitchHandler{store: s, stitcher: stitcher}
 	lh := &linearizeHandler{store: s, stitcher: stitcher}
+	cxh := &contextHandler{store: s, checker: &search.ContextChecker{Index: idx}}
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(jsonContent)
@@ -60,6 +61,7 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, 
 				r.Put("/chunks", nh.setChunks)
 				r.Get("/edges", nh.getEdges)
 				r.Post("/move", nh.move)
+			r.Post("/check-context", cxh.checkContext)
 				r.Get("/suggest", sgh.suggest)
 				r.Get("/suggest-clusters", sgh.suggestClusters)
 			})

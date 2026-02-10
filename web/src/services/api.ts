@@ -5,6 +5,7 @@ import type {
   Chunk,
   ChunkSuggestion,
   ClusterSuggestion,
+  ContextCheck,
   Edge,
   LinearizeResult,
   Node,
@@ -59,6 +60,11 @@ export const nodes = {
     request<void>(`/nodes/${id}/move`, {
       method: "POST",
       body: JSON.stringify({ parent_id: parentId ?? "", position }),
+    }),
+  checkContext: (id: string, parentId: string) =>
+    request<ContextCheck>(`/nodes/${id}/check-context`, {
+      method: "POST",
+      body: JSON.stringify({ parent_id: parentId }),
     }),
 };
 

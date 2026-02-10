@@ -616,6 +616,32 @@ body,
   color: rgba(100, 108, 255, 0.9);
 }
 
+/* --- Context Warning Badge --- */
+
+.context-warning {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(255, 100, 50, 0.15);
+  color: #ff6432;
+  border: 1px solid rgba(255, 100, 50, 0.3);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: opacity 0.2s;
+  animation: context-warn-pulse 2s ease-in-out 1;
+}
+
+.context-warning:hover {
+  opacity: 0.6;
+}
+
+@keyframes context-warn-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 /* --- Drag and Drop --- */
 
 .drag-handle {
@@ -955,5 +981,10 @@ body,
   .fidelity-badge--low {
     background-color: rgba(255, 193, 7, 0.12);
     color: #e6a800;
+  }
+  .context-warning {
+    background: rgba(255, 100, 50, 0.1);
+    color: #d84315;
+    border-color: rgba(255, 100, 50, 0.25);
   }
 }
