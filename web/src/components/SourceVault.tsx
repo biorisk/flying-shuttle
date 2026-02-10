@@ -3,6 +3,7 @@ import { useNodeStore } from "../stores/nodeStore";
 import { uploads as uploadsApi } from "../services/api";
 import type { Upload } from "../types/model";
 import AudioUpload from "./AudioUpload";
+import AudioRibbon from "./AudioRibbon";
 
 export default function SourceVault() {
   const { nodes, loading, fetchNodes } = useNodeStore();
@@ -24,6 +25,7 @@ export default function SourceVault() {
   return (
     <div className="source-vault">
       <AudioUpload onUploaded={onUploaded} />
+      <AudioRibbon />
 
       {recentUploads.length > 0 && (
         <div className="upload-list">

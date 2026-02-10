@@ -616,6 +616,120 @@ body,
   color: rgba(100, 108, 255, 0.9);
 }
 
+/* --- Audio Ribbon --- */
+
+.audio-ribbon {
+  padding: 8px 0;
+}
+
+.ribbon-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ribbon-bar {
+  display: flex;
+  height: 24px;
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.ribbon-segment {
+  min-width: 3px;
+  transition: opacity 0.15s, transform 0.15s;
+  border-right: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.ribbon-segment:hover {
+  opacity: 0.8;
+  transform: scaleY(1.2);
+}
+
+.ribbon-segment.selected {
+  opacity: 1;
+  transform: scaleY(1.4);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5);
+  z-index: 1;
+}
+
+.ribbon-transcript {
+  min-height: 60px;
+}
+
+.ribbon-selected-chunk {
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ribbon-chunk-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-size: 0.65rem;
+  opacity: 0.6;
+}
+
+.ribbon-cluster-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ribbon-chunk-source {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ribbon-chunk-speaker {
+  font-weight: 600;
+}
+
+.ribbon-chunk-text {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.ribbon-hint {
+  font-size: 0.7rem;
+  opacity: 0.3;
+  text-align: center;
+  padding: 12px;
+}
+
+.ribbon-segment.dragging {
+  opacity: 0.3;
+}
+
+/* --- Ribbon Drag String --- */
+
+.ribbon-drag-string {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9998;
+}
+
+/* --- Chunk Drag Overlay --- */
+
+.drag-overlay--chunk {
+  border-left: 3px solid rgba(100, 108, 255, 0.6);
+  padding-left: 8px;
+  max-width: 240px;
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+
 /* --- CYOA Exit Widget --- */
 
 .exit-widget {
