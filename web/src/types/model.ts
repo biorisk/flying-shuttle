@@ -97,6 +97,13 @@ export interface ChunkSuggestion {
   confidence: number;
 }
 
+export interface ClusterSuggestion {
+  label: string;
+  chunk_ids: string[];
+  chunk_count: number;
+  confidence: number;
+}
+
 export type SpanType = "chunk" | "glue";
 
 export interface StitchSpan {

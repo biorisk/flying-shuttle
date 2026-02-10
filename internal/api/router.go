@@ -33,7 +33,8 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, 
 	th := &threadHandler{store: s}
 	uh := &uploadHandler{store: s, uploadDir: uploadDir, transcribe: transcriber, chunker: chunker, index: idx}
 	sh := &searchHandler{index: idx}
-	sgh := &suggestHandler{store: s, translator: &search.QueryTranslator{Index: idx}}
+	clusterer := &search.EmbeddingClusterer{Embedder: chunker.Embedder}
+	sgh := &suggestHandler{store: s, translator: &search.QueryTranslator{Index: idx}, clusterer: clusterer}
 	sth := &stitchHandler{store: s, stitcher: stitcher}
 
 	r.Route("/api/v1", func(r chi.Router) {
@@ -59,6 +60,7 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, 
 				r.Get("/edges", nh.getEdges)
 				r.Post("/move", nh.move)
 				r.Get("/suggest", sgh.suggest)
+				r.Get("/suggest-clusters", sgh.suggestClusters)
 			})
 		})
 

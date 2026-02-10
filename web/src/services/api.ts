@@ -4,6 +4,7 @@ import type {
   ApiResponse,
   Chunk,
   ChunkSuggestion,
+  ClusterSuggestion,
   Edge,
   Node,
   SearchResult,
@@ -48,6 +49,10 @@ export const nodes = {
   suggest: (id: string, limit = 5) =>
     request<ChunkSuggestion[]>(
       `/nodes/${id}/suggest?limit=${limit}`,
+    ),
+  suggestClusters: (id: string, limit = 10) =>
+    request<ClusterSuggestion[]>(
+      `/nodes/${id}/suggest-clusters?limit=${limit}`,
     ),
   move: (id: string, parentId: string | null, position: number) =>
     request<void>(`/nodes/${id}/move`, {

@@ -10,6 +10,23 @@ async function generateProposals(
 ): Promise<GhostProposal[]> {
   if (!nodeTitle || nodeTitle.trim().length < 3) return [];
 
+  // Try clustered suggestions first (groups chunks into sub-themes).
+  try {
+    const clusters = await nodesApi.suggestClusters(nodeId, 10);
+    if (clusters && clusters.length > 0) {
+      return clusters.map((c, i) => ({
+        id: `cluster-${nodeId}-${i}`,
+        label: c.label,
+        chunkCount: c.chunk_count,
+        confidence: c.confidence,
+        chunkIds: c.chunk_ids,
+      }));
+    }
+  } catch {
+    // Fall through to individual suggestions.
+  }
+
+  // Fallback to individual chunk suggestions.
   try {
     const suggestions = await nodesApi.suggest(nodeId, 5);
     if (suggestions && suggestions.length > 0) {
@@ -22,7 +39,7 @@ async function generateProposals(
       }));
     }
   } catch {
-    // Backend not available or node not persisted — fall through to stub.
+    // Backend not available — fall through to stub.
   }
 
   // Stub fallback for when the index is empty or backend is unavailable.
