@@ -18,6 +18,8 @@ interface StitchState {
   fetchStitch: () => Promise<void>;
 }
 
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
 export const useStitchStore = create<StitchState>((set, get) => ({
   result: null,
   viewMode: "manuscript",
@@ -36,6 +38,13 @@ export const useStitchStore = create<StitchState>((set, get) => ({
 
   setGlueLevel: (level: number) => {
     set({ glueLevel: Math.max(0, Math.min(100, level)) });
+
+    // Debounce the API call so dragging the slider doesn't spam requests.
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      debounceTimer = null;
+      get().fetchStitch();
+    }, 400);
   },
 
   fetchStitch: async () => {

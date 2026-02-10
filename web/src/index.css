@@ -1037,6 +1037,40 @@ body,
   min-width: 32px;
 }
 
+.stitch-glue-tag {
+  font-size: 0.6rem;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.06);
+  transition: background 0.15s, color 0.15s;
+}
+
+.stitch-glue-tag[data-level="raw"] {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.stitch-glue-tag[data-level="minimal"] {
+  color: rgba(76, 175, 80, 0.7);
+}
+
+.stitch-glue-tag[data-level="light"] {
+  color: rgba(76, 175, 80, 0.85);
+  background: rgba(76, 175, 80, 0.08);
+}
+
+.stitch-glue-tag[data-level="smooth"] {
+  color: rgba(100, 108, 255, 0.85);
+  background: rgba(100, 108, 255, 0.08);
+}
+
+.stitch-glue-tag[data-level="full"] {
+  color: rgba(233, 30, 99, 0.85);
+  background: rgba(233, 30, 99, 0.08);
+}
+
 .stitch-refresh-btn {
   background: none;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1103,6 +1137,19 @@ body,
 .stitch-span-glue {
   background-color: rgba(76, 175, 80, 0.12);
   border-radius: 2px;
+  transition: opacity 0.15s;
+}
+
+.stitch-content--stale {
+  opacity: 0.5;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.stitch-refreshing {
+  font-style: italic;
+  opacity: 0.5;
+  margin-left: 4px;
 }
 
 .stitch-loading {

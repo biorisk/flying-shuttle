@@ -1,7 +1,15 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useStitchStore } from "../stores/stitchStore";
 import { useThreadStore } from "../stores/threadStore";
 import { exporting } from "../services/api";
+
+function glueLabel(level: number): string {
+  if (level <= 0) return "Raw";
+  if (level <= 25) return "Minimal";
+  if (level <= 50) return "Light";
+  if (level <= 75) return "Smooth";
+  return "Full";
+}
 
 export default function StitchView() {
   const {
@@ -23,7 +31,7 @@ export default function StitchView() {
 
   useEffect(() => {
     fetchStitch();
-  }, [fetchStitch, viewMode, threadId, glueLevel]);
+  }, [fetchStitch, viewMode, threadId]);
 
   const handleThreadChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -43,6 +51,15 @@ export default function StitchView() {
   const handleRefresh = useCallback(() => {
     fetchStitch();
   }, [fetchStitch]);
+
+  // Immediate visual feedback: scale glue span opacity with glueLevel.
+  const glueOpacity = useMemo(() => {
+    if (glueLevel <= 0) return 0;
+    // Map 1-100 to 0.15-1.0 opacity range.
+    return 0.15 + (glueLevel / 100) * 0.85;
+  }, [glueLevel]);
+
+  const label = glueLabel(glueLevel);
 
   return (
     <div className="stitch-view">
@@ -70,6 +87,9 @@ export default function StitchView() {
             onChange={handleGlueChange}
           />
           <span className="stitch-glue-value">{glueLevel}%</span>
+          <span className="stitch-glue-tag" data-level={label.toLowerCase()}>
+            {label}
+          </span>
         </label>
         <button
           className="stitch-refresh-btn"
@@ -91,10 +111,9 @@ export default function StitchView() {
         </a>
       </div>
 
-      {loading && <p className="stitch-loading">Stitching...</p>}
       {error && <p className="stitch-error">{error}</p>}
 
-      {result && !loading && (
+      {result && (
         <>
           <div className="stitch-stats">
             <span>{result.nodes.length} nodes</span>
@@ -104,23 +123,29 @@ export default function StitchView() {
             <span>
               {Math.round(result.stitch.stats.glue_ratio * 100)}% glue
             </span>
+            {loading && <span className="stitch-refreshing">refreshing...</span>}
           </div>
-          <div className="stitch-content">
-            {result.stitch.spans.map((span, i) => (
-              <span
-                key={i}
-                className={
-                  span.type === "chunk" ? "stitch-span-chunk" : "stitch-span-glue"
-                }
-                title={
-                  span.type === "chunk"
-                    ? `Chunk: ${span.chunk_id ?? "unknown"}`
-                    : "AI-generated transition"
-                }
-              >
-                {span.text}
-              </span>
-            ))}
+          <div className={`stitch-content ${loading ? "stitch-content--stale" : ""}`}>
+            {result.stitch.spans.map((span, i) =>
+              span.type === "chunk" ? (
+                <span
+                  key={i}
+                  className="stitch-span-chunk"
+                  title={`Chunk: ${span.chunk_id ?? "unknown"}`}
+                >
+                  {span.text}
+                </span>
+              ) : (
+                <span
+                  key={i}
+                  className="stitch-span-glue"
+                  style={{ opacity: glueOpacity }}
+                  title="AI-generated transition"
+                >
+                  {span.text}
+                </span>
+              ),
+            )}
             {result.stitch.spans.length === 0 && (
               <p className="stitch-empty">
                 No content to stitch.{" "}
@@ -132,6 +157,8 @@ export default function StitchView() {
           </div>
         </>
       )}
+
+      {!result && loading && <p className="stitch-loading">Stitching...</p>}
     </div>
   );
 }
