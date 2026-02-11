@@ -19,37 +19,31 @@ No external database or services are required — the backend uses an embedded S
 ```bash
 git clone https://github.com/biorisk/flying-shuttle.git
 cd flying-shuttle
-
-# Frontend dependencies
-cd web && npm install && cd ..
 ```
 
-Go dependencies are fetched automatically on first build.
+Go and frontend dependencies are fetched automatically during the build.
 
-### 2. Start the backend
+### 2. Build and run
 
 ```bash
+make build && ./bin/shuttle
+```
+
+This builds both frontend and backend, then starts the server on **http://localhost:8080**. The app (UI + API) is served from a single port. On first run it creates `shuttle.db` in the working directory and runs all migrations automatically.
+
+### 3. Frontend development (with hot reload)
+
+For frontend development, use the Vite dev server for hot module replacement:
+
+```bash
+# Terminal 1: start the backend
 make run
-# or directly:
-go run ./cmd/shuttle
+
+# Terminal 2: start the Vite dev server
+cd web && npm run dev
 ```
 
-The API server starts on **http://localhost:8080**. On first run it creates `shuttle.db` in the working directory and runs all migrations automatically.
-
-### 3. Start the frontend (dev mode)
-
-In a separate terminal:
-
-```bash
-cd web
-npm run dev
-```
-
-The Vite dev server starts on **http://localhost:5173** and proxies `/api/*` requests to the backend.
-
-### 4. Open the app
-
-Navigate to **http://localhost:5173** in your browser.
+The Vite dev server starts on **http://localhost:5173** and proxies `/api/*` requests to the backend. Use this workflow when actively developing frontend code.
 
 ## Environment Variables
 
@@ -60,6 +54,7 @@ All configuration is via environment variables with sensible defaults:
 | `SHUTTLE_DB`         | `shuttle.db` | Path to the SQLite database file         |
 | `SHUTTLE_ADDR`       | `:8080`      | Address/port for the API server          |
 | `SHUTTLE_UPLOAD_DIR` | `uploads`    | Directory for uploaded audio files       |
+| `SHUTTLE_STATIC_DIR` | `web/dist`   | Path to built frontend files (set to empty to disable) |
 
 Example:
 
@@ -67,54 +62,25 @@ Example:
 SHUTTLE_DB=/data/my-project.db SHUTTLE_ADDR=:9090 make run
 ```
 
-## Production Build
-
-### Backend
+## Production Build & Deployment
 
 ```bash
 make build
-# Produces: bin/shuttle
+# Produces: bin/shuttle (with frontend in web/dist/)
 ```
 
-The binary is self-contained (SQLite is embedded via `modernc.org/sqlite`, no CGO required).
-
-### Frontend
+The backend binary is self-contained (SQLite is embedded via `modernc.org/sqlite`, no CGO required). Deploy the binary alongside the `web/dist/` directory:
 
 ```bash
-cd web
-npm run build
+SHUTTLE_STATIC_DIR=/path/to/web/dist SHUTTLE_ADDR=:8080 ./bin/shuttle
 ```
 
-Produces a static build in `web/dist/`. Serve these files with any static file server or reverse proxy (nginx, Caddy, etc.) and point API requests to the backend.
+The backend serves both the API and the frontend — no reverse proxy or separate static file server needed. SPA routing is handled automatically (unknown paths fall back to `index.html`).
 
-### Deployment
+To serve the API without the frontend (e.g. headless or with a separate frontend deployment):
 
-A minimal production setup:
-
-1. Build the backend binary: `make build`
-2. Build the frontend: `cd web && npm run build`
-3. Run the backend: `SHUTTLE_ADDR=:8080 ./bin/shuttle`
-4. Serve `web/dist/` via a reverse proxy that forwards `/api/*` and `/healthz` to the backend
-
-Example nginx config:
-
-```nginx
-server {
-    listen 80;
-
-    location / {
-        root /path/to/web/dist;
-        try_files $uri $uri/ /index.html;
-    }
-
-    location /api/ {
-        proxy_pass http://127.0.0.1:8080;
-    }
-
-    location /healthz {
-        proxy_pass http://127.0.0.1:8080;
-    }
-}
+```bash
+SHUTTLE_STATIC_DIR="" ./bin/shuttle
 ```
 
 ## Inputs & Data

@@ -20,6 +20,7 @@ func main() {
 	dbPath := env("SHUTTLE_DB", "shuttle.db")
 	addr := env("SHUTTLE_ADDR", ":8080")
 	uploadDir := env("SHUTTLE_UPLOAD_DIR", "uploads")
+	staticDir := env("SHUTTLE_STATIC_DIR", "web/dist")
 
 	s, err := store.NewSQLiteStore(dbPath)
 	if err != nil {
@@ -50,7 +51,15 @@ func main() {
 
 	stitcher := &stitch.StubStitcher{}
 
-	router := api.NewRouter(s, uploadDir, transcriber, chunker, idx, stitcher)
+	// Check if the static frontend directory exists.
+	if info, err := os.Stat(staticDir); err != nil || !info.IsDir() {
+		log.Printf("static dir %q not found, serving API only", staticDir)
+		staticDir = ""
+	} else {
+		log.Printf("serving frontend from %s", staticDir)
+	}
+
+	router := api.NewRouter(s, uploadDir, transcriber, chunker, idx, stitcher, staticDir)
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      router,

@@ -1,7 +1,10 @@
-.PHONY: build test run lint clean
+.PHONY: build build-frontend test run lint clean
 
-build:
+build: build-frontend
 	go build -o bin/shuttle ./cmd/shuttle
+
+build-frontend:
+	cd web && npm install && npm run build
 
 test:
 	go test ./...
@@ -13,4 +16,4 @@ lint:
 	go vet ./...
 
 clean:
-	rm -rf bin/
+	rm -rf bin/ web/dist/

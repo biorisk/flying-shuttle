@@ -2,6 +2,9 @@ package api
 
 import (
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/biorisk/flying-shuttle/internal/dag"
 	"github.com/biorisk/flying-shuttle/internal/ingest"
@@ -13,7 +16,9 @@ import (
 )
 
 // NewRouter builds the chi router with all API routes.
-func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, chunker *ingest.Chunker, idx *search.HybridIndex, stitcher stitch.Stitcher) http.Handler {
+// If staticDir is non-empty and the directory exists, it serves the frontend
+// build from that path with SPA fallback (unknown paths return index.html).
+func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, chunker *ingest.Chunker, idx *search.HybridIndex, stitcher stitch.Stitcher, staticDir string) http.Handler {
 	r := chi.NewRouter()
 
 	// Global middleware
@@ -161,6 +166,21 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, 
 			})
 		})
 	})
+
+	// Serve frontend static files with SPA fallback.
+	if staticDir != "" {
+		fs := http.FileServer(http.Dir(staticDir))
+		r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
+			// Try to serve the requested file.
+			path := filepath.Join(staticDir, strings.TrimPrefix(r.URL.Path, "/"))
+			if info, err := os.Stat(path); err == nil && !info.IsDir() {
+				fs.ServeHTTP(w, r)
+				return
+			}
+			// SPA fallback: serve index.html for unmatched paths.
+			http.ServeFile(w, r, filepath.Join(staticDir, "index.html"))
+		})
+	}
 
 	return r
 }
