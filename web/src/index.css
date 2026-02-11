@@ -669,6 +669,136 @@ body,
   font-size: 0.9rem;
 }
 
+/* --- Branch Bar --- */
+
+.branch-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.branch-bar-label {
+  opacity: 0.5;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.branch-active-name {
+  font-weight: 600;
+  opacity: 0.9;
+  flex-shrink: 0;
+}
+
+.branch-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 1px 2px;
+}
+
+.branch-chip-name {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.branch-chip-name:hover {
+  opacity: 1;
+}
+
+.branch-compare-btn,
+.branch-clear-compare {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 0.65rem;
+  padding: 1px 4px;
+  cursor: pointer;
+  opacity: 0.4;
+  transition: opacity 0.15s;
+}
+
+.branch-compare-btn:hover {
+  opacity: 0.9;
+}
+
+.branch-clear-compare {
+  opacity: 0.8;
+  color: rgba(100, 108, 255, 0.9);
+}
+
+.branch-clear-compare:hover {
+  opacity: 1;
+}
+
+.branch-delete-btn {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 0.65rem;
+  padding: 1px 4px;
+  cursor: pointer;
+  opacity: 0.3;
+  transition: opacity 0.15s;
+}
+
+.branch-delete-btn:hover {
+  opacity: 0.8;
+  color: #f44336;
+}
+
+.branch-split-btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: inherit;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.branch-split-btn:hover {
+  opacity: 0.9;
+}
+
+.branch-split-inline {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.branch-name-input {
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  color: inherit;
+  padding: 2px 6px;
+  font-size: 0.8rem;
+  width: 120px;
+}
+
+.branch-split-confirm {
+  background: none;
+  border: none;
+  color: #4caf50;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
 /* Thread node highlighting */
 
 .bullet-row.thread-dimmed {
@@ -1659,6 +1789,20 @@ body,
   .snapshot-save-btn,
   .snapshot-restore-btn,
   .snapshot-delete-btn {
+    border-color: rgba(0, 0, 0, 0.15);
+  }
+  .branch-bar {
+    border-bottom-color: rgba(0, 0, 0, 0.08);
+  }
+  .branch-chip {
+    background-color: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.12);
+  }
+  .branch-name-input {
+    background-color: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.15);
+  }
+  .branch-split-btn {
     border-color: rgba(0, 0, 0, 0.15);
   }
   .drag-overlay {

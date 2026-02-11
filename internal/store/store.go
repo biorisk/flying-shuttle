@@ -62,4 +62,13 @@ type Store interface {
 	ListSnapshots() ([]model.SnapshotSummary, error)
 	DeleteSnapshot(id string) error
 	RestoreSnapshot(id string) error
+
+	// Branches
+	CreateBranch(name string) (*model.BranchSummary, error)
+	GetBranch(id string) (*model.Branch, error)
+	ListBranches() ([]model.BranchSummary, error)
+	UpdateBranch(id string, name string) (*model.BranchSummary, error)
+	DeleteBranch(id string) error
+	SwitchBranch(id string) error
+	GetActiveBranch() (*model.BranchSummary, error)
 }

@@ -2,6 +2,8 @@
 
 import type {
   ApiResponse,
+  Branch,
+  BranchSummary,
   Chunk,
   ChunkSuggestion,
   ClusterSuggestion,
@@ -183,6 +185,28 @@ export const snapshots = {
     request<void>(`/snapshots/${id}`, { method: "DELETE" }),
   restore: (id: string) =>
     request<void>(`/snapshots/${id}/restore`, { method: "POST" }),
+};
+
+// --- Branches ---
+
+export const branches = {
+  list: () => request<BranchSummary[]>("/branches"),
+  get: (id: string) => request<Branch>(`/branches/${id}`),
+  create: (name: string) =>
+    request<BranchSummary>("/branches", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+  update: (id: string, name: string) =>
+    request<BranchSummary>(`/branches/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ name }),
+    }),
+  delete: (id: string) =>
+    request<void>(`/branches/${id}`, { method: "DELETE" }),
+  switchTo: (id: string) =>
+    request<void>(`/branches/${id}/switch`, { method: "POST" }),
+  active: () => request<BranchSummary | null>("/branches/active"),
 };
 
 // --- DAG ---

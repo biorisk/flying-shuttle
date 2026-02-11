@@ -169,6 +169,23 @@ export interface NodeChunkAssoc {
   position: number;
 }
 
+export interface BranchSummary {
+  id: string;
+  name: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Branch {
+  id: string;
+  name: string;
+  data: SnapshotData;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 // API envelope returned by all endpoints.
 export interface ApiResponse<T> {
   data?: T;

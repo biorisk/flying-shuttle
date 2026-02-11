@@ -36,6 +36,8 @@ func errorStatus(err error) int {
 		return http.StatusNotFound
 	case store.ErrConflict:
 		return http.StatusConflict
+	case store.ErrActiveBranch:
+		return http.StatusConflict
 	default:
 		return http.StatusInternalServerError
 	}

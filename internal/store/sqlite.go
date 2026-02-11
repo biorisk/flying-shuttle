@@ -47,6 +47,7 @@ func (s *SQLiteStore) Migrate() error {
 		"migrations/001_initial_schema.sql",
 		"migrations/002_uploads.sql",
 		"migrations/003_snapshots.sql",
+		"migrations/004_branches.sql",
 	}
 	for _, name := range migrations {
 		data, err := migrationFS.ReadFile(name)
@@ -661,35 +662,35 @@ func boolToInt(b bool) int {
 	return 0
 }
 
-// --- Snapshots ---
+// --- DAG state helpers (shared by snapshots and branches) ---
 
-func (s *SQLiteStore) CreateSnapshot(label string) (*model.SnapshotSummary, error) {
-	// Gather current DAG state.
+// gatherDAGState collects the full DAG state from live tables.
+func (s *SQLiteStore) gatherDAGState() (*model.SnapshotData, error) {
 	nodes, err := s.ListNodes()
 	if err != nil {
-		return nil, fmt.Errorf("snapshot nodes: %w", err)
+		return nil, fmt.Errorf("gather nodes: %w", err)
 	}
 	edges, err := s.ListEdges()
 	if err != nil {
-		return nil, fmt.Errorf("snapshot edges: %w", err)
+		return nil, fmt.Errorf("gather edges: %w", err)
 	}
 	threads, err := s.ListThreads()
 	if err != nil {
-		return nil, fmt.Errorf("snapshot threads: %w", err)
+		return nil, fmt.Errorf("gather threads: %w", err)
 	}
 
 	var allThreadNodes []model.ThreadNode
 	for _, t := range threads {
 		tn, err := s.GetThreadNodes(t.ID)
 		if err != nil {
-			return nil, fmt.Errorf("snapshot thread_nodes %s: %w", t.ID, err)
+			return nil, fmt.Errorf("gather thread_nodes %s: %w", t.ID, err)
 		}
 		allThreadNodes = append(allThreadNodes, tn...)
 	}
 
 	rows, err := s.db.Query(`SELECT node_id, chunk_id, position FROM node_chunks ORDER BY node_id, position`)
 	if err != nil {
-		return nil, fmt.Errorf("snapshot node_chunks: %w", err)
+		return nil, fmt.Errorf("gather node_chunks: %w", err)
 	}
 	defer rows.Close()
 	var allNodeChunks []model.NodeChunkAssoc
@@ -704,12 +705,82 @@ func (s *SQLiteStore) CreateSnapshot(label string) (*model.SnapshotSummary, erro
 		return nil, err
 	}
 
-	data := model.SnapshotData{
+	return &model.SnapshotData{
 		Nodes:       nodes,
 		Edges:       edges,
 		Threads:     threads,
 		ThreadNodes: allThreadNodes,
 		NodeChunks:  allNodeChunks,
+	}, nil
+}
+
+// clearDAGTables deletes all rows from the live DAG tables within a transaction.
+func clearDAGTables(tx *sql.Tx) error {
+	for _, table := range []string{"node_chunks", "thread_nodes", "edges", "threads", "nodes"} {
+		if _, err := tx.Exec("DELETE FROM " + table); err != nil {
+			return fmt.Errorf("clear %s: %w", table, err)
+		}
+	}
+	return nil
+}
+
+// restoreDAGState inserts the full DAG state into live tables within a transaction.
+func restoreDAGState(tx *sql.Tx, data *model.SnapshotData) error {
+	for _, n := range data.Nodes {
+		labels, _ := json.Marshal(n.Labels)
+		if _, err := tx.Exec(
+			`INSERT INTO nodes (id, type, title, body, labels, locked, version, created_at, updated_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			n.ID, string(n.Type), n.Title, n.Body, string(labels), boolToInt(n.Locked), n.Version,
+			n.CreatedAt.Format(time.RFC3339Nano), n.UpdatedAt.Format(time.RFC3339Nano),
+		); err != nil {
+			return fmt.Errorf("restore node %s: %w", n.ID, err)
+		}
+	}
+	for _, e := range data.Edges {
+		if _, err := tx.Exec(
+			`INSERT INTO edges (id, from_node, to_node, type, condition, weight, created_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			e.ID, e.FromNode, e.ToNode, string(e.Type), e.Condition, e.Weight,
+			e.CreatedAt.Format(time.RFC3339Nano),
+		); err != nil {
+			return fmt.Errorf("restore edge %s: %w", e.ID, err)
+		}
+	}
+	for _, t := range data.Threads {
+		if _, err := tx.Exec(
+			`INSERT INTO threads (id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
+			t.ID, t.Name, t.Description,
+			t.CreatedAt.Format(time.RFC3339Nano), t.UpdatedAt.Format(time.RFC3339Nano),
+		); err != nil {
+			return fmt.Errorf("restore thread %s: %w", t.ID, err)
+		}
+	}
+	for _, tn := range data.ThreadNodes {
+		if _, err := tx.Exec(
+			`INSERT INTO thread_nodes (thread_id, node_id, position) VALUES (?, ?, ?)`,
+			tn.ThreadID, tn.NodeID, tn.Position,
+		); err != nil {
+			return fmt.Errorf("restore thread_node: %w", err)
+		}
+	}
+	for _, nc := range data.NodeChunks {
+		if _, err := tx.Exec(
+			`INSERT INTO node_chunks (node_id, chunk_id, position) VALUES (?, ?, ?)`,
+			nc.NodeID, nc.ChunkID, nc.Position,
+		); err != nil {
+			return fmt.Errorf("restore node_chunk: %w", err)
+		}
+	}
+	return nil
+}
+
+// --- Snapshots ---
+
+func (s *SQLiteStore) CreateSnapshot(label string) (*model.SnapshotSummary, error) {
+	data, err := s.gatherDAGState()
+	if err != nil {
+		return nil, err
 	}
 	blob, err := json.Marshal(data)
 	if err != nil {
@@ -790,64 +861,270 @@ func (s *SQLiteStore) RestoreSnapshot(id string) error {
 	}
 	defer tx.Rollback()
 
-	// Delete in dependency order.
-	for _, table := range []string{"node_chunks", "thread_nodes", "edges", "threads", "nodes"} {
-		if _, err := tx.Exec("DELETE FROM " + table); err != nil {
-			return fmt.Errorf("clear %s: %w", table, err)
+	if err := clearDAGTables(tx); err != nil {
+		return err
+	}
+	if err := restoreDAGState(tx, &snap.Data); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+// --- Branches ---
+
+func (s *SQLiteStore) CreateBranch(name string) (*model.BranchSummary, error) {
+	data, err := s.gatherDAGState()
+	if err != nil {
+		return nil, err
+	}
+	blob, err := json.Marshal(data)
+	if err != nil {
+		return nil, fmt.Errorf("marshal branch data: %w", err)
+	}
+	dataStr := string(blob)
+
+	now := time.Now().UTC()
+	nowStr := now.Format(time.RFC3339Nano)
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	// Check if any branches exist already.
+	var count int
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM branches`).Scan(&count); err != nil {
+		return nil, err
+	}
+
+	if count == 0 {
+		// First split: create "main" branch (inactive) with current state.
+		mainID := uuid.NewString()
+		if _, err := tx.Exec(
+			`INSERT INTO branches (id, name, data, active, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?)`,
+			mainID, "main", dataStr, nowStr, nowStr,
+		); err != nil {
+			return nil, err
+		}
+	} else {
+		// Save current state into the departing (active) branch.
+		if _, err := tx.Exec(
+			`UPDATE branches SET data = ?, active = 0, updated_at = ? WHERE active = 1`,
+			dataStr, nowStr,
+		); err != nil {
+			return nil, err
 		}
 	}
 
-	// Re-insert in dependency order.
-	for _, n := range snap.Data.Nodes {
-		labels, _ := json.Marshal(n.Labels)
-		if _, err := tx.Exec(
-			`INSERT INTO nodes (id, type, title, body, labels, locked, version, created_at, updated_at)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			n.ID, string(n.Type), n.Title, n.Body, string(labels), boolToInt(n.Locked), n.Version,
-			n.CreatedAt.Format(time.RFC3339Nano), n.UpdatedAt.Format(time.RFC3339Nano),
-		); err != nil {
-			return fmt.Errorf("restore node %s: %w", n.ID, err)
-		}
+	// Create the new branch as active with the same state.
+	newID := uuid.NewString()
+	if _, err := tx.Exec(
+		`INSERT INTO branches (id, name, data, active, created_at, updated_at) VALUES (?, ?, ?, 1, ?, ?)`,
+		newID, name, dataStr, nowStr, nowStr,
+	); err != nil {
+		return nil, err
 	}
 
-	for _, e := range snap.Data.Edges {
-		if _, err := tx.Exec(
-			`INSERT INTO edges (id, from_node, to_node, type, condition, weight, created_at)
-			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			e.ID, e.FromNode, e.ToNode, string(e.Type), e.Condition, e.Weight,
-			e.CreatedAt.Format(time.RFC3339Nano),
-		); err != nil {
-			return fmt.Errorf("restore edge %s: %w", e.ID, err)
-		}
+	if err := tx.Commit(); err != nil {
+		return nil, err
 	}
 
-	for _, t := range snap.Data.Threads {
-		if _, err := tx.Exec(
-			`INSERT INTO threads (id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
-			t.ID, t.Name, t.Description,
-			t.CreatedAt.Format(time.RFC3339Nano), t.UpdatedAt.Format(time.RFC3339Nano),
-		); err != nil {
-			return fmt.Errorf("restore thread %s: %w", t.ID, err)
+	return &model.BranchSummary{ID: newID, Name: name, Active: true, CreatedAt: now, UpdatedAt: now}, nil
+}
+
+func (s *SQLiteStore) GetBranch(id string) (*model.Branch, error) {
+	var b model.Branch
+	var dataBlob, createdAt, updatedAt string
+	var active int
+	err := s.db.QueryRow(
+		`SELECT id, name, data, active, created_at, updated_at FROM branches WHERE id = ?`, id,
+	).Scan(&b.ID, &b.Name, &dataBlob, &active, &createdAt, &updatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrNotFound
 		}
+		return nil, err
+	}
+	b.Active = active != 0
+	b.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAt)
+	b.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updatedAt)
+	if err := json.Unmarshal([]byte(dataBlob), &b.Data); err != nil {
+		return nil, fmt.Errorf("unmarshal branch data: %w", err)
+	}
+	return &b, nil
+}
+
+func (s *SQLiteStore) ListBranches() ([]model.BranchSummary, error) {
+	rows, err := s.db.Query(`SELECT id, name, active, created_at, updated_at FROM branches ORDER BY created_at`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []model.BranchSummary
+	for rows.Next() {
+		var bs model.BranchSummary
+		var active int
+		var createdAt, updatedAt string
+		if err := rows.Scan(&bs.ID, &bs.Name, &active, &createdAt, &updatedAt); err != nil {
+			return nil, err
+		}
+		bs.Active = active != 0
+		bs.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAt)
+		bs.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updatedAt)
+		out = append(out, bs)
+	}
+	return out, rows.Err()
+}
+
+func (s *SQLiteStore) UpdateBranch(id string, name string) (*model.BranchSummary, error) {
+	now := time.Now().UTC()
+	res, err := s.db.Exec(
+		`UPDATE branches SET name = ?, updated_at = ? WHERE id = ?`,
+		name, now.Format(time.RFC3339Nano), id,
+	)
+	if err != nil {
+		return nil, err
+	}
+	affected, _ := res.RowsAffected()
+	if affected == 0 {
+		return nil, ErrNotFound
+	}
+	// Re-read the branch summary.
+	var bs model.BranchSummary
+	var active int
+	var createdAt, updatedAt string
+	err = s.db.QueryRow(
+		`SELECT id, name, active, created_at, updated_at FROM branches WHERE id = ?`, id,
+	).Scan(&bs.ID, &bs.Name, &active, &createdAt, &updatedAt)
+	if err != nil {
+		return nil, err
+	}
+	bs.Active = active != 0
+	bs.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAt)
+	bs.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updatedAt)
+	return &bs, nil
+}
+
+func (s *SQLiteStore) DeleteBranch(id string) error {
+	// Check if the branch is active.
+	var active int
+	err := s.db.QueryRow(`SELECT active FROM branches WHERE id = ?`, id).Scan(&active)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return ErrNotFound
+		}
+		return err
+	}
+	if active != 0 {
+		return ErrActiveBranch
 	}
 
-	for _, tn := range snap.Data.ThreadNodes {
-		if _, err := tx.Exec(
-			`INSERT INTO thread_nodes (thread_id, node_id, position) VALUES (?, ?, ?)`,
-			tn.ThreadID, tn.NodeID, tn.Position,
-		); err != nil {
-			return fmt.Errorf("restore thread_node: %w", err)
-		}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`DELETE FROM branches WHERE id = ?`, id); err != nil {
+		return err
 	}
 
-	for _, nc := range snap.Data.NodeChunks {
-		if _, err := tx.Exec(
-			`INSERT INTO node_chunks (node_id, chunk_id, position) VALUES (?, ?, ?)`,
-			nc.NodeID, nc.ChunkID, nc.Position,
-		); err != nil {
-			return fmt.Errorf("restore node_chunk: %w", err)
+	// If only 1 branch remains, collapse to no-branch state.
+	var remaining int
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM branches`).Scan(&remaining); err != nil {
+		return err
+	}
+	if remaining == 1 {
+		if _, err := tx.Exec(`DELETE FROM branches`); err != nil {
+			return err
 		}
 	}
 
 	return tx.Commit()
+}
+
+func (s *SQLiteStore) SwitchBranch(id string) error {
+	// Gather current DAG state to save into the departing branch.
+	data, err := s.gatherDAGState()
+	if err != nil {
+		return err
+	}
+	blob, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("marshal departing branch: %w", err)
+	}
+
+	// Load target branch data.
+	var targetBlob string
+	var targetActive int
+	err = s.db.QueryRow(`SELECT data, active FROM branches WHERE id = ?`, id).Scan(&targetBlob, &targetActive)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return ErrNotFound
+		}
+		return err
+	}
+	if targetActive != 0 {
+		return nil // Already active, no-op.
+	}
+	var targetData model.SnapshotData
+	if err := json.Unmarshal([]byte(targetBlob), &targetData); err != nil {
+		return fmt.Errorf("unmarshal target branch: %w", err)
+	}
+
+	now := time.Now().UTC()
+	nowStr := now.Format(time.RFC3339Nano)
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Save current state into departing branch and mark inactive.
+	if _, err := tx.Exec(
+		`UPDATE branches SET data = ?, active = 0, updated_at = ? WHERE active = 1`,
+		string(blob), nowStr,
+	); err != nil {
+		return err
+	}
+
+	// Clear live tables and restore target branch state.
+	if err := clearDAGTables(tx); err != nil {
+		return err
+	}
+	if err := restoreDAGState(tx, &targetData); err != nil {
+		return err
+	}
+
+	// Mark target branch as active.
+	if _, err := tx.Exec(
+		`UPDATE branches SET active = 1, updated_at = ? WHERE id = ?`,
+		nowStr, id,
+	); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (s *SQLiteStore) GetActiveBranch() (*model.BranchSummary, error) {
+	var bs model.BranchSummary
+	var active int
+	var createdAt, updatedAt string
+	err := s.db.QueryRow(
+		`SELECT id, name, active, created_at, updated_at FROM branches WHERE active = 1`,
+	).Scan(&bs.ID, &bs.Name, &active, &createdAt, &updatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	bs.Active = true
+	bs.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAt)
+	bs.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updatedAt)
+	return &bs, nil
 }
