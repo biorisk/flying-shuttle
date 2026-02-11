@@ -376,7 +376,7 @@ export const useOutlineStore = create<OutlineState>((set, get) => ({
   },
 
   computeDiff: (snapshotData: SnapshotData) => {
-    const { allNodes, allEdges } = get();
+    const { allNodes } = get();
     const currentById = new Map<string, Node>();
     for (const n of allNodes) {
       if (n.type === "outline") currentById.set(n.id, n);

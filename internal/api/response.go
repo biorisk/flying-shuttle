@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"reflect"
 
 	"github.com/biorisk/flying-shuttle/internal/store"
 )
@@ -13,6 +14,13 @@ type envelope struct {
 }
 
 func writeJSON(w http.ResponseWriter, status int, data any) {
+	// Ensure nil slices serialize as [] instead of null.
+	if data != nil {
+		rv := reflect.ValueOf(data)
+		if rv.Kind() == reflect.Slice && rv.IsNil() {
+			data = reflect.MakeSlice(rv.Type(), 0, 0).Interface()
+		}
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(envelope{Data: data})

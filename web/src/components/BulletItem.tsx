@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
-import type { TreeNode, DiffStatus, DiffGhostNode } from "../stores/outlineStore";
+import type { TreeNode, DiffStatus } from "../stores/outlineStore";
 import { flattenTree, useOutlineStore } from "../stores/outlineStore";
 import { useNodeStore } from "../stores/nodeStore";
 import { useGhostStore } from "../stores/ghostStore";

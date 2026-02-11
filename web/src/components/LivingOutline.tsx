@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useOutlineStore, type TreeNode } from "../stores/outlineStore";
+import { useOutlineStore } from "../stores/outlineStore";
 import { useThreadStore } from "../stores/threadStore";
 import BulletItem from "./BulletItem";
 import ThreadSelector from "./ThreadSelector";

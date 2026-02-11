@@ -4,7 +4,7 @@ build: build-frontend
 	go build -o bin/shuttle ./cmd/shuttle
 
 build-frontend:
-	cd web && npm install && npm run build
+	. "$$HOME/.nvm/nvm.sh" && nvm use --delete-prefix node && cd web && npm install && npm run build
 
 test:
 	go test ./...

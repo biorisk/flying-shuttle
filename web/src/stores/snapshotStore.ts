@@ -14,7 +14,7 @@ interface SnapshotState {
   restoreSnapshot: (id: string) => Promise<boolean>;
 }
 
-export const useSnapshotStore = create<SnapshotState>((set, get) => ({
+export const useSnapshotStore = create<SnapshotState>((set) => ({
   snapshots: [],
   saving: false,
   restoring: false,

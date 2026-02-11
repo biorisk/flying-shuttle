@@ -4,13 +4,15 @@ import { useGhostStore } from "../stores/ghostStore";
 import { useOutlineStore } from "../stores/outlineStore";
 import { nodes as nodesApi } from "../services/api";
 
+const EMPTY_PROPOSALS: GhostProposal[] = [];
+
 interface GhostSubListProps {
   nodeId: string;
   depth: number;
 }
 
 export default function GhostSubList({ nodeId, depth }: GhostSubListProps) {
-  const proposals = useGhostStore((s) => s.proposals[nodeId] ?? []);
+  const proposals = useGhostStore((s) => s.proposals[nodeId] ?? EMPTY_PROPOSALS);
   const loading = useGhostStore((s) => s.loading[nodeId] ?? false);
   const dismissProposal = useGhostStore((s) => s.dismissProposal);
   const rejectProposal = useGhostStore((s) => s.rejectProposal);

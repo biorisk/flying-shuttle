@@ -106,7 +106,7 @@ export default function Home() {
         `[data-rbd-draggable-id="${id}"], [id="${id}"]`,
       ) as HTMLElement | null;
       if (event.active.rect.current.initial) {
-        setChunkDragOrigin(event.active.rect.current.initial);
+        setChunkDragOrigin(event.active.rect.current.initial as DOMRect);
       } else if (el) {
         setChunkDragOrigin(el.getBoundingClientRect());
       }

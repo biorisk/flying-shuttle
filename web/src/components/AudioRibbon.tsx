@@ -59,7 +59,6 @@ interface RibbonSegment {
 /** Individually draggable ribbon segment. */
 function DraggableSegment({
   seg,
-  index,
   selected,
   onClick,
 }: {
