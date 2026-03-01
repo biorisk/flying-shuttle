@@ -78,13 +78,12 @@ func TestBM25_noMatch(t *testing.T) {
 }
 
 // --- Vector index tests ---
+// VectorIndex now takes pre-computed float32 vectors directly (no embedder).
 
 func TestVector_empty(t *testing.T) {
-	idx := NewVectorIndex(&ingest.StubEmbedder{Dim: 8})
-	results, err := idx.Search(context.Background(), "hello", 10)
-	if err != nil {
-		t.Fatal(err)
-	}
+	idx := NewVectorIndex()
+	// Search on empty index returns nil.
+	results := idx.Search([]float32{0, 0, 0, 0, 0, 0, 0, 0}, 10)
 	if len(results) != 0 {
 		t.Fatalf("expected 0 results, got %d", len(results))
 	}
@@ -94,7 +93,7 @@ func TestVector_ranking(t *testing.T) {
 	embedder := &ingest.StubEmbedder{Dim: 64}
 	ctx := context.Background()
 
-	idx := NewVectorIndex(embedder)
+	idx := NewVectorIndex()
 	// Add identical text as query to guarantee highest similarity.
 	queryText := "quantum physics"
 	qVec, _ := embedder.Embed(ctx, queryText)
@@ -103,10 +102,8 @@ func TestVector_ranking(t *testing.T) {
 	otherVec, _ := embedder.Embed(ctx, "completely unrelated text about cooking")
 	idx.Add("c2", otherVec)
 
-	results, err := idx.Search(ctx, queryText, 10)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// Search by passing the pre-computed query vector directly.
+	results := idx.Search(qVec, 10)
 	if len(results) != 2 {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
@@ -122,15 +119,13 @@ func TestVector_ranking(t *testing.T) {
 func TestVector_limit(t *testing.T) {
 	embedder := &ingest.StubEmbedder{Dim: 8}
 	ctx := context.Background()
-	idx := NewVectorIndex(embedder)
+	idx := NewVectorIndex()
+	queryVec, _ := embedder.Embed(ctx, "doc")
 	for i := 0; i < 20; i++ {
 		vec, _ := embedder.Embed(ctx, "doc")
 		idx.Add(string(rune('a'+i)), vec)
 	}
-	results, err := idx.Search(ctx, "doc", 3)
-	if err != nil {
-		t.Fatal(err)
-	}
+	results := idx.Search(queryVec, 3)
 	if len(results) != 3 {
 		t.Fatalf("expected 3 results, got %d", len(results))
 	}

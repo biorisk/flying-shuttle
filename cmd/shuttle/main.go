@@ -21,6 +21,7 @@ func main() {
 	addr := env("SHUTTLE_ADDR", ":8080")
 	uploadDir := env("SHUTTLE_UPLOAD_DIR", "uploads")
 	staticDir := env("SHUTTLE_STATIC_DIR", "web/dist")
+	hnswPath := env("SHUTTLE_HNSW_PATH", "shuttle.hnsw")
 
 	s, err := store.NewSQLiteStore(dbPath)
 	if err != nil {
@@ -37,17 +38,31 @@ func main() {
 	}
 
 	transcriber := &ingest.StubTranscriber{}
-	embedder := &ingest.StubEmbedder{}
-	chunker := &ingest.Chunker{Embedder: embedder}
+	// StubEmbedder is used only for clustering suggestions (EmbeddingClusterer).
+	// The HybridIndex uses nil embedder → BM25-only query mode.
+	stubEmbedder := &ingest.StubEmbedder{}
+	chunker := &ingest.Chunker{Embedder: stubEmbedder}
 
-	// Build hybrid search index from existing chunks.
-	idx := search.NewHybridIndex(embedder)
+	// Build hybrid search index in BM25-only mode (nil embedder).
+	// Pre-computed embeddings from .fembed files are indexed via the ingest API.
+	idx := search.NewHybridIndex(nil)
+
+	// Load existing chunks into BM25 index and HNSW vector index.
 	existingChunks, err := s.ListChunks()
 	if err != nil {
 		log.Fatalf("load chunks for index: %v", err)
 	}
 	idx.IndexChunks(existingChunks)
-	log.Printf("indexed %d chunks", len(existingChunks))
+	log.Printf("indexed %d chunks (BM25)", len(existingChunks))
+
+	// Load persisted HNSW index from disk if it exists.
+	if _, statErr := os.Stat(hnswPath); statErr == nil {
+		if err := idx.Vector.Load(hnswPath); err != nil {
+			log.Printf("warning: failed to load HNSW index from %s: %v", hnswPath, err)
+		} else {
+			log.Printf("loaded HNSW index from %s (%d vectors)", hnswPath, idx.Vector.Len())
+		}
+	}
 
 	stitcher := &stitch.StubStitcher{}
 
@@ -59,7 +74,7 @@ func main() {
 		log.Printf("serving frontend from %s", staticDir)
 	}
 
-	router := api.NewRouter(s, uploadDir, transcriber, chunker, idx, stitcher, staticDir)
+	router := api.NewRouter(s, uploadDir, transcriber, chunker, idx, stitcher, staticDir, hnswPath)
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      router,

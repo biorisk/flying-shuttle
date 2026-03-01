@@ -16,21 +16,28 @@ type Result struct {
 
 // HybridIndex combines BM25 keyword search with vector semantic search
 // using Reciprocal Rank Fusion (RRF) for score combination.
+//
+// When Embedder is nil, Search falls back to BM25-only results. This is the
+// expected mode when embeddings are pre-computed offline and no live embedder
+// is available at query time.
 type HybridIndex struct {
-	BM25   *BM25Index
-	Vector *VectorIndex
+	BM25     *BM25Index
+	Vector   *VectorIndex
+	Embedder ingest.Embedder // optional; nil → BM25-only mode
 
 	// RRFk is the RRF constant (default 60). Higher values give more
 	// weight to lower-ranked results.
 	RRFk float64
 }
 
-// NewHybridIndex creates an empty hybrid index.
+// NewHybridIndex creates an empty hybrid index. Pass a nil embedder to enable
+// BM25-only mode (vector search is skipped at query time).
 func NewHybridIndex(embedder ingest.Embedder) *HybridIndex {
 	return &HybridIndex{
-		BM25:   NewBM25Index(),
-		Vector: NewVectorIndex(embedder),
-		RRFk:   60,
+		BM25:     NewBM25Index(),
+		Vector:   NewVectorIndex(),
+		Embedder: embedder,
+		RRFk:     60,
 	}
 }
 
@@ -54,8 +61,9 @@ func (h *HybridIndex) IndexChunk(c *model.Chunk) {
 	}
 }
 
-// Search performs hybrid retrieval: BM25 keyword search + vector semantic
-// search, fused via Reciprocal Rank Fusion. Returns up to limit results.
+// Search performs hybrid retrieval: BM25 keyword search fused with vector
+// semantic search via Reciprocal Rank Fusion. When no Embedder is configured,
+// only BM25 results are returned. Returns up to limit results.
 func (h *HybridIndex) Search(ctx context.Context, query string, limit int) ([]Result, error) {
 	// Get candidates from both sources. Fetch more than limit so RRF
 	// has enough candidates to work with.
@@ -65,9 +73,14 @@ func (h *HybridIndex) Search(ctx context.Context, query string, limit int) ([]Re
 	}
 
 	bm25Results := h.BM25.Search(query, candidateLimit)
-	vecResults, err := h.Vector.Search(ctx, query, candidateLimit)
-	if err != nil {
-		return nil, err
+
+	var vecResults []Result
+	if h.Embedder != nil {
+		qVec, err := h.Embedder.Embed(ctx, query)
+		if err != nil {
+			return nil, err
+		}
+		vecResults = h.Vector.Search(qVec, candidateLimit)
 	}
 
 	fused := reciprocalRankFusionK(h.rrfk(), bm25Results, vecResults)

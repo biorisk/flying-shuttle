@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useOutlineStore } from "../stores/outlineStore";
 import { useGhostStore } from "../stores/ghostStore";
 import { edges as edgesApi } from "../services/api";
+import { shallow } from "zustand/shallow";
 
 interface ExitWidgetProps {
   nodeId: string;
@@ -9,9 +10,14 @@ interface ExitWidgetProps {
 }
 
 export default function ExitWidget({ nodeId, depth }: ExitWidgetProps) {
-  const allEdges = useOutlineStore((s) => s.allEdges);
-  const allNodes = useOutlineStore((s) => s.allNodes);
-  const fetchOutline = useOutlineStore((s) => s.fetchOutline);
+  const { allEdges, allNodes, fetchOutline } = useOutlineStore(
+    (s) => ({
+      allEdges: s.allEdges,
+      allNodes: s.allNodes,
+      fetchOutline: s.fetchOutline,
+    }),
+    shallow
+  );
   const proposals = useGhostStore((s) => s.proposals[nodeId] ?? []);
 
   const [adding, setAdding] = useState(false);

@@ -1,59 +1,75 @@
 package search
 
 import (
-	"context"
-	"sort"
+	"bufio"
+	"os"
 
 	"github.com/biorisk/flying-shuttle/internal/ingest"
+	"github.com/coder/hnsw"
 )
 
-// VectorIndex is an in-memory brute-force vector search index.
-// For the single-user writing tool scale, brute-force cosine similarity
-// over a few thousand chunks is fast enough (<1ms).
+// VectorIndex is an HNSW-backed approximate nearest-neighbour search index.
+// It stores pre-computed embeddings keyed by chunk ID.
+// Query-time embedding is not performed here; call Search with a pre-computed
+// vector, or skip vector search entirely by using HybridIndex with a nil Embedder.
 type VectorIndex struct {
-	embedder ingest.Embedder
-	docs     []vecDoc
+	graph *hnsw.Graph[string]
 }
 
-type vecDoc struct {
-	id  string
-	vec []float32
+// NewVectorIndex creates an empty HNSW vector index with cosine distance.
+func NewVectorIndex() *VectorIndex {
+	return &VectorIndex{graph: hnsw.NewGraph[string]()}
 }
 
-// NewVectorIndex creates an empty vector index backed by the given embedder.
-func NewVectorIndex(embedder ingest.Embedder) *VectorIndex {
-	return &VectorIndex{embedder: embedder}
-}
-
-// Add indexes a chunk by its ID and pre-computed embedding vector.
+// Add inserts a chunk with its pre-computed embedding vector into the index.
 func (idx *VectorIndex) Add(id string, vec []float32) {
-	idx.docs = append(idx.docs, vecDoc{id: id, vec: vec})
+	idx.graph.Add(hnsw.MakeNode(id, vec))
 }
 
-// Search embeds the query, then ranks all indexed documents by cosine
-// similarity, returning up to limit results.
-func (idx *VectorIndex) Search(ctx context.Context, query string, limit int) ([]Result, error) {
-	if len(idx.docs) == 0 {
-		return nil, nil
+// Search finds the k approximate nearest neighbours to vec.
+// Results are scored by cosine similarity (higher = more similar).
+// Returns nil if the index is empty.
+func (idx *VectorIndex) Search(vec []float32, limit int) []Result {
+	if idx.graph.Len() == 0 {
+		return nil
 	}
+	nodes := idx.graph.Search(vec, limit)
+	results := make([]Result, len(nodes))
+	for i, n := range nodes {
+		results[i] = Result{
+			ChunkID: n.Key,
+			Score:   ingest.CosineSimilarity(vec, n.Value),
+		}
+	}
+	return results
+}
 
-	qVec, err := idx.embedder.Embed(ctx, query)
+// Save persists the HNSW graph to a file at path.
+func (idx *VectorIndex) Save(path string) error {
+	f, err := os.Create(path)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	results := make([]Result, 0, len(idx.docs))
-	for _, doc := range idx.docs {
-		sim := ingest.CosineSimilarity(qVec, doc.vec)
-		results = append(results, Result{ChunkID: doc.id, Score: sim})
+	defer f.Close()
+	w := bufio.NewWriter(f)
+	if err := idx.graph.Export(w); err != nil {
+		return err
 	}
+	return w.Flush()
+}
 
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].Score > results[j].Score
-	})
-
-	if limit > 0 && len(results) > limit {
-		results = results[:limit]
+// Load restores the HNSW graph from a file at path.
+// Replaces any previously indexed data.
+func (idx *VectorIndex) Load(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
 	}
-	return results, nil
+	defer f.Close()
+	return idx.graph.Import(bufio.NewReader(f))
+}
+
+// Len returns the number of vectors currently indexed.
+func (idx *VectorIndex) Len() int {
+	return idx.graph.Len()
 }

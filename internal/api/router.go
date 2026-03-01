@@ -18,7 +18,8 @@ import (
 // NewRouter builds the chi router with all API routes.
 // If staticDir is non-empty and the directory exists, it serves the frontend
 // build from that path with SPA fallback (unknown paths return index.html).
-func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, chunker *ingest.Chunker, idx *search.HybridIndex, stitcher stitch.Stitcher, staticDir string) http.Handler {
+// hnswPath is the path used to persist the HNSW vector index; empty to disable.
+func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, chunker *ingest.Chunker, idx *search.HybridIndex, stitcher stitch.Stitcher, staticDir string, hnswPath string) http.Handler {
 	r := chi.NewRouter()
 
 	// Global middleware
@@ -46,6 +47,7 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, 
 	exh := &exportHandler{store: s, stitcher: stitcher}
 	snh := &snapshotHandler{store: s}
 	bh := &branchHandler{store: s}
+	ih := &ingestHandler{store: s, idx: idx, hnswPath: hnswPath}
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(jsonContent)
@@ -111,6 +113,12 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, 
 
 		// Search
 		r.Get("/search", sh.query)
+
+		// Ingest (pre-computed embeddings from Python pipeline)
+		r.Route("/ingest", func(r chi.Router) {
+			r.Post("/embed-file", ih.importEmbedFile)
+			r.Post("/directory", ih.importDirectory)
+		})
 
 		// Stitch
 		r.Post("/stitch", sth.stitch)

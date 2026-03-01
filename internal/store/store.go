@@ -9,6 +9,7 @@ type Store interface {
 
 	// Chunks (immutable — no Update or Delete)
 	CreateChunk(c *model.Chunk) error
+	CreateChunks(chunks []model.Chunk) error // batch insert in a single transaction
 	GetChunk(id string) (*model.Chunk, error)
 	ListChunks() ([]model.Chunk, error)
 

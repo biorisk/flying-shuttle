@@ -75,6 +75,31 @@ func (s *SQLiteStore) CreateChunk(c *model.Chunk) error {
 	return err
 }
 
+func (s *SQLiteStore) CreateChunks(chunks []model.Chunk) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	now := time.Now().UTC()
+	nowStr := now.Format(time.RFC3339Nano)
+	for i := range chunks {
+		chunks[i].CreatedAt = now
+		_, err := tx.Exec(
+			`INSERT INTO chunks (id, source_file, content, start_offset, end_offset, speaker, embedding_vec, created_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			chunks[i].ID, chunks[i].SourceFile, chunks[i].Content,
+			chunks[i].StartOffset, chunks[i].EndOffset, chunks[i].Speaker,
+			chunks[i].EmbeddingVec, nowStr,
+		)
+		if err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
 func (s *SQLiteStore) GetChunk(id string) (*model.Chunk, error) {
 	row := s.db.QueryRow(
 		`SELECT id, source_file, content, start_offset, end_offset, speaker, embedding_vec, created_at FROM chunks WHERE id = ?`, id)
