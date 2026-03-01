@@ -4,3 +4,4 @@
 {"actor":"kris","comment":null,"created_at":"2026-03-01T11:20:16Z","event_type":"created","id":4,"issue_id":"flying-shuttle-hs8","new_value":"","old_value":""}
 {"actor":"kris","comment":null,"created_at":"2026-03-01T11:59:50Z","event_type":"created","id":5,"issue_id":"flying-shuttle-ai7","new_value":"","old_value":""}
 {"actor":"kris","comment":null,"created_at":"2026-03-01T11:59:58Z","event_type":"created","id":6,"issue_id":"flying-shuttle-32d","new_value":"","old_value":""}
+{"actor":"biorisk","comment":null,"created_at":"2026-03-01T16:48:15Z","event_type":"closed","id":7,"issue_id":"flying-shuttle-32d","new_value":"Resolved: implemented BM25-only fallback (Option A). HybridIndex.Embedder=nil skips vector search at query time. Shipped in 918ba96.","old_value":""}
