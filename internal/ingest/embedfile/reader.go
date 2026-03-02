@@ -25,6 +25,13 @@ import (
 	"os"
 )
 
+// Streamer is the common interface for reading embedding records from either a
+// binary .fembed file (Reader) or a legacy TSV .embed file (TSVReader).
+type Streamer interface {
+	Next() (*Record, error)
+	Close() error
+}
+
 var magic = [4]byte{0x46, 0x45, 0x4D, 0x42} // "FEMB"
 
 // Record holds a single embedding record from a .fembed file.

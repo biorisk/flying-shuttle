@@ -2,10 +2,12 @@ package embedfile_test
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/biorisk/flying-shuttle/internal/ingest/embedfile"
@@ -130,5 +132,116 @@ func TestBadMagic(t *testing.T) {
 	_, err := embedfile.Open(path)
 	if err == nil {
 		t.Fatal("expected error for bad magic bytes, got nil")
+	}
+}
+
+// --- TSVReader tests ---
+
+func writeTSV(t *testing.T, path string, records []embedfile.Record) {
+	t.Helper()
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	defer f.Close()
+	fmt.Fprintf(f, "file_name\tstart_token\tembedding\ttext\n")
+	for _, rec := range records {
+		parts := make([]string, len(rec.Embedding))
+		for i, v := range rec.Embedding {
+			parts[i] = fmt.Sprintf("%v", v)
+		}
+		fmt.Fprintf(f, "%s\t%d\t%s\t%s\n",
+			rec.SourceFile, rec.StartToken,
+			strings.Join(parts, ","), rec.Text)
+	}
+}
+
+func TestTSVRoundTrip(t *testing.T) {
+	want := []embedfile.Record{
+		{SourceFile: "a.txt", StartToken: 0, Text: "hello world", Embedding: []float32{0.1, 0.2, 0.3}},
+		{SourceFile: "b.txt", StartToken: 150, Text: "another chunk", Embedding: []float32{0.4, 0.5, 0.6}},
+	}
+
+	path := filepath.Join(t.TempDir(), "test.embed")
+	writeTSV(t, path, want)
+
+	r, err := embedfile.OpenTSV(path)
+	if err != nil {
+		t.Fatalf("OpenTSV: %v", err)
+	}
+	defer r.Close()
+
+	for i, w := range want {
+		got, err := r.Next()
+		if err != nil {
+			t.Fatalf("record %d: %v", i, err)
+		}
+		if got.SourceFile != w.SourceFile {
+			t.Errorf("record %d: SourceFile = %q, want %q", i, got.SourceFile, w.SourceFile)
+		}
+		if got.StartToken != w.StartToken {
+			t.Errorf("record %d: StartToken = %d, want %d", i, got.StartToken, w.StartToken)
+		}
+		if got.Text != w.Text {
+			t.Errorf("record %d: Text = %q, want %q", i, got.Text, w.Text)
+		}
+		for j, v := range w.Embedding {
+			if got.Embedding[j] != v {
+				t.Errorf("record %d: Embedding[%d] = %v, want %v", i, j, got.Embedding[j], v)
+			}
+		}
+	}
+
+	if r.Dims() != 3 {
+		t.Errorf("Dims() = %d, want 3", r.Dims())
+	}
+
+	_, err = r.Next()
+	if err != io.EOF {
+		t.Errorf("after all records: got %v, want io.EOF", err)
+	}
+}
+
+func TestTSVBadHeader(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "bad.embed")
+	f, _ := os.Create(path)
+	fmt.Fprintln(f, "wrong\theader\there\tnope")
+	f.Close()
+
+	_, err := embedfile.OpenTSV(path)
+	if err == nil {
+		t.Fatal("expected error for bad header, got nil")
+	}
+}
+
+func TestStreamerInterface(t *testing.T) {
+	// Verify both readers satisfy the Streamer interface at compile time.
+	want := []embedfile.Record{
+		{SourceFile: "x.txt", StartToken: 0, Text: "test", Embedding: []float32{1, 2, 3, 4}},
+	}
+
+	dir := t.TempDir()
+
+	// Binary
+	binaryPath := filepath.Join(dir, "test.fembed")
+	writeFembed(t, binaryPath, 4, want)
+	var _ embedfile.Streamer
+	br, _ := embedfile.Open(binaryPath)
+	var bs embedfile.Streamer = br
+	rec, _ := bs.Next()
+	bs.Close()
+	if rec.SourceFile != "x.txt" {
+		t.Errorf("binary streamer: got %q", rec.SourceFile)
+	}
+
+	// TSV
+	tsvPath := filepath.Join(dir, "test.embed")
+	writeTSV(t, tsvPath, want)
+	tr, _ := embedfile.OpenTSV(tsvPath)
+	var ts embedfile.Streamer = tr
+	rec, _ = ts.Next()
+	ts.Close()
+	if rec.SourceFile != "x.txt" {
+		t.Errorf("tsv streamer: got %q", rec.SourceFile)
 	}
 }

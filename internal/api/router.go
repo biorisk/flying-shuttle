@@ -116,8 +116,10 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, 
 
 		// Ingest (pre-computed embeddings from Python pipeline)
 		r.Route("/ingest", func(r chi.Router) {
-			r.Post("/embed-file", ih.importEmbedFile)
-			r.Post("/directory", ih.importDirectory)
+			r.Post("/embed-file", ih.importEmbedFile)           // binary .fembed
+			r.Post("/embed-file-legacy", ih.importLegacyEmbedFile) // TSV .embed
+			r.Post("/directory", ih.importDirectory)            // dir of *.fembed
+			r.Post("/directory-legacy", ih.importLegacyDirectory)  // dir of *.embed
 		})
 
 		// Stitch
