@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -46,6 +47,14 @@ func main() {
 	// Build hybrid search index in BM25-only mode (nil embedder).
 	// Pre-computed embeddings from .fembed files are indexed via the ingest API.
 	idx := search.NewHybridIndex(nil)
+	if v := os.Getenv("SHUTTLE_RRF_K"); v != "" {
+		if k, err := strconv.ParseFloat(v, 64); err == nil && k > 0 {
+			idx.RRFk = k
+			log.Printf("RRF k set to %.1f", k)
+		} else {
+			log.Printf("warning: invalid SHUTTLE_RRF_K %q, using default %.1f", v, idx.RRFk)
+		}
+	}
 
 	// Load existing chunks into BM25 index and HNSW vector index.
 	existingChunks, err := s.ListChunks()
