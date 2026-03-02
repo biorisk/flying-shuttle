@@ -1,12 +1,8 @@
-import mlx.core as mx
-from mlx_lm import load
-import numpy as np
-import time
-import argparse
-import os
-import struct
 import csv
 import sys
+import time
+import argparse
+import struct
 from pathlib import Path
 
 # Increase the CSV field size limit to handle large text chunks
@@ -18,44 +14,59 @@ BATCH_SIZE = 1  # Crucial for 8GB RAM
 CHUNK_SIZE = 300
 OVERLAP = 150
 
-print(f"--- Loading {MODEL_PATH} ---")
-# load() handles the 4-bit weights automatically on Apple Silicon
-model, tokenizer = load(MODEL_PATH)
+# Model and tokenizer are loaded lazily — only when embedding is required.
+# The --convert path never loads the model.
+_model = None
+_tokenizer = None
+
+
+def _load_model():
+    global _model, _tokenizer
+    if _model is None:
+        import mlx.core as mx
+        from mlx_lm import load
+        print(f"--- Loading {MODEL_PATH} ---")
+        _model, _tokenizer = load(MODEL_PATH)
+    return _model, _tokenizer
+
 
 def get_embeddings(text_list):
+    import mlx.core as mx
+    import numpy as np
+    model, tokenizer = _load_model()
+
     # Instructions help Qwen3-Embedding categorize the context
     instruction = "Represent this transcript for retrieval: "
     inputs = [instruction + t for t in text_list]
 
-    # Tokenize with padding
     tokens = tokenizer._tokenizer(inputs, padding=True, return_tensors="np")
     input_ids = mx.array(tokens['input_ids'])
 
-    # Generate hidden states
-    # No grad needed for embedding inference
     output = model.model(input_ids)
 
-    # Qwen3-Embedding uses the last token's hidden state for its vector
-    # Shape: [batch, sequence_length, hidden_dim] -> [batch, hidden_dim]
+    # Qwen3-Embedding: last token hidden state → embedding vector
     embeddings = output[:, -1, :]
 
-    # Normalize for Cosine Similarity (Vector DB standard)
+    # L2-normalize for cosine similarity
     norm = mx.linalg.norm(embeddings, axis=-1, keepdims=True)
     normalized = embeddings / norm
 
     return np.array(normalized.astype(mx.float32))
 
 
-# --- Binary .fembed format ---
+# ---------------------------------------------------------------------------
+# Binary .fembed format
+# ---------------------------------------------------------------------------
 
 FEMB_MAGIC = b'FEMB'
 FEMB_VERSION = 1
+
 
 def write_fembed(out_path, records):
     """
     Write records to a .fembed binary file.
 
-    records: list of (source_file: str, start_token: int, text: str, embedding: np.ndarray)
+    records: list of (source_file: str, start_token: int, text: str, embedding: array-like of float)
 
     File format:
       Header (16 bytes):
@@ -73,6 +84,7 @@ def write_fembed(out_path, records):
         [dims*4]  embedding float32 LE array
     """
     if not records:
+        print("No records to write.")
         return
 
     dims = len(records[0][3])
@@ -95,16 +107,124 @@ def write_fembed(out_path, records):
             f.write(struct.pack('<i', start_token))
             f.write(struct.pack('<I', len(text_bytes)))
             f.write(text_bytes)
-            f.write(struct.pack(f'<{dims}f', *embedding.tolist()))
+            f.write(struct.pack(f'<{dims}f', *embedding))
 
+
+# ---------------------------------------------------------------------------
+# Convert: .embed TSV → .fembed (no model required)
+# ---------------------------------------------------------------------------
+
+EMBED_HEADER = ["file_name", "start_token", "embedding", "text"]
+
+
+def read_embed_tsv(embed_path):
+    """
+    Read a .embed TSV file and return a list of records suitable for write_fembed.
+
+    Returns: list of (source_file, start_token, text, embedding_floats)
+    Raises: ValueError on bad header or unparseable rows.
+    """
+    records = []
+    dims = None
+
+    with open(embed_path, 'r', newline='', encoding='utf-8') as f:
+        reader = csv.reader(f, delimiter='\t', strict=False)
+
+        try:
+            header = next(reader)
+        except StopIteration:
+            raise ValueError(f"{embed_path}: file is empty")
+
+        if header != EMBED_HEADER:
+            raise ValueError(
+                f"{embed_path}: unexpected header {header!r}, expected {EMBED_HEADER!r}"
+            )
+
+        for lineno, row in enumerate(reader, start=2):
+            if not row:
+                continue  # skip blank lines
+
+            if len(row) < 4:
+                print(f"  Warning: line {lineno} has {len(row)} columns, skipping.")
+                continue
+
+            source_file = row[0]
+            start_token = int(row[1])
+            text = row[3]
+
+            embedding = [float(x) for x in row[2].split(',')]
+
+            if dims is None:
+                dims = len(embedding)
+            elif len(embedding) != dims:
+                print(
+                    f"  Warning: line {lineno} has {len(embedding)} dims, expected {dims}. Skipping."
+                )
+                continue
+
+            records.append((source_file, start_token, text, embedding))
+
+    return records
+
+
+def convert_embed_file(embed_path, out_path=None):
+    """
+    Convert a single .embed TSV file to .fembed binary format.
+    out_path defaults to embed_path with .fembed extension.
+    """
+    embed_path = Path(embed_path)
+    if out_path is None:
+        out_path = embed_path.with_suffix('.fembed')
+    out_path = Path(out_path)
+
+    print(f"Converting {embed_path} → {out_path} ...")
+    records = read_embed_tsv(embed_path)
+    if not records:
+        print(f"  No records found in {embed_path}, skipping.")
+        return 0
+
+    dims = len(records[0][3])
+    write_fembed(out_path, records)
+    print(f"  Written {len(records)} records ({dims} dims) to {out_path}")
+    return len(records)
+
+
+def convert_embed_dir(embed_dir, out_dir=None):
+    """
+    Convert all *.embed files in embed_dir to .fembed.
+    out_dir defaults to embed_dir (output files alongside inputs).
+    """
+    embed_dir = Path(embed_dir)
+    if out_dir is None:
+        out_dir = embed_dir
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    embed_files = sorted(embed_dir.glob("*.embed"))
+    if not embed_files:
+        print(f"No .embed files found in {embed_dir}")
+        return
+
+    total_records = 0
+    for embed_file in embed_files:
+        out_path = out_dir / embed_file.with_suffix('.fembed').name
+        total_records += convert_embed_file(embed_file, out_path)
+
+    print(f"\nDone. Converted {len(embed_files)} file(s), {total_records} total records.")
+    print(f"Next step: POST /api/v1/ingest/directory with path={out_dir}")
+
+
+# ---------------------------------------------------------------------------
+# Embedding pipeline (requires model)
+# ---------------------------------------------------------------------------
 
 def process_directory(text_dir, out_file, fmt='binary'):
     """
     Processes all .txt files in a directory, chunks them, generates embeddings,
-    and saves them to an output file.
+    and saves to an output file.
 
-    fmt='tsv': legacy TSV format (.embed), supports resume.
-    fmt='binary': binary .fembed format, always writes fresh.
+    fmt='binary': .fembed binary format (default, no resume).
+    fmt='tsv': legacy .embed TSV format with resume support.
     """
     print(f"--- Processing directory {text_dir} (format={fmt}) ---")
     start_time = time.time()
@@ -129,7 +249,8 @@ def process_directory(text_dir, out_file, fmt='binary'):
 
 
 def _process_directory_binary(text_dir_path, out_file_path, all_txt_files):
-    """Write .fembed binary output (no resume support — always fresh)."""
+    """Write .fembed binary output (no resume — always fresh)."""
+    _, tokenizer = _load_model()
     total_files = len(all_txt_files)
     all_records = []
 
@@ -178,6 +299,7 @@ def _process_directory_binary(text_dir_path, out_file_path, all_txt_files):
 
 def _process_directory_tsv(text_dir_path, out_file_path, all_txt_files):
     """Write TSV output (.embed) with resume support."""
+    _, tokenizer = _load_model()
     processed_chunks = {}
     is_resuming = False
     if out_file_path.exists() and out_file_path.stat().st_size > 0:
@@ -186,7 +308,7 @@ def _process_directory_tsv(text_dir_path, out_file_path, all_txt_files):
             reader = csv.reader(f, delimiter='\t')
             try:
                 header = next(reader)
-                if header != ["file_name", "start_token", "embedding", "text"]:
+                if header != EMBED_HEADER:
                     print("Warning: Output file has an invalid header. Starting over.")
                     is_resuming = False
                 else:
@@ -207,7 +329,7 @@ def _process_directory_tsv(text_dir_path, out_file_path, all_txt_files):
     with open(out_file_path, open_mode, newline='', encoding='utf-8') as f:
         writer = csv.writer(f, delimiter='\t')
         if write_header:
-            writer.writerow(["file_name", "start_token", "embedding", "text"])
+            writer.writerow(EMBED_HEADER)
 
         for file_index, txt_file in enumerate(all_txt_files):
             print(f"Processing file {file_index + 1} of {total_files}: {txt_file.name}...")
@@ -252,35 +374,75 @@ def _process_directory_tsv(text_dir_path, out_file_path, all_txt_files):
             print(f"  Completed embedding new chunks for {txt_file.name}")
 
 
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Generate embeddings for text files.")
-    parser.add_argument("--text-dir", type=str, help="Directory containing .txt files to process.")
-    parser.add_argument("--out-file", type=str, help="Output file for embeddings.")
+    parser = argparse.ArgumentParser(
+        description="Generate or convert embeddings for Flying Shuttle.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Generate embeddings from text files (binary output, default):
+  python embed.py --text-dir ./transcripts/
+
+  # Convert existing .embed TSV → .fembed (no model load):
+  python embed.py --convert --embed-file recordings.embed
+  python embed.py --convert --embed-dir ./embeddings/ --out-dir ./converted/
+
+  # Then ingest into running server:
+  curl -X POST http://localhost:8080/api/v1/ingest/directory \\
+       -H 'Content-Type: application/json' \\
+       -d '{"path": "/absolute/path/to/converted"}'
+""",
+    )
+
+    # Embedding mode
+    parser.add_argument("--text-dir", type=str, help="Directory of .txt files to embed.")
+    parser.add_argument("--out-file", type=str, help="Output file path.")
     parser.add_argument("--format", type=str, choices=["tsv", "binary"], default="binary",
-                        help="Output format: 'binary' (.fembed) or 'tsv' (.embed). Default: binary.")
+                        help="Output format for --text-dir mode. Default: binary.")
+
+    # Convert mode
+    parser.add_argument("--convert", action="store_true",
+                        help="Convert .embed TSV file(s) to .fembed binary. Does not load the model.")
+    parser.add_argument("--embed-file", type=str, help="Single .embed file to convert.")
+    parser.add_argument("--embed-dir", type=str, help="Directory of *.embed files to convert.")
+    parser.add_argument("--out-dir", type=str,
+                        help="Output directory for --embed-dir conversions (default: same as --embed-dir).")
 
     args = parser.parse_args()
 
-    if args.text_dir:
+    if args.convert:
+        # ── Convert mode: no model needed ──────────────────────────────────
+        if not args.embed_file and not args.embed_dir:
+            parser.error("--convert requires --embed-file or --embed-dir")
+
+        if args.embed_file:
+            out = Path(args.out_file) if args.out_file else None
+            convert_embed_file(args.embed_file, out)
+
+        if args.embed_dir:
+            convert_embed_dir(args.embed_dir, args.out_dir)
+
+    elif args.text_dir:
+        # ── Embedding mode: loads model ─────────────────────────────────────
         out_file = args.out_file
         if not out_file:
             base = Path(args.text_dir).name
             out_file = f"{base}.fembed" if args.format == "binary" else f"{base}.embed"
-
         process_directory(args.text_dir, out_file, fmt=args.format)
+
     else:
-        # Original example code
-        print("No --text-dir provided. Running example...")
+        # ── Smoke-test: embed two sentences ────────────────────────────────
+        print("No mode specified. Running smoke test (loads model)...")
         test_chunks = [
             "The board meeting started at 9 AM with a focus on expansion.",
-            "Revenue projections for 2026 show a 20% increase in the tech sector."
+            "Revenue projections for 2026 show a 20% increase in the tech sector.",
         ]
-
         start = time.time()
         vectors = get_embeddings(test_chunks)
         end = time.time()
-
-        print(f"Success! Generated {vectors.shape[0]} vectors.")
-        if vectors.shape[0] > 0:
-            print(f"Vector Dimensions: {vectors.shape[1]}")
+        print(f"Success! Generated {vectors.shape[0]} vectors of dim {vectors.shape[1]}.")
         print(f"Time taken: {end - start:.2f} seconds")
