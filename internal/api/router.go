@@ -193,6 +193,7 @@ func NewRouter(s store.Store, uploadDir string, clusterEmbedder ingest.Embedder,
 		Transcript: &transcript.Service{Store: s},
 		Ingester:   ingester,
 		Index:      idx,
+		Stitcher:   stitcher,
 	})
 
 	// Serve frontend static files with SPA fallback.

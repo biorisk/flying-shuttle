@@ -66,6 +66,23 @@ type Outline struct {
 // Empty reports whether the outline has no bullets at all.
 func (o Outline) Empty() bool { return len(o.Roots) == 0 }
 
+// StitchSpan is one attributed run of the linearized manuscript preview.
+type StitchSpan struct {
+	Glue bool // true = AI-generated transition, false = verbatim passage
+	Text string
+}
+
+// StitchView is the render model for the #stitch fragment (Preview tab).
+type StitchView struct {
+	ThreadID     string
+	Glue         int
+	NodeCount    int
+	TotalChars   int
+	GlueRatioPct int
+	Spans        []StitchSpan
+	Err          string
+}
+
 // UploadRow is one transcript in the ingest drawer list.
 type UploadRow struct {
 	ID       string

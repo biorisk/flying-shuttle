@@ -162,3 +162,14 @@ button:hover { border-color: var(--accent); }
 .bullet.drop-before > .bullet-row { box-shadow: inset 0 2px 0 var(--accent); }
 .bullet.drop-after > .bullet-row { box-shadow: inset 0 -2px 0 var(--accent); }
 .bullet.drop-child > .bullet-row { background: rgba(100, 108, 255, 0.12); }
+
+/* --- stitch / preview --- */
+.stitch { padding: 16px 24px; overflow: auto; height: 100%; }
+.stitch-toolbar { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+.glue-label { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); }
+.stitch-export { color: var(--accent); font-size: 12px; text-decoration: none; }
+.stitch-stats { display: flex; gap: 12px; font-size: 11px; color: var(--text-dim); margin-bottom: 12px; }
+.stitch-prose { line-height: 1.8; max-width: 70ch; }
+.span-chunk { }
+.span-glue { color: var(--text-dim); font-style: italic; }
+.stitch-empty, .stitch-error { color: var(--text-dim); }

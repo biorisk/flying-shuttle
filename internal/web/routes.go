@@ -7,6 +7,7 @@ import (
 	"github.com/biorisk/flying-shuttle/internal/outline"
 	"github.com/biorisk/flying-shuttle/internal/pipeline"
 	"github.com/biorisk/flying-shuttle/internal/search"
+	"github.com/biorisk/flying-shuttle/internal/stitch"
 	"github.com/biorisk/flying-shuttle/internal/store"
 	"github.com/biorisk/flying-shuttle/internal/transcript"
 	"github.com/biorisk/flying-shuttle/internal/web/components"
@@ -22,6 +23,7 @@ type Deps struct {
 	Transcript *transcript.Service
 	Ingester   *pipeline.Ingester
 	Index      *search.HybridIndex
+	Stitcher   stitch.Stitcher
 }
 
 // Mount attaches the server-rendered UI (templ + Datastar) under /app, plus
@@ -39,6 +41,9 @@ func Mount(r chi.Router, d Deps) {
 	if d.Ingester == nil && d.Store != nil {
 		d.Ingester = &pipeline.Ingester{Store: d.Store}
 	}
+	if d.Stitcher == nil {
+		d.Stitcher = &stitch.StubStitcher{}
+	}
 	h := &handlers{d: d}
 
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(StaticFS()))))
@@ -48,6 +53,7 @@ func Mount(r chi.Router, d Deps) {
 		r.Get("/outline", h.outline)
 		r.Get("/evidence", h.evidence)
 		r.Get("/evidence/transcript", h.transcriptReader)
+		r.Get("/stitch", h.stitchView)
 		r.Get("/ingest", h.ingest)
 		r.Post("/ingest", h.ingestUpload)
 		h.mountOutlineEdit(r)
@@ -72,6 +78,7 @@ func (h *handlers) shell(w http.ResponseWriter, r *http.Request) {
 		components.Outline(ov),
 		components.Evidence(viewmodel.EvidencePane{}),
 		components.Ingest(h.ingestView()),
+		components.Stitch(viewmodel.StitchView{Glue: 50}),
 	))
 }
 

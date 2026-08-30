@@ -10,6 +10,23 @@ Format: **[D]** = decision taken, **[Q]** = open question for review.
 
 ## Global
 
+### Task .5.6 — Stitch/preview view + glue slider
+
+- **[D]** `GET /app/stitch?thread=&glue=` → `#stitch` fragment
+  (`data-show="$centerView === 'preview'"`). Uses `dag.LinearizeAndStitch`
+  (manuscript mode, or thread mode when `thread` set) with the injected
+  `stitch.Stitcher` (`StubStitcher` by default; `web.Deps.Stitcher`, wired from
+  `NewRouter`).
+- **[D]** Verbatim passages → `<span class="span-chunk">`, AI glue →
+  `<span class="span-glue">` (dimmed italic); stats line shows node count, char
+  count, glue-ratio %. Glue `<input type=range data-bind-glue>` →
+  `data-on-input__debounce.350ms="@get('/app/stitch?...')"`; `$glue` signal
+  (default 50) added to Page.
+- **[D]** The Preview tab button both flips `$centerView` and fires the fetch.
+  `components.Page` gained a 4th `preview` arg.
+- **[D]** Export link points at the existing `GET
+  /api/v1/export/markdown/download?thread_id=` (wired live in `.5.7`).
+
 ### Task .4.1 — Outline drag-reorder replacement
 
 - **[D]** Native HTML5 DnD, ~90 lines in `app.js`. A `.drag-handle`

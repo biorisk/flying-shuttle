@@ -1,0 +1,54 @@
+package components
+
+import (
+	"fmt"
+	"github.com/biorisk/flying-shuttle/internal/web/viewmodel"
+)
+
+// Stitch is the Preview-tab fragment: the outline (or a thread) linearized and
+// stitched into continuous prose, with verbatim passages and AI "glue" visually
+// distinguished and a glue-ratio readout. Rendered into #stitch by
+// GET /app/stitch.
+templ Stitch(vm viewmodel.StitchView) {
+	<section id="stitch" class="stitch" data-show="$centerView === 'preview'">
+		<div class="stitch-toolbar">
+			<label class="glue-label">
+				Glue
+				<input
+					type="range"
+					min="0"
+					max="100"
+					data-bind-glue
+					data-on-input__debounce.350ms="@get('/app/stitch?thread=' + ($threadId||'') + '&glue=' + $glue)"
+				/>
+				<span data-text="$glue + '%'">{ fmt.Sprintf("%d%%", vm.Glue) }</span>
+			</label>
+			<a
+				class="stitch-export"
+				href={ templ.SafeURL("/api/v1/export/markdown/download?thread_id=" + vm.ThreadID) }
+			>Export .md</a>
+		</div>
+		if vm.Err != "" {
+			<p class="stitch-error">{ vm.Err }</p>
+		} else {
+			<div class="stitch-stats">
+				<span>{ fmt.Sprintf("%d nodes", vm.NodeCount) }</span>
+				<span>{ fmt.Sprintf("%d chars", vm.TotalChars) }</span>
+				<span>{ fmt.Sprintf("%d%% glue", vm.GlueRatioPct) }</span>
+			</div>
+			<article class="stitch-prose">
+				if len(vm.Spans) == 0 {
+					<p class="stitch-empty">Nothing to stitch yet. Attach some evidence.</p>
+				} else {
+					for _, sp := range vm.Spans {
+						if sp.Glue {
+							<span class="span-glue">{ sp.Text }</span>
+						} else {
+							<span class="span-chunk">{ sp.Text }</span>
+						}
+					}
+				}
+			</article>
+		}
+	</section>
+}
