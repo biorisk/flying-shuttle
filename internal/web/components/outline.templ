@@ -103,8 +103,18 @@ templ bullet(n viewmodel.OutlineNode) {
 						&#9711;
 					}
 				</button>
+				<button
+					type="button"
+					class="exit-toggle"
+					tabindex="-1"
+					data-on-click={ "$exits['" + n.ID + "'] = !$exits['" + n.ID + "']; $exits['" + n.ID + "'] && @get('/app/outline/nodes/" + n.ID + "/exits')" }
+					title="Continuations / CYOA exits"
+				>&#8631;</button>
 			}
 		</div>
+		if !n.Evidence {
+			<div id={ "exits-" + n.ID } class="bullet-exits" data-show={ "!!$exits['" + n.ID + "']" }></div>
+		}
 		if len(n.Children) > 0 {
 			<ul class="bullet-children" data-show={ "!$collapsed['" + n.ID + "']" }>
 				for _, c := range n.Children {

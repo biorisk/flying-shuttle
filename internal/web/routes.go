@@ -58,6 +58,7 @@ func Mount(r chi.Router, d Deps) {
 		r.Post("/ingest", h.ingestUpload)
 		h.mountOutlineEdit(r)
 		h.mountThreads(r)
+		h.mountExits(r)
 
 		r.Get("/snapshots", h.snapshotBar)
 		r.Post("/snapshots", h.snapshotCreate)

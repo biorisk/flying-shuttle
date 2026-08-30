@@ -72,3 +72,14 @@ func evidenceText(n viewmodel.OutlineNode) string {
 	}
 	return n.Title
 }
+
+func exitGlyph(t string) string {
+	switch t {
+	case "jump":
+		return "⇥"
+	case "branch":
+		return "⋔"
+	default:
+		return "→"
+	}
+}

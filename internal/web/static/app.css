@@ -199,3 +199,14 @@ button:hover { border-color: var(--accent); }
 .thread-toggle.on { color: var(--accent); }
 .dag-btn.active { border-color: var(--accent); color: var(--text); }
 .outline-pane.threading .bullet:not(.in-thread) > .bullet-row .bullet-input { opacity: .45; }
+
+/* --- CYOA exits --- */
+.exit-toggle { border: none; background: none; color: var(--text-dim); font-size: 12px; padding: 0 2px; flex: none; cursor: pointer; }
+.bullet-exits { margin: 2px 0 6px 28px; font-size: 12px; }
+.exit-list { list-style: none; margin: 0 0 4px; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.exit-row { display: flex; gap: 6px; align-items: center; }
+.exit-arrow { color: var(--accent); }
+.exit-cond { color: var(--text-dim); font-style: italic; }
+.exit-add { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.exit-add select, .exit-add input { font: inherit; font-size: 11px; background: var(--bg); border: 1px solid var(--edge); color: var(--text); border-radius: 4px; padding: 1px 3px; }
+.exit-empty { color: var(--text-dim); }

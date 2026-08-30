@@ -10,6 +10,23 @@ Format: **[D]** = decision taken, **[Q]** = open question for review.
 
 ## Global
 
+### Task .5.5 — CYOA exit widget
+
+- **[D]** Per outline bullet: a `⎇` toggle sets `$exits['<id>']` and `@get`s
+  `/app/outline/nodes/<id>/exits` into an inline `#exits-<id>` div
+  (`data-show` on the signal). Evidence bullets have no exits.
+- **[D]** `GET/POST /app/outline/nodes/{id}/exits`, `DELETE
+  /app/outline/edges/{edge}?node={id}`. The fragment lists this bullet's
+  non-linear outgoing edges (branch = ⋔, jump = ⇥) with an optional condition,
+  plus an add-form (type + target `<select>` of unlinked outline bullets +
+  condition input).
+- **[D]** Reuses `dag.WouldCreateCycle` before `store.CreateEdge` — same
+  cycle rejection the JSON API applies (branch/jump edges included, matching
+  the old client).
+- **[Q]** `#exits-<id>` lives inside its bullet, so it's wiped (and collapses)
+  whenever `#outline` is patched. Exits reload on demand — acceptable; a shared
+  side panel would survive patches if this proves annoying.
+
 ### Task .5.1 — Threads + brush
 
 - **[D]** `#thread-bar`: `<select data-bind-threadId data-on-change="@get('/app/

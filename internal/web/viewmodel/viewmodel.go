@@ -76,6 +76,28 @@ type ThreadBar struct {
 	Threads []ThreadRow
 }
 
+// ExitRow is one outgoing CYOA edge from a bullet.
+type ExitRow struct {
+	EdgeID    string
+	ToID      string
+	ToTitle   string
+	Type      string // "branch" | "jump" | "linear"
+	Condition string
+}
+
+// ExitOption is a bullet a new exit can point at.
+type ExitOption struct {
+	ID    string
+	Title string
+}
+
+// NodeExits is the render model for a bullet's #exits-<id> fragment.
+type NodeExits struct {
+	NodeID  string
+	Exits   []ExitRow
+	Options []ExitOption
+}
+
 // Empty reports whether the outline has no bullets at all.
 func (o Outline) Empty() bool { return len(o.Roots) == 0 }
 

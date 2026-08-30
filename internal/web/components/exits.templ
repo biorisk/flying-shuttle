@@ -1,0 +1,45 @@
+package components
+
+import "github.com/biorisk/flying-shuttle/internal/web/viewmodel"
+
+// Exits renders a bullet's outgoing CYOA edges (branch = reader chooses,
+// jump = unconditional goto) with add/remove controls. Rendered into
+// #exits-<id> by GET /app/outline/nodes/<id>/exits.
+templ Exits(vm viewmodel.NodeExits) {
+	<div id={ "exits-" + vm.NodeID } class="bullet-exits">
+		if len(vm.Exits) > 0 {
+			<ul class="exit-list">
+				for _, e := range vm.Exits {
+					<li class="exit-row">
+						<span class="exit-arrow">{ exitGlyph(e.Type) }</span>
+						<span class="exit-target">{ orDash(e.ToTitle) }</span>
+						if e.Condition != "" {
+							<span class="exit-cond" title="condition">{ "if " + e.Condition }</span>
+						}
+						<button type="button" data-on-click={ "@delete('/app/outline/edges/" + e.EdgeID + "?node=" + vm.NodeID + "')" }>✕</button>
+					</li>
+				}
+			</ul>
+		}
+		if len(vm.Options) > 0 {
+			<form
+				class="exit-add"
+				data-on-submit__prevent={ "@post('/app/outline/nodes/" + vm.NodeID + "/exits', {contentType:'form'})" }
+			>
+				<select name="type">
+					<option value="branch">branch (reader chooses)</option>
+					<option value="jump">jump (always)</option>
+				</select>
+				<select name="to_node">
+					for _, o := range vm.Options {
+						<option value={ o.ID }>{ orDash(o.Title) }</option>
+					}
+				</select>
+				<input name="condition" placeholder="if… (optional)" autocomplete="off"/>
+				<button type="submit">add exit</button>
+			</form>
+		} else {
+			<p class="exit-empty">No other bullets to link to.</p>
+		}
+	</div>
+}
