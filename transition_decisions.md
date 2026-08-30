@@ -10,6 +10,25 @@ Format: **[D]** = decision taken, **[Q]** = open question for review.
 
 ## Global
 
+### Task .3.5 — Transcript reader/scrubber fragment
+
+- **[D]** `#evidence` now stacks two regions: `#evidence-candidates`
+  (`data-show="!$readerChunk"`) and `#transcript-reader`
+  (`data-show="!!$readerChunk"`). `$readerChunk` page signal toggles them.
+- **[D]** `GET /app/evidence/transcript?chunk=&node=` → patches
+  `#transcript-reader` + `MarshalAndPatchSignals({readerChunk})`. Uses
+  `transcript.Service.WindowAround` (radius 2). Candidate cards get a "Read in
+  transcript →" button; the reader has ‹ earlier / later › buttons that re-`@get`
+  with `PrevChunk`/`NextChunk`, and a "← passages" button that clears
+  `$readerChunk`.
+- **[D]** Reader body renders one `<span class="reader-seg" data-chunk
+  data-char-start>` per window segment (focus segment highlighted). The
+  `data-char-start` (absolute source offset) is what `.3.6` maps a text
+  selection back onto.
+- **[Q]** Reader window doesn't reconstruct from the raw transcript file — it
+  joins chunk `Content` with single spaces (see `.1.4` note). Good enough for
+  `ChunkTranscript` output; revisit if real transcripts show spacing artifacts.
+
 ### Task .3.3 — Client-side collapse/expand
 
 - **[D]** Purely client-side, no round-trip: parent bullets render a

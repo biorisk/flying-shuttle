@@ -47,6 +47,7 @@ func Mount(r chi.Router, d Deps) {
 		r.Get("/", h.shell)
 		r.Get("/outline", h.outline)
 		r.Get("/evidence", h.evidence)
+		r.Get("/evidence/transcript", h.transcriptReader)
 		r.Get("/ingest", h.ingest)
 		r.Post("/ingest", h.ingestUpload)
 		h.mountOutlineEdit(r)

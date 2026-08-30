@@ -19,6 +19,29 @@ type EvidencePane struct {
 	Candidates []Candidate
 }
 
+// ReaderSegment is one chunk's text within the transcript reader window.
+type ReaderSegment struct {
+	ChunkID   string
+	Text      string
+	Focus     bool
+	CharStart int // absolute rune offset of this segment within the source file
+}
+
+// TranscriptReader is the render model for the #transcript-reader fragment.
+type TranscriptReader struct {
+	NodeID     string // bullet the reader was opened from (attach target)
+	SourceFile string
+	FocusChunk string
+	Segments   []ReaderSegment
+	HasPrev    bool
+	HasNext    bool
+	PrevChunk  string
+	NextChunk  string
+}
+
+// Empty reports whether the reader has nothing to show (closed state).
+func (r TranscriptReader) Empty() bool { return r.FocusChunk == "" }
+
 // OutlineNode is one bullet in the rendered outline tree. Prev/Next are the
 // flattened-order neighbour ids for keyboard navigation.
 type OutlineNode struct {

@@ -139,3 +139,14 @@ button:hover { border-color: var(--accent); }
 .ingest-empty, .ingest-hint { color: var(--text-dim); font-size: 12px; }
 .bullet-toggle { border: none; background: none; color: var(--text-dim); font-size: 10px; width: 10px; padding: 0; flex: none; cursor: pointer; }
 .bullet-toggle:hover { color: var(--text); }
+
+/* --- transcript reader --- */
+.candidate-open { border: none; color: var(--accent); font-size: 11px; padding: 0; margin-left: auto; }
+.transcript-reader { display: flex; flex-direction: column; gap: 8px; }
+.reader-head { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.reader-back { border: none; color: var(--accent); padding: 0; }
+.reader-source { color: var(--text-dim); }
+.reader-scrub { display: flex; gap: 8px; }
+.reader-scrub button { font-size: 11px; }
+.reader-body { line-height: 1.7; font-size: 14px; user-select: text; }
+.reader-seg.focus { background: rgba(100, 108, 255, 0.18); border-radius: 3px; }
