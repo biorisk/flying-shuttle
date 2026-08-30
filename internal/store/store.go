@@ -16,6 +16,7 @@ type Store interface {
 	// ListChunksPage returns a page (ordered by created_at) plus the total count.
 	// limit <= 0 means unlimited.
 	ListChunksPage(limit, offset int) ([]model.Chunk, int, error)
+	ListChunksBySourceFile(sourceFile string) ([]model.Chunk, error)
 	ListChunkIDs() ([]string, error)
 	ListChunkIDsWithEmbedding() ([]string, error)
 	GetChunksByIDs(ids []string) ([]model.Chunk, error)

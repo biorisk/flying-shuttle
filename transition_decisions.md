@@ -10,6 +10,25 @@ Format: **[D]** = decision taken, **[Q]** = open question for review.
 
 ## Global
 
+### Task .1.4 — Transcript-ordered retrieval service
+
+- **[D]** New package `internal/transcript`: `Service{Store}` with
+  `WindowAround(chunkID, radius)` and `WindowFrom(sourceFile, charOffset,
+  radius)`. Returns a `Window` = ordered `Segment`s (one per chunk, `Focus`
+  flag on the centered one) + a concatenated `Text` for continuous reading +
+  `HasPrev/HasNext` and `PrevChunk/NextChunk` ids to page the window one step
+  earlier/later (this is what `.3.5`'s `dir=prev|next` maps to).
+- **[D]** New store method `ListChunksBySourceFile(sourceFile)` ordered by
+  `start_offset` (added to the `Store` interface).
+- **[D]** `DefaultRadius = 2` (5-chunk window). `.3.5` can override per request.
+- **[D]** `Segment.CharStart/CharEnd` carry the chunk's absolute offset within
+  the source, so `.3.6` selection math can map a highlight back to
+  `{chunk_id, char_start, char_end}`.
+- **[Q]** `Window.Text` joins segments with a single space. If chunk offsets
+  actually abut (they should for `ChunkTranscript`, which advances `pos` by
+  `len+1`), this is right; if a real transcript has odd spacing we may want to
+  reconstruct from the raw file instead. Fine for now.
+
 ### Task .1.3 — Stitch/export use excerpt
 
 - **[D]** `dag.collectChunks` now iterates `store.ListNodeEvidence(nodeID)` and

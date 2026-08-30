@@ -125,6 +125,27 @@ func (s *SQLiteStore) ListChunks() ([]model.Chunk, error) {
 	return out, rows.Err()
 }
 
+// ListChunksBySourceFile returns every chunk from one source transcript,
+// ordered by position within that transcript (start_offset).
+func (s *SQLiteStore) ListChunksBySourceFile(sourceFile string) ([]model.Chunk, error) {
+	rows, err := s.db.Query(
+		`SELECT id, source_file, content, start_offset, end_offset, speaker, embedding_vec, created_at
+		 FROM chunks WHERE source_file = ? ORDER BY start_offset, created_at`, sourceFile)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []model.Chunk
+	for rows.Next() {
+		c, err := scanChunkRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *c)
+	}
+	return out, rows.Err()
+}
+
 // ListChunksPage returns a page of chunks ordered by creation time, plus the
 // total number of chunks in the store (so callers can render "N of M").
 // A limit <= 0 means "no limit" (return everything from offset onward).
