@@ -10,6 +10,34 @@ Format: **[D]** = decision taken, **[Q]** = open question for review.
 
 ## Global
 
+### Task .3.2 — Bullet editing endpoints
+
+- **[D]** Endpoints under `/app/outline`: `POST /roots`, and per node
+  `PATCH /nodes/{id}` (title), `DELETE /nodes/{id}`, `POST /nodes/{id}/{sibling
+  |child|indent|unindent}`. Structural ops return an `#outline` SSE patch **plus**
+  `MarshalAndPatchSignals({focusId})` so the client focuses the right bullet.
+- **[D]** Each bullet is a `<form>` wrapping `<input name="title">` +
+  `<input type="hidden" name="version">`. Enter → `data-on-submit__prevent`
+  = add sibling. Blur → `@patch(... {contentType:'form'})`. Tab/Shift-Tab/
+  Backspace-empty/Arrows → one `data-on-keydown` expression
+  (`components.keydownExpr`). All structural `@post`s use `{contentType:'form'}`
+  and the handler **persists the anchor's title first** (`persistAnchorTitle`)
+  so text typed-but-not-blurred isn't lost when Enter/Tab fires mid-edit.
+- **[D]** `PATCH /nodes/{id}` returns **204** on success (input already shows the
+  value — no fragment swap while editing); only a `store.ErrConflict` (stale
+  version) triggers a full `#outline` resync.
+- **[D]** Focus restoration: `data-effect` on `#outline` focuses
+  `#bullet-<$focusId> .bullet-input` (and puts the caret at end) whenever
+  `$focusId` changes — covers both click-focus and server-driven focus after a
+  tree-swapping patch.
+- **[D]** `outline.Service` gained `SetTitle(id,title,version)` and
+  `FocusAfterDelete(id)`.
+- **[Q]** The keydown handler is a single inline Datastar expression — works but
+  dense. If it grows, move to a tiny vendored `outline.js`. Untested in a real
+  browser yet (Playwright is `.6.2`); handler-level behaviour is covered.
+- **[Q]** Datastar `@delete` sends no body (per spec), so Backspace-delete
+  can't persist a pending title — but the bullet's being deleted, so moot.
+
 ### Task .3.1 — Read-only outline fragment
 
 - **[D]** `outline.BuildTree` **extended** to include `chunk_ref` nodes as

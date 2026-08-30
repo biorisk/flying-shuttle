@@ -174,3 +174,46 @@ func (s *Service) Unindent(nodeID string) (*model.Node, error) {
 func (s *Service) Delete(nodeID string) error {
 	return s.Store.DeleteNode(nodeID)
 }
+
+// SetTitle updates a bullet's title. version, when > 0, is checked for
+// optimistic concurrency (store.ErrConflict on mismatch).
+func (s *Service) SetTitle(id, title string, version int) (*model.Node, error) {
+	n, err := s.Store.GetNode(id)
+	if err != nil {
+		return nil, err
+	}
+	if n.Title == title {
+		return n, nil
+	}
+	n.Title = title
+	if version > 0 {
+		n.Version = version
+	}
+	if err := s.Store.UpdateNode(n); err != nil {
+		return nil, err
+	}
+	return n, nil
+}
+
+// FocusAfterDelete returns the bullet id to focus once id is deleted: the
+// bullet visually before it, else the one after, else "".
+func (s *Service) FocusAfterDelete(id string) (string, error) {
+	forest, err := s.Tree()
+	if err != nil {
+		return "", err
+	}
+	flat := Flatten(forest)
+	for i, tn := range flat {
+		if tn.Node.ID != id {
+			continue
+		}
+		if i > 0 {
+			return flat[i-1].Node.ID, nil
+		}
+		if i+1 < len(flat) {
+			return flat[i+1].Node.ID, nil
+		}
+		return "", nil
+	}
+	return "", nil
+}

@@ -49,6 +49,7 @@ func Mount(r chi.Router, d Deps) {
 		r.Get("/evidence", h.evidence)
 		r.Get("/ingest", h.ingest)
 		r.Post("/ingest", h.ingestUpload)
+		h.mountOutlineEdit(r)
 	})
 }
 

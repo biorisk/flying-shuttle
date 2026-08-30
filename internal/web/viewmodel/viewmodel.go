@@ -26,6 +26,7 @@ type OutlineNode struct {
 	Title    string
 	Body     string
 	Type     string // "outline" | "chunk_ref"
+	Version  int
 	Locked   bool
 	Evidence bool // chunk_ref evidence sub-bullet
 	Depth    int

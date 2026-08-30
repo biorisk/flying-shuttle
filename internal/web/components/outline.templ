@@ -2,14 +2,22 @@ package components
 
 import "github.com/biorisk/flying-shuttle/internal/web/viewmodel"
 
-// Outline is the center-pane fragment: the nested bullet tree. Rendered into
-// #outline on first load and re-patched by the structural endpoints (.3.2+).
-// Read-only in this task — editing, drag-reorder and the add-bullet control
-// are layered on by later tasks.
+// Outline is the center-pane fragment: the nested, editable bullet tree.
+// Rendered into #outline on first load and re-patched by the structural
+// endpoints. A data-effect keeps the DOM focus on $focusId's input after a
+// patch swaps the tree.
 templ Outline(vm viewmodel.Outline) {
-	<section id="outline" class="outline-pane" data-show="$centerView === 'outline'">
+	<section
+		id="outline"
+		class="outline-pane"
+		data-show="$centerView === 'outline'"
+		data-effect="const id=$focusId; if(id){ const i=document.querySelector('#bullet-'+CSS.escape(id)+' .bullet-input'); if(i && document.activeElement!==i){ i.focus(); try{ i.setSelectionRange(i.value.length, i.value.length) }catch(e){} } }"
+	>
 		if vm.Empty() {
-			<p class="outline-empty">No outline yet. Load a transcript, then start a bullet.</p>
+			<div class="outline-empty">
+				<p>No outline yet.</p>
+				<button type="button" class="add-first" data-on-click="@post('/app/outline/roots')">Add the first bullet</button>
+			</div>
 		} else {
 			<ul class="bullet-tree">
 				for _, n := range vm.Roots {
@@ -39,11 +47,23 @@ templ bullet(n viewmodel.OutlineNode) {
 			</span>
 			if n.Evidence {
 				<blockquote class="bullet-evidence">{ evidenceText(n) }</blockquote>
+				if n.Locked {
+					<span class="bullet-lock" title="Locked">&#128274;</span>
+				}
 			} else {
-				<span class="bullet-title">{ n.Title }</span>
-			}
-			if n.Locked {
-				<span class="bullet-lock" title="Locked">&#128274;</span>
+				<form class="bullet-form" data-on-submit__prevent={ "@post('/app/outline/nodes/" + n.ID + "/sibling', {contentType:'form'})" }>
+					<input type="hidden" name="version" value={ intString(n.Version) }/>
+					<input
+						class="bullet-input"
+						name="title"
+						value={ n.Title }
+						autocomplete="off"
+						placeholder="Untitled"
+						data-on-focus={ "$focusId = '" + n.ID + "'" }
+						data-on-blur={ "@patch('/app/outline/nodes/" + n.ID + "', {contentType:'form'})" }
+						data-on-keydown={ keydownExpr(n.ID) }
+					/>
+				</form>
 			}
 		</div>
 		if len(n.Children) > 0 {

@@ -93,3 +93,47 @@ button:hover { border-color: var(--accent); }
 	min-width: 0;
 }
 .evidence-empty { color: var(--text-dim); font-style: italic; }
+
+/* --- outline --- */
+.bullet-tree, .bullet-children { list-style: none; margin: 0; padding: 0; }
+.bullet-row { display: flex; align-items: baseline; gap: 6px; padding: 1px 0; }
+.bullet-dot { color: var(--text-dim); font-size: 12px; flex: none; width: 10px; text-align: center; }
+.bullet.locked > .bullet-row .bullet-dot { color: var(--accent); }
+.bullet-form { flex: 1; display: flex; min-width: 0; }
+.bullet-input {
+	flex: 1;
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	color: var(--text);
+	padding: 2px 4px;
+	font: inherit;
+	min-width: 0;
+}
+.bullet-input:focus { outline: none; border-color: var(--edge); background: var(--panel-2); }
+.bullet-evidence {
+	flex: 1; margin: 0; padding: 2px 8px;
+	border-left: 2px solid var(--accent);
+	color: var(--text-dim); font-style: italic; font-size: 13px;
+}
+.bullet-lock { font-size: 11px; flex: none; }
+.outline-empty { color: var(--text-dim); }
+.outline-empty .add-first { margin-top: 8px; }
+
+/* --- evidence pane --- */
+.evidence-head { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text-dim); margin-bottom: 8px; }
+.candidate-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.candidate { border: 1px solid var(--edge); border-radius: var(--radius); padding: 8px; }
+.candidate-meta { display: flex; gap: 8px; font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
+.candidate-text { margin: 0; font-size: 13px; }
+
+/* --- ingest drawer --- */
+.ingest-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.ingest-drop { display: block; border: 1px dashed var(--edge); border-radius: var(--radius); padding: 10px; font-size: 12px; color: var(--text-dim); }
+.upload-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.upload-row { display: flex; gap: 6px; align-items: baseline; font-size: 12px; }
+.upload-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upload-status { color: var(--text-dim); }
+.upload-row.status-failed .upload-status { color: #e5484d; }
+.upload-row.status-done .upload-status { color: #46a758; }
+.ingest-empty, .ingest-hint { color: var(--text-dim); font-size: 12px; }

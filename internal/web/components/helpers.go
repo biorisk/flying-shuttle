@@ -9,6 +9,24 @@ import (
 // intString renders an int for use in an attribute value.
 func intString(n int) string { return strconv.Itoa(n) }
 
+// keydownExpr is the Datastar expression for a bullet input's keydown handler:
+// Enter adds a sibling (via the form), Tab / Shift-Tab indent / unindent,
+// Backspace-on-empty deletes, Arrow Up/Down move the focus signal. Each
+// structural request carries the form so the current title is persisted first.
+func keydownExpr(id string) string {
+	base := "/app/outline/nodes/" + id
+	return "" +
+		"evt.key==='Tab' ? (evt.preventDefault(), evt.shiftKey ? " +
+		"@post('" + base + "/unindent', {contentType:'form'}) : " +
+		"@post('" + base + "/indent', {contentType:'form'})) : " +
+		"(evt.key==='Backspace' && evt.target.value==='') ? " +
+		"(evt.preventDefault(), @delete('" + base + "')) : " +
+		"evt.key==='ArrowUp' ? " +
+		"($focusId = evt.target.closest('[data-node-id]').dataset.prevId || $focusId) : " +
+		"evt.key==='ArrowDown' ? " +
+		"($focusId = evt.target.closest('[data-node-id]').dataset.nextId || $focusId) : null"
+}
+
 // evidenceText is the passage shown for an evidence (chunk_ref) bullet: the
 // stored excerpt body, falling back to the title preview.
 func evidenceText(n viewmodel.OutlineNode) string {

@@ -33,6 +33,7 @@ func (h *handlers) outlineView() (viewmodel.Outline, error) {
 			Title:    tn.Node.Title,
 			Body:     tn.Node.Body,
 			Type:     string(tn.Node.Type),
+			Version:  tn.Node.Version,
 			Locked:   tn.Node.Locked,
 			Evidence: tn.Node.Type == model.NodeTypeChunkRef,
 			Depth:    tn.Depth,
