@@ -16,7 +16,20 @@ package components
 //   threadId      — selected audience thread ("" = all)
 //   evidenceWidth — right pane width in px
 //   collapsed     — { [nodeId]: true } map of collapsed outline subtrees
-templ Page(outline, evidence, ingest, preview templ.Component) {
+// PageContent bundles the fragment components the shell renders on first load.
+// Any nil field falls back to an empty placeholder element carrying the right
+// id so later Datastar patches still have a target.
+type PageContent struct {
+	Outline     templ.Component
+	Evidence    templ.Component
+	Ingest      templ.Component
+	Preview     templ.Component
+	ThreadBar   templ.Component
+	SnapshotBar templ.Component
+	BranchBar   templ.Component
+}
+
+templ Page(c PageContent) {
 	@Base("Flying Shuttle") {
 		<div
 			id="shell"
@@ -30,8 +43,8 @@ templ Page(outline, evidence, ingest, preview templ.Component) {
 					<span>Transcripts</span>
 					<button type="button" class="icon-btn" data-on-click="$drawerOpen = false" title="Close">&times;</button>
 				</header>
-				if ingest != nil {
-					@ingest
+				if c.Ingest != nil {
+					@c.Ingest
 				} else {
 					<div id="ingest" class="drawer-body"></div>
 				}
@@ -49,21 +62,37 @@ templ Page(outline, evidence, ingest, preview templ.Component) {
 						<button type="button" data-class="{ active: $centerView === 'outline' }" data-on-click="$centerView = 'outline'">Outline</button>
 						<button type="button" data-class="{ active: $centerView === 'preview' }" data-on-click="$centerView = 'preview'; @get('/app/stitch?thread=' + ($threadId||'') + '&glue=' + $glue)">Preview</button>
 					</span>
-					<span id="thread-bar" class="thread-bar"><!-- task .5.1 --></span>
+					<span class="dag-bars">
+						if c.ThreadBar != nil {
+							@c.ThreadBar
+						} else {
+							<span id="thread-bar" class="dag-bar"></span>
+						}
+						if c.SnapshotBar != nil {
+							@c.SnapshotBar
+						} else {
+							<span id="snapshot-bar" class="dag-bar"></span>
+						}
+						if c.BranchBar != nil {
+							@c.BranchBar
+						} else {
+							<span id="branch-bar" class="dag-bar"></span>
+						}
+					</span>
 				</nav>
-				if outline != nil {
-					@outline
+				if c.Outline != nil {
+					@c.Outline
 				} else {
 					<section id="outline" class="outline-pane" data-show="$centerView === 'outline'"></section>
 				}
-				if preview != nil {
-					@preview
+				if c.Preview != nil {
+					@c.Preview
 				} else {
 					<section id="stitch" class="stitch" data-show="$centerView === 'preview'"></section>
 				}
 			</main>
-			if evidence != nil {
-				@evidence
+			if c.Evidence != nil {
+				@c.Evidence
 			} else {
 				<section id="evidence" class="evidence-pane" aria-label="Evidence">
 					<p class="evidence-empty">Start typing a bullet — supporting passages appear here.</p>

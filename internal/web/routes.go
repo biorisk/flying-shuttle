@@ -57,6 +57,16 @@ func Mount(r chi.Router, d Deps) {
 		r.Get("/ingest", h.ingest)
 		r.Post("/ingest", h.ingestUpload)
 		h.mountOutlineEdit(r)
+
+		r.Get("/snapshots", h.snapshotBar)
+		r.Post("/snapshots", h.snapshotCreate)
+		r.Post("/snapshots/{id}/restore", h.snapshotRestore)
+		r.Delete("/snapshots/{id}", h.snapshotDelete)
+
+		r.Get("/branches", h.branchBar)
+		r.Post("/branches", h.branchCreate)
+		r.Post("/branches/{id}/switch", h.branchSwitch)
+		r.Delete("/branches/{id}", h.branchDelete)
 	})
 }
 
@@ -74,12 +84,14 @@ func (h *handlers) shell(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("shell: outline: %v", err)
 	}
-	Render(w, r, components.Page(
-		components.Outline(ov),
-		components.Evidence(viewmodel.EvidencePane{}),
-		components.Ingest(h.ingestView()),
-		components.Stitch(viewmodel.StitchView{Glue: 50}),
-	))
+	Render(w, r, components.Page(components.PageContent{
+		Outline:     components.Outline(ov),
+		Evidence:    components.Evidence(viewmodel.EvidencePane{}),
+		Ingest:      components.Ingest(h.ingestView()),
+		Preview:     components.Stitch(viewmodel.StitchView{Glue: 50}),
+		SnapshotBar: components.SnapshotBar(h.snapshotBarView()),
+		BranchBar:   components.BranchBar(h.branchBarView()),
+	}))
 }
 
 // outline renders the #outline fragment as a Datastar SSE patch.

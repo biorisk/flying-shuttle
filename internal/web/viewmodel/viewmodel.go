@@ -66,6 +66,30 @@ type Outline struct {
 // Empty reports whether the outline has no bullets at all.
 func (o Outline) Empty() bool { return len(o.Roots) == 0 }
 
+// SnapshotRow is one saved snapshot in the snapshot bar.
+type SnapshotRow struct {
+	ID      string
+	Label   string
+	Created string // pre-formatted for display
+}
+
+// SnapshotBar is the render model for the #snapshot-bar fragment.
+type SnapshotBar struct {
+	Snapshots []SnapshotRow
+}
+
+// BranchRow is one branch in the branch bar.
+type BranchRow struct {
+	ID     string
+	Name   string
+	Active bool
+}
+
+// BranchBar is the render model for the #branch-bar fragment.
+type BranchBar struct {
+	Branches []BranchRow
+}
+
 // StitchSpan is one attributed run of the linearized manuscript preview.
 type StitchSpan struct {
 	Glue bool // true = AI-generated transition, false = verbatim passage

@@ -9,6 +9,29 @@ import (
 // intString renders an int for use in an attribute value.
 func intString(n int) string { return strconv.Itoa(n) }
 
+func pluralN(n int, one, many string) string {
+	if n == 1 {
+		return "1 " + one
+	}
+	return strconv.Itoa(n) + " " + many
+}
+
+func orDash(s string) string {
+	if s == "" {
+		return "—"
+	}
+	return s
+}
+
+func activeBranchName(vm viewmodel.BranchBar) string {
+	for _, b := range vm.Branches {
+		if b.Active {
+			return b.Name
+		}
+	}
+	return "main"
+}
+
 // evidenceExpr fetches the evidence pane for the current bullet text. Datastar
 // auto-cancels the previous in-flight request for the same element, so rapid
 // typing collapses to the latest query.

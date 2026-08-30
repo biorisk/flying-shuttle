@@ -10,6 +10,26 @@ Format: **[D]** = decision taken, **[Q]** = open question for review.
 
 ## Global
 
+### Tasks .5.2 + .5.3 — Snapshots & Branches (one commit)
+
+- **[D]** Done together — they share the `components.Page` refactor (`Page` now
+  takes a `PageContent` struct instead of a growing positional arg list),
+  `internal/web/dag_handler.go`, and `components/dagbars.templ`.
+- **[D]** Topbar now holds `#thread-bar` (`.5.1`), `#snapshot-bar`,
+  `#branch-bar`. Snapshot bar: a "Snapshot" button (`@post('/app/snapshots')`,
+  auto timestamp label) + a `<details>` menu with Restore/✕ per row. Branch bar:
+  `<details>` showing the active branch, Switch/✕ per other branch, and an
+  inline "new branch" form.
+- **[D]** Routes under `/app`: `snapshots` (GET/POST), `snapshots/{id}/restore`
+  (POST), `snapshots/{id}` (DELETE); same shape for `branches` +
+  `branches/{id}/switch`. All wrap the existing `store` methods.
+- **[D]** Restore and branch-switch rewrite the whole DAG, so they respond via
+  `patchOutlineAndBars` — `#outline` + `#snapshot-bar` + `#branch-bar` patches +
+  `{focusId:'', readerChunk:''}` signal reset.
+- **[Q]** `<details>` menus are plain HTML (no Datastar) — fine, but they don't
+  auto-close after an action. Minor polish for later (`data-on-click` toggling
+  an `open` attr, or a signal).
+
 ### Task .5.6 — Stitch/preview view + glue slider
 
 - **[D]** `GET /app/stitch?thread=&glue=` → `#stitch` fragment

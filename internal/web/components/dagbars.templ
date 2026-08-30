@@ -1,0 +1,56 @@
+package components
+
+import "github.com/biorisk/flying-shuttle/internal/web/viewmodel"
+
+// SnapshotBar: save a point-in-time copy of the whole outline, and
+// restore/delete earlier ones. Rendered into #snapshot-bar.
+templ SnapshotBar(vm viewmodel.SnapshotBar) {
+	<span id="snapshot-bar" class="dag-bar">
+		<button type="button" class="dag-btn" data-on-click="@post('/app/snapshots')" title="Save a snapshot">Snapshot</button>
+		if len(vm.Snapshots) > 0 {
+			<details class="dag-menu">
+				<summary>{ pluralN(len(vm.Snapshots), "snapshot", "snapshots") }</summary>
+				<ul>
+					for _, s := range vm.Snapshots {
+						<li>
+							<span class="dag-menu-label" title={ s.Created }>{ orDash(s.Label) }</span>
+							<button type="button" data-on-click={ "@post('/app/snapshots/" + s.ID + "/restore')" }>Restore</button>
+							<button type="button" data-on-click={ "@delete('/app/snapshots/" + s.ID + "')" }>✕</button>
+						</li>
+					}
+				</ul>
+			</details>
+		}
+	</span>
+}
+
+// BranchBar: alternate working copies of the outline. Rendered into #branch-bar.
+templ BranchBar(vm viewmodel.BranchBar) {
+	<span id="branch-bar" class="dag-bar">
+		<details class="dag-menu">
+			<summary>
+				{ "Branch: " + activeBranchName(vm) }
+			</summary>
+			<ul>
+				for _, b := range vm.Branches {
+					<li>
+						<span class={ "dag-menu-label", templ.KV("active", b.Active) }>{ b.Name }</span>
+						if !b.Active {
+							<button type="button" data-on-click={ "@post('/app/branches/" + b.ID + "/switch')" }>Switch</button>
+							<button type="button" data-on-click={ "@delete('/app/branches/" + b.ID + "')" }>✕</button>
+						}
+					</li>
+				}
+				<li>
+					<form
+						class="dag-new"
+						data-on-submit__prevent="@post('/app/branches', {contentType:'form'})"
+					>
+						<input name="name" placeholder="new branch…" autocomplete="off"/>
+						<button type="submit">+</button>
+					</form>
+				</li>
+			</ul>
+		</details>
+	</span>
+}
