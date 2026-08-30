@@ -9,22 +9,35 @@ import (
 	"github.com/biorisk/flying-shuttle/internal/web/viewmodel"
 )
 
-const uploadListLimit = 100
+// uploadListLimit caps how many rows the drawer renders; the status summary
+// still reflects all uploads.
+const uploadListLimit = 500
 
-// ingestView reads the current uploads into a drawer view model.
+// ingestView reads the current uploads into a drawer view model. Status counts
+// and the Active flag are computed over *all* uploads (not just the rendered
+// page), so a large batch keeps polling until every file is done.
 func (h *handlers) ingestView() viewmodel.IngestDrawer {
 	var vm viewmodel.IngestDrawer
-	ups, _, err := h.d.Store.ListUploadsPage(uploadListLimit, 0)
+	ups, total, err := h.d.Store.ListUploadsPage(0, 0) // all, newest first
 	if err != nil {
 		log.Printf("ingest: list uploads: %v", err)
 		return vm
 	}
-	for _, u := range ups {
-		vm.Uploads = append(vm.Uploads, viewmodel.UploadRow{
-			ID: u.ID, Filename: u.Filename, Status: string(u.Status), Error: u.Error,
-		})
-		if u.Status == model.UploadStatusPending || u.Status == model.UploadStatusTranscribing {
+	vm.Total = total
+	for i, u := range ups {
+		switch u.Status {
+		case model.UploadStatusDone:
+			vm.Done++
+		case model.UploadStatusFailed:
+			vm.Failed++
+		default: // pending | transcribing
+			vm.Pending++
 			vm.Active = true
+		}
+		if i < uploadListLimit {
+			vm.Uploads = append(vm.Uploads, viewmodel.UploadRow{
+				ID: u.ID, Filename: u.Filename, Status: string(u.Status), Error: u.Error,
+			})
 		}
 	}
 	return vm
@@ -44,10 +57,13 @@ func (h *handlers) ingest(w http.ResponseWriter, r *http.Request) {
 //
 //	POST /ingest   (multipart/form-data, field "files")
 func (h *handlers) ingestUpload(w http.ResponseWriter, r *http.Request) {
-	const maxUpload = 100 << 20
-	r.Body = http.MaxBytesReader(w, r.Body, maxUpload)
-	if err := r.ParseMultipartForm(maxUpload); err != nil {
-		http.Error(w, "invalid upload", http.StatusBadRequest)
+	const (
+		maxRequest  = 1 << 30  // 1 GiB total — a large batch of transcripts
+		parseMemory = 32 << 20 // keep 32 MiB in memory, spill the rest to temp files
+	)
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequest)
+	if err := r.ParseMultipartForm(parseMemory); err != nil {
+		http.Error(w, "invalid upload: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -67,6 +83,7 @@ func (h *handlers) ingestUpload(w http.ResponseWriter, r *http.Request) {
 		}
 		accepted = append(accepted, u)
 	}
+	log.Printf("ingest: accepted %d of %d files", len(accepted), len(files))
 	for _, u := range accepted {
 		h.d.Ingester.Start(u)
 	}

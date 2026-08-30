@@ -95,3 +95,52 @@ func TestIngestUpload_rejectsNonText(t *testing.T) {
 		t.Fatalf("mp3 should have been rejected, got %d uploads", len(ups))
 	}
 }
+
+func TestIngestUpload_batchSummaryAndPoll(t *testing.T) {
+	r, s := ingestRouter(t)
+
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	const n = 12
+	for i := 0; i < n; i++ {
+		fw, _ := mw.CreateFormFile("files", "t"+string(rune('a'+i))+".txt")
+		fw.Write([]byte("Para one about fear.\n\nPara two about resolve."))
+	}
+	mw.Close()
+	req := httptest.NewRequest(http.MethodPost, "/ingest", &buf)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != 200 {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "12 file(s)") {
+		t.Fatalf("summary should show the batch total:\n%s", rec.Body.String())
+	}
+
+	// Poll GET /ingest until all done; the poll attribute must be present
+	// while anything is still processing and gone once finished.
+	deadline := time.Now().Add(5 * time.Second)
+	var last string
+	for time.Now().Before(deadline) {
+		g := httptest.NewRecorder()
+		r.ServeHTTP(g, httptest.NewRequest(http.MethodGet, "/ingest", nil))
+		last = g.Body.String()
+		hasPoll := strings.Contains(last, "data-on-interval__duration.2s")
+		if strings.Contains(last, "12 done") {
+			if hasPoll {
+				t.Fatalf("poll attribute should be gone once all done:\n%s", last)
+			}
+			ups, total, _ := s.ListUploadsPage(0, 0)
+			if total != n || len(ups) != n {
+				t.Fatalf("want %d uploads, got total=%d rows=%d", n, total, len(ups))
+			}
+			return
+		}
+		if !hasPoll {
+			t.Fatalf("poll attribute missing while still processing:\n%s", last)
+		}
+		time.Sleep(40 * time.Millisecond)
+	}
+	t.Fatalf("batch never finished:\n%s", last)
+}

@@ -5,16 +5,17 @@ import (
 	"github.com/biorisk/flying-shuttle/internal/web/viewmodel"
 )
 
-// Ingest is the left-drawer fragment: a transcript upload form and the list of
-// uploaded files with their processing status. Rendered into #ingest by
-// GET /ingest and re-patched by POST /ingest. While any upload is
-// still processing the fragment polls itself every 2s.
+// Ingest is the left-drawer fragment: a transcript upload form, a status
+// summary, and the list of uploaded files. Rendered into #ingest by GET
+// /ingest and re-patched by POST /ingest. While any upload is still processing
+// the fragment polls itself every 2s (data-on-interval — the plugin name is
+// literally "on-interval", so it is NOT data-on:interval).
 templ Ingest(vm viewmodel.IngestDrawer) {
 	<div
 		id="ingest"
 		class="drawer-body"
 		if vm.Active {
-			data-on:interval__duration.2s="@get('/ingest')"
+			data-on-interval__duration.2s="@get('/ingest')"
 		}
 	>
 		<form
@@ -28,7 +29,19 @@ templ Ingest(vm viewmodel.IngestDrawer) {
 			</label>
 			<button type="submit" class="ingest-submit">Upload &amp; process</button>
 		</form>
-		if len(vm.Uploads) > 0 {
+		if vm.Total > 0 {
+			<div class="ingest-summary">
+				<span>{ fmt.Sprintf("%d file(s)", vm.Total) }</span>
+				if vm.Pending > 0 {
+					<span class="s-pending">{ fmt.Sprintf("%d processing", vm.Pending) }</span>
+				}
+				if vm.Done > 0 {
+					<span class="s-done">{ fmt.Sprintf("%d done", vm.Done) }</span>
+				}
+				if vm.Failed > 0 {
+					<span class="s-failed">{ fmt.Sprintf("%d failed", vm.Failed) }</span>
+				}
+			</div>
 			<ul class="upload-list">
 				for _, u := range vm.Uploads {
 					<li class={ "upload-row", "status-" + u.Status }>
@@ -40,9 +53,11 @@ templ Ingest(vm viewmodel.IngestDrawer) {
 					</li>
 				}
 			</ul>
+			if vm.Total > len(vm.Uploads) {
+				<p class="ingest-hint">{ fmt.Sprintf("showing the %d most recent of %d", len(vm.Uploads), vm.Total) }</p>
+			}
 		} else {
 			<p class="ingest-empty">No transcripts loaded yet.</p>
 		}
-		<p class="ingest-hint">{ fmt.Sprintf("%d file(s)", len(vm.Uploads)) }</p>
 	</div>
 }

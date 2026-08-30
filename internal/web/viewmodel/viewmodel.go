@@ -155,7 +155,11 @@ type UploadRow struct {
 
 // IngestDrawer is the render model for the #ingest fragment.
 type IngestDrawer struct {
-	Uploads []UploadRow
+	Uploads []UploadRow // newest first
+	Total   int         // total uploads (Uploads may be a truncated view)
+	Done    int
+	Failed  int
+	Pending int // pending + processing
 	// Active is true while any upload is still pending/processing, so the
 	// fragment can poll itself for status updates.
 	Active bool

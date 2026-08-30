@@ -10,6 +10,28 @@ Format: **[D]** = decision taken, **[Q]** = open question for review.
 
 ## Global
 
+### Post-migration fixes (from real usage)
+
+- **[BUG] Ingest drawer never live-refreshed during a large upload, and only
+  listed 100 files.** Two causes:
+  1. `.6.2`'s global `data-on-*` → `data-on:*` rewrite also hit
+     `data-on-interval` — but that plugin's name is literally `on-interval`
+     (hyphen in the name), so `data-on:interval` is inert. The 2s self-poll was
+     dead. Reverted to `data-on-interval__duration.2s`. (`on-intersect`,
+     `on-signal-patch` are the same shape — none used yet.)
+  2. `ingestView()` loaded only `ListUploadsPage(100, 0)` and computed `Active`
+     over that page — so once the newest 100 finished, polling stopped even
+     with older files still processing. Now loads all uploads, computes a
+     status summary (`Total / N processing / N done / N failed`) and `Active`
+     over the full set; renders up to 500 rows in a scroll box with a "showing
+     the most recent N of M" line.
+- **[D]** `POST /ingest` request cap raised 100 MiB → 1 GiB (parse-memory
+  threshold 32 MiB, spills to temp files); logs "accepted N of M files".
+- **[Q]** A 360-file upload still spawns 360 ingest goroutines that all contend
+  on the single SQLite connection — correct but not fast, and the initial POST
+  blocks until every file is saved to disk. A bounded worker pool + a
+  streaming/"uploading n/total" client indicator would be the next improvement.
+
 ### Task .6.2 — Handler tests + Playwright  ⚠ found a real bug
 
 - **[D][BUG FIX] Datastar v1 attribute syntax is `data-on:click`, not

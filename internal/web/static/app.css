@@ -217,3 +217,9 @@ button:hover { border-color: var(--accent); }
 .bullet.ghost { opacity: .6; }
 .bullet.ghost .ghost-title { text-decoration: line-through; color: var(--text-dim); }
 .ghost-rescue { font-size: 11px; margin-left: 8px; border-color: var(--accent); }
+
+.ingest-summary { display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; margin-bottom: 8px; color: var(--text-dim); }
+.ingest-summary .s-pending { color: var(--accent); }
+.ingest-summary .s-done { color: #46a758; }
+.ingest-summary .s-failed { color: #e5484d; }
+.upload-list { max-height: 40vh; overflow: auto; }
