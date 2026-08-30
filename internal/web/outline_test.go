@@ -56,3 +56,22 @@ func TestOutlineFragment_emptyAndPopulated(t *testing.T) {
 		}
 	}
 }
+
+func TestOutlineFragment_collapseMarkup(t *testing.T) {
+	r, svc := outlineRouter(t)
+	a, _ := svc.AddRoot("parent")
+	svc.AddChild(a.ID, "kid")
+
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/app/outline", nil))
+	body := rec.Body.String()
+	for _, want := range []string{
+		"bullet-toggle",
+		"$collapsed['" + a.ID + "'] = !$collapsed['" + a.ID + "']",
+		`data-show="!$collapsed['` + a.ID + `']"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("collapse markup missing %q\n%s", want, body)
+		}
+	}
+}

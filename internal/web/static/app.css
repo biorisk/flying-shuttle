@@ -137,3 +137,5 @@ button:hover { border-color: var(--accent); }
 .upload-row.status-failed .upload-status { color: #e5484d; }
 .upload-row.status-done .upload-status { color: #46a758; }
 .ingest-empty, .ingest-hint { color: var(--text-dim); font-size: 12px; }
+.bullet-toggle { border: none; background: none; color: var(--text-dim); font-size: 10px; width: 10px; padding: 0; flex: none; cursor: pointer; }
+.bullet-toggle:hover { color: var(--text); }

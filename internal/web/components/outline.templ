@@ -38,13 +38,23 @@ templ bullet(n viewmodel.OutlineNode) {
 		data-depth={ intString(n.Depth) }
 	>
 		<div class="bullet-row" style={ "padding-left:" + intString(n.Depth*20) + "px" }>
-			<span class="bullet-dot" aria-hidden="true">
-				if n.Evidence {
-					&#9642;
-				} else {
-					&bull;
-				}
-			</span>
+			if len(n.Children) > 0 {
+				<button
+					type="button"
+					class="bullet-toggle"
+					tabindex="-1"
+					data-on-click={ "$collapsed['" + n.ID + "'] = !$collapsed['" + n.ID + "']" }
+					data-text={ "$collapsed['" + n.ID + "'] ? '▸' : '▾'" }
+				>&#9662;</button>
+			} else {
+				<span class="bullet-dot" aria-hidden="true">
+					if n.Evidence {
+						&#9642;
+					} else {
+						&bull;
+					}
+				</span>
+			}
 			if n.Evidence {
 				<blockquote class="bullet-evidence">{ evidenceText(n) }</blockquote>
 				if n.Locked {
@@ -67,7 +77,7 @@ templ bullet(n viewmodel.OutlineNode) {
 			}
 		</div>
 		if len(n.Children) > 0 {
-			<ul class="bullet-children">
+			<ul class="bullet-children" data-show={ "!$collapsed['" + n.ID + "']" }>
 				for _, c := range n.Children {
 					@bullet(c)
 				}

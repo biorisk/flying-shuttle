@@ -10,6 +10,20 @@ Format: **[D]** = decision taken, **[Q]** = open question for review.
 
 ## Global
 
+### Task .3.3 — Client-side collapse/expand
+
+- **[D]** Purely client-side, no round-trip: parent bullets render a
+  `.bullet-toggle` button with `data-on-click="$collapsed['<id>'] =
+  !$collapsed['<id>']"` and `data-text` for the ▸/▾ glyph; the children `<ul>`
+  gets `data-show="!$collapsed['<id>']"`. Server always renders the full tree.
+- **[D]** Bracket notation `$collapsed['<uuid>']` (not dot) because node ids
+  contain hyphens. `$collapsed` starts `{}` (in Page's `data-signals`);
+  unset key → `undefined` → shown.
+- **[Q]** Collapse state is lost on reload / lost when `#outline` is patched
+  (Datastar re-runs `data-show` against the surviving `$collapsed` signal, so it
+  should actually persist across patches — signal outlives the DOM). Matches the
+  old client (collapse was ephemeral). Revisit only if users want it sticky.
+
 ### Task .3.2 — Bullet editing endpoints
 
 - **[D]** Endpoints under `/app/outline`: `POST /roots`, and per node
