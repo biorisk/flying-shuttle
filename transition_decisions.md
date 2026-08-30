@@ -10,6 +10,31 @@ Format: **[D]** = decision taken, **[Q]** = open question for review.
 
 ## Global
 
+### Task .1.2 — Evidence-as-text-span schema
+
+- **[D]** New `evidence` table (migration `005_evidence.sql`): `id, node_id,
+  chunk_id, source_file, char_start, char_end, text, position, created_at`.
+  `char_start/char_end` are **rune** offsets into `chunks.content`; whole-chunk
+  = `0 .. len([]rune(content))`. `text` stores the resolved excerpt verbatim
+  (plan §2 option B) so stitch/export never re-resolves.
+- **[D]** Migration backfills `evidence` from existing `node_chunks` (whole-chunk
+  spans), guarded by `NOT EXISTS` so re-running is a no-op. Migrations have no
+  version table — they're plain idempotent SQL run in order.
+- **[D]** `node_chunks` table is **kept** (not dropped) but no code writes it
+  anymore. `GetNodeChunks` / `SetNodeChunks` / `ListUsedChunkIDs` were
+  reimplemented on top of `evidence`: `SetNodeChunks` writes whole-chunk
+  evidence rows, `GetNodeChunks` returns the distinct source chunks in evidence
+  order, `ListUsedChunkIDs` unions both tables. Kept the old API surface so the
+  React `PUT /nodes/{id}/chunks` path keeps working until cutover.
+- **[D]** `SnapshotData.NodeChunks` → `SnapshotData.Evidence []model.Evidence`
+  (json `evidence`). `NodeChunks` kept as a legacy read-only field; restore
+  converts old-snapshot `node_chunks` entries into full-span evidence rows by
+  looking up chunk content.
+- **[D]** New Store methods: `CreateEvidence`, `ListNodeEvidence`,
+  `ListAllEvidence`, `DeleteEvidence`, `DeleteNodeEvidence`.
+- **[Q]** `node_chunks` table + `NodeChunkAssoc` type are now dead weight. Drop
+  in a later cleanup once the React path is gone (`.6.1`).
+
 ### Task .1.1 — Drop audio ingest
 
 - **[D]** Deleted `internal/ingest/transcribe.go` (Transcriber, StubTranscriber)

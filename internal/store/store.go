@@ -30,10 +30,17 @@ type Store interface {
 	UpdateNode(n *model.Node) error // checks version for optimistic concurrency
 	DeleteNode(id string) error
 
-	// Node ↔ Chunk associations
+	// Node ↔ Chunk associations (legacy whole-chunk model)
 	GetNodeChunks(nodeID string) ([]model.Chunk, error)
 	SetNodeChunks(nodeID string, chunkIDs []string) error
-	ListUsedChunkIDs() ([]string, error) // all chunk IDs associated with any node
+	ListUsedChunkIDs() ([]string, error) // all chunk IDs referenced by node_chunks or evidence
+
+	// Evidence: supporting text spans attached to a node (supersedes node_chunks)
+	CreateEvidence(e *model.Evidence) error
+	ListNodeEvidence(nodeID string) ([]model.Evidence, error)
+	ListAllEvidence() ([]model.Evidence, error)
+	DeleteEvidence(id string) error
+	DeleteNodeEvidence(nodeID string) error
 
 	// Node move (atomic reparent + reorder)
 	MoveNode(nodeID, newParentID string, position int) error

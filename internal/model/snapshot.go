@@ -18,14 +18,18 @@ type SnapshotSummary struct {
 
 // SnapshotData captures the full DAG state.
 type SnapshotData struct {
-	Nodes      []Node          `json:"nodes"`
-	Edges      []Edge          `json:"edges"`
-	Threads    []Thread        `json:"threads"`
-	ThreadNodes []ThreadNode   `json:"thread_nodes"`
-	NodeChunks []NodeChunkAssoc `json:"node_chunks"`
+	Nodes       []Node       `json:"nodes"`
+	Edges       []Edge       `json:"edges"`
+	Threads     []Thread     `json:"threads"`
+	ThreadNodes []ThreadNode `json:"thread_nodes"`
+	Evidence    []Evidence   `json:"evidence"`
+	// NodeChunks is the pre-evidence association format. It is still read from
+	// old snapshots on restore, but new snapshots serialize Evidence instead.
+	NodeChunks []NodeChunkAssoc `json:"node_chunks,omitempty"`
 }
 
-// NodeChunkAssoc records a node ↔ chunk association with ordering.
+// NodeChunkAssoc records a node ↔ chunk association with ordering (legacy —
+// superseded by Evidence).
 type NodeChunkAssoc struct {
 	NodeID   string `json:"node_id"`
 	ChunkID  string `json:"chunk_id"`

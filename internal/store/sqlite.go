@@ -49,6 +49,7 @@ func (s *SQLiteStore) Migrate() error {
 		"migrations/002_uploads.sql",
 		"migrations/003_snapshots.sql",
 		"migrations/004_branches.sql",
+		"migrations/005_evidence.sql",
 	}
 	for _, name := range migrations {
 		data, err := migrationFS.ReadFile(name)
@@ -365,11 +366,15 @@ func (s *SQLiteStore) DeleteNode(id string) error {
 
 // --- Node ↔ Chunk ---
 
+// GetNodeChunks returns the distinct source chunks a node's evidence draws
+// from, in evidence order. (node_chunks is superseded by the evidence table.)
 func (s *SQLiteStore) GetNodeChunks(nodeID string) ([]model.Chunk, error) {
 	rows, err := s.db.Query(
 		`SELECT c.id, c.source_file, c.content, c.start_offset, c.end_offset, c.speaker, c.embedding_vec, c.created_at
-		 FROM chunks c JOIN node_chunks nc ON c.id = nc.chunk_id
-		 WHERE nc.node_id = ? ORDER BY nc.position`, nodeID)
+		 FROM chunks c
+		 JOIN (SELECT chunk_id, MIN(position) AS pos FROM evidence WHERE node_id = ? GROUP BY chunk_id) e
+		   ON c.id = e.chunk_id
+		 ORDER BY e.pos`, nodeID)
 	if err != nil {
 		return nil, err
 	}
@@ -385,6 +390,9 @@ func (s *SQLiteStore) GetNodeChunks(nodeID string) ([]model.Chunk, error) {
 	return out, rows.Err()
 }
 
+// SetNodeChunks replaces a node's evidence with whole-chunk spans for the
+// given chunk IDs. Retained for the pre-evidence API surface (PUT
+// /nodes/{id}/chunks); new code writes CreateEvidence directly.
 func (s *SQLiteStore) SetNodeChunks(nodeID string, chunkIDs []string) error {
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -392,12 +400,20 @@ func (s *SQLiteStore) SetNodeChunks(nodeID string, chunkIDs []string) error {
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.Exec(`DELETE FROM node_chunks WHERE node_id = ?`, nodeID); err != nil {
+	if _, err := tx.Exec(`DELETE FROM evidence WHERE node_id = ?`, nodeID); err != nil {
 		return err
 	}
 	for i, cid := range chunkIDs {
-		if _, err := tx.Exec(`INSERT INTO node_chunks (node_id, chunk_id, position) VALUES (?, ?, ?)`,
-			nodeID, cid, i); err != nil {
+		var sourceFile, content string
+		if err := tx.QueryRow(`SELECT source_file, content FROM chunks WHERE id = ?`, cid).
+			Scan(&sourceFile, &content); err != nil {
+			return fmt.Errorf("chunk %s: %w", cid, err)
+		}
+		if _, err := tx.Exec(
+			`INSERT INTO evidence (`+evidenceCols+`)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now'))`,
+			uuid.NewString(), nodeID, cid, sourceFile, 0, len([]rune(content)), content, i,
+		); err != nil {
 			return err
 		}
 	}
@@ -405,7 +421,10 @@ func (s *SQLiteStore) SetNodeChunks(nodeID string, chunkIDs []string) error {
 }
 
 func (s *SQLiteStore) ListUsedChunkIDs() ([]string, error) {
-	rows, err := s.db.Query(`SELECT DISTINCT chunk_id FROM node_chunks`)
+	rows, err := s.db.Query(`
+		SELECT chunk_id FROM node_chunks
+		UNION
+		SELECT chunk_id FROM evidence`)
 	if err != nil {
 		return nil, err
 	}
@@ -419,6 +438,96 @@ func (s *SQLiteStore) ListUsedChunkIDs() ([]string, error) {
 		ids = append(ids, id)
 	}
 	return ids, rows.Err()
+}
+
+// --- Evidence ---
+
+func scanEvidenceRows(rows *sql.Rows) (*model.Evidence, error) {
+	var e model.Evidence
+	var createdAt string
+	if err := rows.Scan(&e.ID, &e.NodeID, &e.ChunkID, &e.SourceFile,
+		&e.CharStart, &e.CharEnd, &e.Text, &e.Position, &createdAt); err != nil {
+		return nil, err
+	}
+	e.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAt)
+	return &e, nil
+}
+
+const evidenceCols = `id, node_id, chunk_id, source_file, char_start, char_end, text, position, created_at`
+
+func (s *SQLiteStore) CreateEvidence(e *model.Evidence) error {
+	if e.ID == "" {
+		e.ID = uuid.NewString()
+	}
+	_, err := s.db.Exec(
+		`INSERT INTO evidence (`+evidenceCols+`)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, COALESCE(NULLIF(?, ''), strftime('%Y-%m-%dT%H:%M:%fZ','now')))`,
+		e.ID, e.NodeID, e.ChunkID, e.SourceFile, e.CharStart, e.CharEnd, e.Text, e.Position,
+		formatTimeOrEmpty(e.CreatedAt))
+	return err
+}
+
+func (s *SQLiteStore) ListNodeEvidence(nodeID string) ([]model.Evidence, error) {
+	rows, err := s.db.Query(
+		`SELECT `+evidenceCols+` FROM evidence WHERE node_id = ? ORDER BY position, created_at`, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []model.Evidence
+	for rows.Next() {
+		e, err := scanEvidenceRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *e)
+	}
+	return out, rows.Err()
+}
+
+// ListAllEvidence returns every evidence row, ordered by node then position —
+// used to render the whole outline and to serialize snapshots.
+func (s *SQLiteStore) ListAllEvidence() ([]model.Evidence, error) {
+	rows, err := s.db.Query(
+		`SELECT ` + evidenceCols + ` FROM evidence ORDER BY node_id, position, created_at`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []model.Evidence
+	for rows.Next() {
+		e, err := scanEvidenceRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *e)
+	}
+	return out, rows.Err()
+}
+
+func (s *SQLiteStore) DeleteEvidence(id string) error {
+	res, err := s.db.Exec(`DELETE FROM evidence WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (s *SQLiteStore) DeleteNodeEvidence(nodeID string) error {
+	_, err := s.db.Exec(`DELETE FROM evidence WHERE node_id = ?`, nodeID)
+	return err
+}
+
+// formatTimeOrEmpty renders t as RFC3339Nano, or "" for the zero value so the
+// DB default fills in.
+func formatTimeOrEmpty(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.Format(time.RFC3339Nano)
 }
 
 // --- Node Move ---
@@ -909,21 +1018,9 @@ func (s *SQLiteStore) gatherDAGState() (*model.SnapshotData, error) {
 		allThreadNodes = append(allThreadNodes, tn...)
 	}
 
-	rows, err := s.db.Query(`SELECT node_id, chunk_id, position FROM node_chunks ORDER BY node_id, position`)
+	evidence, err := s.ListAllEvidence()
 	if err != nil {
-		return nil, fmt.Errorf("gather node_chunks: %w", err)
-	}
-	defer rows.Close()
-	var allNodeChunks []model.NodeChunkAssoc
-	for rows.Next() {
-		var nc model.NodeChunkAssoc
-		if err := rows.Scan(&nc.NodeID, &nc.ChunkID, &nc.Position); err != nil {
-			return nil, err
-		}
-		allNodeChunks = append(allNodeChunks, nc)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("gather evidence: %w", err)
 	}
 
 	return &model.SnapshotData{
@@ -931,13 +1028,13 @@ func (s *SQLiteStore) gatherDAGState() (*model.SnapshotData, error) {
 		Edges:       edges,
 		Threads:     threads,
 		ThreadNodes: allThreadNodes,
-		NodeChunks:  allNodeChunks,
+		Evidence:    evidence,
 	}, nil
 }
 
 // clearDAGTables deletes all rows from the live DAG tables within a transaction.
 func clearDAGTables(tx *sql.Tx) error {
-	for _, table := range []string{"node_chunks", "thread_nodes", "edges", "threads", "nodes"} {
+	for _, table := range []string{"evidence", "node_chunks", "thread_nodes", "edges", "threads", "nodes"} {
 		if _, err := tx.Exec("DELETE FROM " + table); err != nil {
 			return fmt.Errorf("clear %s: %w", table, err)
 		}
@@ -985,15 +1082,41 @@ func restoreDAGState(tx *sql.Tx, data *model.SnapshotData) error {
 			return fmt.Errorf("restore thread_node: %w", err)
 		}
 	}
-	for _, nc := range data.NodeChunks {
+	for _, e := range data.Evidence {
 		if _, err := tx.Exec(
-			`INSERT INTO node_chunks (node_id, chunk_id, position) VALUES (?, ?, ?)`,
-			nc.NodeID, nc.ChunkID, nc.Position,
+			`INSERT INTO evidence (`+evidenceCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			nz(e.ID), e.NodeID, e.ChunkID, e.SourceFile, e.CharStart, e.CharEnd, e.Text, e.Position,
+			e.CreatedAt.Format(time.RFC3339Nano),
 		); err != nil {
-			return fmt.Errorf("restore node_chunk: %w", err)
+			return fmt.Errorf("restore evidence: %w", err)
+		}
+	}
+	// Legacy snapshots stored whole-chunk associations; carry them over as
+	// full-span evidence rows.
+	for _, nc := range data.NodeChunks {
+		var content string
+		if err := tx.QueryRow(`SELECT content FROM chunks WHERE id = ?`, nc.ChunkID).Scan(&content); err != nil {
+			if err == sql.ErrNoRows {
+				continue
+			}
+			return fmt.Errorf("restore legacy node_chunk: %w", err)
+		}
+		if _, err := tx.Exec(
+			`INSERT INTO evidence (`+evidenceCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now'))`,
+			uuid.NewString(), nc.NodeID, nc.ChunkID, "", 0, len([]rune(content)), content, nc.Position,
+		); err != nil {
+			return fmt.Errorf("restore legacy node_chunk: %w", err)
 		}
 	}
 	return nil
+}
+
+// nz returns id, or a fresh UUID when id is empty.
+func nz(id string) string {
+	if id == "" {
+		return uuid.NewString()
+	}
+	return id
 }
 
 // --- Snapshots ---
