@@ -13,14 +13,17 @@ import (
 	"time"
 
 	"github.com/biorisk/flying-shuttle/internal/api"
+	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/search"
 	"github.com/biorisk/flying-shuttle/internal/stitch"
 	"github.com/biorisk/flying-shuttle/internal/store"
 )
 
-// TestFullLoop drives the whole product loop through the real router:
-// upload a transcript, write a bullet, pull evidence, open the transcript
-// reader, attach a passage as a locked sub-bullet, and preview the stitch.
+// TestFullLoop drives the whole product loop through the real router — using
+// only the "/" fragment endpoints (the JSON API is now ingest-only) and the
+// store for setup/inspection: upload a transcript, write a bullet, pull
+// evidence, open the transcript reader, attach a passage as a locked
+// sub-bullet, preview the stitch, download the markdown.
 func TestFullLoop(t *testing.T) {
 	s, err := store.NewSQLiteStore(":memory:")
 	if err != nil {
@@ -75,10 +78,10 @@ func TestFullLoop(t *testing.T) {
 	// 1. the shell renders
 	shell := get("/")
 	if !strings.Contains(shell, `id="shell"`) || !strings.Contains(shell, "datastar-v1.0.3") {
-		t.Fatalf("shell missing key markup")
+		t.Fatal("shell missing key markup")
 	}
 
-	// 2. upload a transcript (multipart)
+	// 2. upload a transcript through the ingest drawer endpoint
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
 	fw, _ := mw.CreateFormFile("files", "interview.txt")
@@ -105,11 +108,7 @@ func TestFullLoop(t *testing.T) {
 
 	// 3. add a bullet and title it
 	form("/outline/roots", nil)
-	forest, _ := (&outlineTree{s}).roots()
-	if len(forest) != 1 {
-		t.Fatalf("want 1 root bullet, got %d", len(forest))
-	}
-	bulletID := forest[0]
+	bulletID := onlyRoot(t, s)
 	send(http.MethodPatch, "/outline/nodes/"+bulletID, url.Values{"title": {"the fear before the vote"}, "version": {"1"}})
 
 	// 4. evidence pane finds the fear passages
@@ -130,12 +129,12 @@ func TestFullLoop(t *testing.T) {
 	if !strings.Contains(out, `id="outline"`) || !strings.Contains(out, "bullet-evidence") {
 		t.Fatalf("attach didn't produce an evidence bullet:\n%s", out)
 	}
-	kids, _ := (&outlineTree{s}).childrenOf(bulletID)
+	kids := childrenOf(t, s, bulletID)
 	if len(kids) != 1 {
 		t.Fatalf("want 1 evidence sub-bullet, got %d", len(kids))
 	}
 	n, _ := s.GetNode(kids[0])
-	if !n.Locked || string(n.Type) != "chunk_ref" {
+	if !n.Locked || n.Type != model.NodeTypeChunkRef {
 		t.Fatalf("evidence bullet should be a locked chunk_ref: %+v", n)
 	}
 
@@ -146,13 +145,17 @@ func TestFullLoop(t *testing.T) {
 	}
 
 	// 8. markdown export streams a file
-	res, err = http.Get(srv.URL + "/api/v1/export/markdown/download?glue=50")
+	res, err = http.Get(srv.URL + "/export.md?glue=50")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer res.Body.Close()
 	if ct := res.Header.Get("Content-Type"); !strings.HasPrefix(ct, "text/markdown") {
 		t.Fatalf("export content-type = %q", ct)
+	}
+	body, _ := io.ReadAll(res.Body)
+	if !strings.Contains(string(body), "the fear turned into resolve") {
+		t.Fatalf("exported markdown missing the passage:\n%s", body)
 	}
 }
 
@@ -165,43 +168,36 @@ func firstMatch(t *testing.T, s, pat string) string {
 	return m[1]
 }
 
-// outlineTree is a tiny store probe for the integration test.
-type outlineTree struct{ s store.Store }
-
-func (o *outlineTree) roots() ([]string, error) {
-	nodes, err := o.s.ListNodes()
-	if err != nil {
-		return nil, err
-	}
-	edges, err := o.s.ListEdges()
-	if err != nil {
-		return nil, err
-	}
-	hasParent := map[string]bool{}
+func onlyRoot(t *testing.T, s store.Store) string {
+	t.Helper()
+	nodes, _ := s.ListNodes()
+	edges, _ := s.ListEdges()
+	child := map[string]bool{}
 	for _, e := range edges {
-		if e.Type == "linear" {
-			hasParent[e.ToNode] = true
+		if e.Type == model.EdgeTypeLinear {
+			child[e.ToNode] = true
 		}
 	}
-	var out []string
+	var roots []string
 	for _, n := range nodes {
-		if n.Type == "outline" && !hasParent[n.ID] {
-			out = append(out, n.ID)
+		if n.Type == model.NodeTypeOutline && !child[n.ID] {
+			roots = append(roots, n.ID)
 		}
 	}
-	return out, nil
+	if len(roots) != 1 {
+		t.Fatalf("want exactly 1 root bullet, got %d", len(roots))
+	}
+	return roots[0]
 }
 
-func (o *outlineTree) childrenOf(id string) ([]string, error) {
-	edges, err := o.s.ListEdgesFrom(id)
-	if err != nil {
-		return nil, err
-	}
+func childrenOf(t *testing.T, s store.Store, id string) []string {
+	t.Helper()
+	edges, _ := s.ListEdgesFrom(id)
 	var out []string
 	for _, e := range edges {
-		if e.Type == "linear" {
+		if e.Type == model.EdgeTypeLinear {
 			out = append(out, e.ToNode)
 		}
 	}
-	return out, nil
+	return out
 }

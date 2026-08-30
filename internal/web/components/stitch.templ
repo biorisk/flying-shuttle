@@ -26,8 +26,8 @@ templ Stitch(vm viewmodel.StitchView) {
 			<a
 				class="stitch-export"
 				download
-				href="/api/v1/export/markdown/download"
-				data-attr:href="'/api/v1/export/markdown/download?thread_id=' + ($threadId||'') + '&glue=' + $glue"
+				href="/export.md"
+				data-attr:href="'/export.md?thread=' + ($threadId||'') + '&glue=' + $glue"
 			>Export .md</a>
 		</div>
 		if vm.Err != "" {

@@ -51,7 +51,7 @@ func Stitch(vm viewmodel.StitchView) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</span></label> <a class=\"stitch-export\" download href=\"/api/v1/export/markdown/download\" data-attr:href=\"'/api/v1/export/markdown/download?thread_id=' + ($threadId||'') + '&glue=' + $glue\">Export .md</a></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</span></label> <a class=\"stitch-export\" download href=\"/export.md\" data-attr:href=\"'/export.md?thread=' + ($threadId||'') + '&glue=' + $glue\">Export .md</a></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

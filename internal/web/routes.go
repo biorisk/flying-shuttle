@@ -3,6 +3,7 @@ package web
 import (
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/biorisk/flying-shuttle/internal/outline"
 	"github.com/biorisk/flying-shuttle/internal/pipeline"
@@ -49,6 +50,14 @@ func Mount(r chi.Router, d Deps) {
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(StaticFS()))))
 
 	r.Get("/", h.shell)
+	r.Get("/export.md", h.exportMarkdown)
+
+	// Test hook: wipe the outline. Registered only when SHUTTLE_E2E=1 so the
+	// Playwright suite can reset between scenarios without a JSON CRUD API.
+	if os.Getenv("SHUTTLE_E2E") == "1" {
+		r.Post("/_test/reset", h.testReset)
+	}
+
 	r.Group(func(r chi.Router) {
 		r.Get("/outline", h.outline)
 		r.Get("/evidence", h.evidence)

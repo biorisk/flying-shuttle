@@ -1,8 +1,9 @@
 # Flying Shuttle — Installation & Deployment
 
 Flying Shuttle is a structural writing tool that lets you build, branch, and
-stitch narrative outlines from transcripts. It is a single Go binary: a chi
-JSON API plus a server-rendered UI (templ + Datastar, HTML fragments over SSE).
+stitch narrative outlines from transcripts. It is a single Go binary: a
+server-rendered UI (templ + Datastar, HTML fragments over SSE) at `/`, plus a
+tiny JSON surface under `/api/v1/ingest` for the offline embedding pipeline.
 No Node toolchain.
 
 ## Prerequisites
@@ -24,8 +25,8 @@ make build && ./bin/shuttle
 ```
 
 `make build` runs `templ generate` then compiles `bin/shuttle`. The server
-listens on **http://localhost:8080** — the UI at `/`, the JSON API under
-`/api/v1`. On first run it creates `shuttle.db` and runs all migrations.
+listens on **http://localhost:8080** — the UI at `/`. On first run it creates
+`shuttle.db` and runs all migrations.
 
 ### Development loop
 
@@ -84,12 +85,17 @@ reverse proxy, no static file server, no `web/` directory.
 | **Snapshot** | A point-in-time copy of the whole DAG |
 | **Branch** | A named working copy for exploring alternatives |
 
-## API
+## HTTP surface
 
-All endpoints under `/api/v1/`, JSON envelopes `{"data": …}` / `{"error": …}`.
-The UI does not use them — it talks to the fragment endpoints at `/`
-(`/outline`, `/evidence`, `/ingest`, `/stitch`, `/snapshots`, `/branches`,
-`/threads`, …). `GET /api/v1/export/markdown/download` streams the manuscript.
+- **`/`** — the app. The UI drives itself through HTML-fragment endpoints
+  (`/outline`, `/evidence`, `/stitch`, `/snapshots`, `/branches`, `/threads`, …)
+  that return Datastar SSE patches. Not a stable API.
+- **`GET /export.md?thread=&glue=&title=`** — download the stitched manuscript.
+- **`GET /healthz`** — liveness.
+- **`POST /api/v1/ingest/{embed-file,embed-file-legacy,directory,directory-legacy}`**
+  — the only JSON API. Body `{"path": "…"}` pointing at a `.fembed` / `.embed`
+  file or a directory of them. Used by the offline embedding pipeline
+  (`python/`) to bulk-load pre-computed vectors; response `{"data":{"imported":N}}`.
 
 ## Testing
 

@@ -2,22 +2,31 @@ import { test, expect, type APIRequestContext } from "@playwright/test";
 
 // One serial suite: a single browser session walks the whole product loop.
 // Serial (not per-test isolated) because the tests share one server process
-// and one SQLite file; interleaving fresh pages with a still-settling server
-// produces spurious duplicate writes.
+// and one SQLite file. The server is started with SHUTTLE_E2E=1, which exposes
+// POST /_test/reset (there is no JSON CRUD API to reset through).
 test.describe.configure({ mode: "serial" });
 
-async function resetOutline(request: APIRequestContext) {
-  for (let i = 0; i < 6; i++) {
-    const { data } = await (await request.get("/api/v1/nodes")).json();
-    if (!data?.length) return;
-    for (const n of data) await request.delete(`/api/v1/nodes/${n.id}`);
-    await new Promise((r) => setTimeout(r, 100));
-  }
-  throw new Error("could not clear outline");
+async function reset(request: APIRequestContext) {
+  const res = await request.post("/_test/reset");
+  if (!res.ok()) throw new Error(`reset failed: ${res.status()}`);
+}
+
+// Upload a transcript through the ingest drawer endpoint and wait for it to
+// finish processing (status "done" in the drawer fragment).
+async function uploadTranscript(request: APIRequestContext, name: string, text: string) {
+  const r = await request.post("/ingest", {
+    multipart: { files: { name, mimeType: "text/plain", buffer: Buffer.from(text) } },
+  });
+  if (!r.ok()) throw new Error(`upload failed: ${r.status()}`);
+  await expect
+    .poll(async () => (await (await request.get("/ingest")).text()).includes("status-done"), {
+      timeout: 8000,
+    })
+    .toBe(true);
 }
 
 test("keyboard: Enter adds a sibling, Tab indents it", async ({ page, request }) => {
-  await resetOutline(request);
+  await reset(request);
   await page.goto("/");
   await page.getByRole("button", { name: "Add the first bullet" }).click();
 
@@ -38,19 +47,13 @@ test("typing a bullet surfaces evidence, and a highlighted span attaches as a lo
   page,
   request,
 }) => {
-  await resetOutline(request);
-
-  const body =
+  await reset(request);
+  await uploadTranscript(
+    request,
+    "iv.txt",
     "I was terrified before the vote that morning.\n\n" +
-    "But the moment I began to speak the terror became resolve and I carried the room.";
-  await request.post("/api/v1/uploads", {
-    multipart: { file: { name: "iv.txt", mimeType: "text/plain", buffer: Buffer.from(body) } },
-  });
-  await expect
-    .poll(async () => ((await (await request.get("/api/v1/chunks")).json()).data ?? []).length, {
-      timeout: 8000,
-    })
-    .toBeGreaterThan(0);
+      "But the moment I began to speak the terror became resolve and I carried the room.",
+  );
 
   await page.goto("/");
   await page.getByRole("button", { name: "Add the first bullet" }).click();
