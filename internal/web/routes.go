@@ -57,6 +57,7 @@ func Mount(r chi.Router, d Deps) {
 		r.Get("/ingest", h.ingest)
 		r.Post("/ingest", h.ingestUpload)
 		h.mountOutlineEdit(r)
+		h.mountThreads(r)
 
 		r.Get("/snapshots", h.snapshotBar)
 		r.Post("/snapshots", h.snapshotCreate)
@@ -89,6 +90,7 @@ func (h *handlers) shell(w http.ResponseWriter, r *http.Request) {
 		Evidence:    components.Evidence(viewmodel.EvidencePane{}),
 		Ingest:      components.Ingest(h.ingestView()),
 		Preview:     components.Stitch(viewmodel.StitchView{Glue: 50}),
+		ThreadBar:   components.ThreadBar(h.threadBarView()),
 		SnapshotBar: components.SnapshotBar(h.snapshotBarView()),
 		BranchBar:   components.BranchBar(h.branchBarView()),
 	}))
@@ -98,7 +100,7 @@ func (h *handlers) shell(w http.ResponseWriter, r *http.Request) {
 //
 //	GET /app/outline
 func (h *handlers) outline(w http.ResponseWriter, r *http.Request) {
-	ov, err := h.outlineView()
+	ov, err := h.outlineViewFor(r.URL.Query().Get("thread"))
 	if err != nil {
 		log.Printf("outline: %v", err)
 	}

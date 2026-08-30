@@ -1,0 +1,42 @@
+package components
+
+import "github.com/biorisk/flying-shuttle/internal/web/viewmodel"
+
+// ThreadBar: pick / create / delete an audience thread and toggle brush mode.
+// Selecting a thread sets $threadId and re-fetches the outline scoped to it.
+templ ThreadBar(vm viewmodel.ThreadBar) {
+	<span id="thread-bar" class="dag-bar">
+		<select
+			class="thread-select"
+			data-bind-threadId
+			data-on-change="@get('/app/outline?thread=' + ($threadId||''))"
+		>
+			<option value="">All bullets</option>
+			for _, t := range vm.Threads {
+				<option value={ t.ID }>{ t.Name }</option>
+			}
+		</select>
+		<button
+			type="button"
+			class="dag-btn"
+			data-show="!!$threadId"
+			data-class="{ active: $brushMode }"
+			data-on-click="$brushMode = !$brushMode"
+			title="Brush: click bullets to paint the reading path"
+		>Brush</button>
+		<button
+			type="button"
+			class="dag-btn"
+			data-show="!!$threadId"
+			data-on-click="@delete('/app/threads/' + $threadId)"
+			title="Delete this thread"
+		>✕</button>
+		<form
+			class="dag-new"
+			data-on-submit__prevent="@post('/app/threads', {contentType:'form'})"
+		>
+			<input name="name" placeholder="new thread…" autocomplete="off"/>
+			<button type="submit">+</button>
+		</form>
+	</span>
+}

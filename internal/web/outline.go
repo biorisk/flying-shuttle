@@ -6,12 +6,27 @@ import (
 	"github.com/biorisk/flying-shuttle/internal/web/viewmodel"
 )
 
-// outlineView reads the current outline tree into a render model, computing
-// flattened-order prev/next neighbours for keyboard navigation.
+// outlineView renders the outline with no thread scope.
 func (h *handlers) outlineView() (viewmodel.Outline, error) {
+	return h.outlineViewFor("")
+}
+
+// outlineViewFor reads the current outline tree into a render model, computing
+// flattened-order prev/next neighbours and, when threadID is set, per-bullet
+// membership in that thread.
+func (h *handlers) outlineViewFor(threadID string) (viewmodel.Outline, error) {
 	forest, err := h.d.Outline.Tree()
 	if err != nil {
 		return viewmodel.Outline{}, err
+	}
+
+	inThread := map[string]bool{}
+	if threadID != "" {
+		if tns, err := h.d.Store.GetThreadNodes(threadID); err == nil {
+			for _, tn := range tns {
+				inThread[tn.NodeID] = true
+			}
+		}
 	}
 
 	flat := outline.Flatten(forest)
@@ -39,6 +54,7 @@ func (h *handlers) outlineView() (viewmodel.Outline, error) {
 			Depth:    tn.Depth,
 			Prev:     prev[tn.Node.ID],
 			Next:     next[tn.Node.ID],
+			InThread: inThread[tn.Node.ID],
 		}
 		for _, c := range tn.Children {
 			n.Children = append(n.Children, conv(c))
@@ -46,7 +62,7 @@ func (h *handlers) outlineView() (viewmodel.Outline, error) {
 		return n
 	}
 
-	vm := viewmodel.Outline{}
+	vm := viewmodel.Outline{ThreadID: threadID}
 	for _, r := range forest {
 		vm.Roots = append(vm.Roots, conv(r))
 	}

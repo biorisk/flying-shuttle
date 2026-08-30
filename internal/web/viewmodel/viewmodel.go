@@ -55,12 +55,25 @@ type OutlineNode struct {
 	Depth    int
 	Prev     string
 	Next     string
+	InThread bool // member of the currently-rendered thread
 	Children []OutlineNode
 }
 
 // Outline is the render model for the #outline fragment.
 type Outline struct {
-	Roots []OutlineNode
+	Roots    []OutlineNode
+	ThreadID string // the thread this render is scoped to ("" = none)
+}
+
+// ThreadRow is one thread in the thread bar.
+type ThreadRow struct {
+	ID   string
+	Name string
+}
+
+// ThreadBar is the render model for the #thread-bar fragment.
+type ThreadBar struct {
+	Threads []ThreadRow
 }
 
 // Empty reports whether the outline has no bullets at all.

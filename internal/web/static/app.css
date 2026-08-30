@@ -192,3 +192,10 @@ button:hover { border-color: var(--accent); }
 .dag-menu button { font-size: 11px; padding: 1px 5px; }
 .dag-new { display: flex; gap: 4px; }
 .dag-new input { width: 110px; font: inherit; background: var(--bg); border: 1px solid var(--edge); color: var(--text); border-radius: 4px; padding: 2px 4px; }
+
+/* --- threads --- */
+.thread-select { font: inherit; background: var(--bg); border: 1px solid var(--edge); color: var(--text); border-radius: 4px; padding: 2px 4px; font-size: 12px; max-width: 140px; }
+.thread-toggle { border: none; background: none; color: var(--text-dim); font-size: 11px; padding: 0 2px; flex: none; cursor: pointer; }
+.thread-toggle.on { color: var(--accent); }
+.dag-btn.active { border-color: var(--accent); color: var(--text); }
+.outline-pane.threading .bullet:not(.in-thread) > .bullet-row .bullet-input { opacity: .45; }

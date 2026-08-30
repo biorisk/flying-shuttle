@@ -10,6 +10,8 @@ templ Outline(vm viewmodel.Outline) {
 	<section
 		id="outline"
 		class="outline-pane"
+		data-thread={ vm.ThreadID }
+		data-class="{ threading: $threadId }"
 		data-show="$centerView === 'outline'"
 		data-effect="const id=$focusId; if(id){ const i=document.querySelector('#bullet-'+CSS.escape(id)+' .bullet-input'); if(i && document.activeElement!==i){ i.focus(); try{ i.setSelectionRange(i.value.length, i.value.length) }catch(e){} } }"
 	>
@@ -40,7 +42,7 @@ templ Outline(vm viewmodel.Outline) {
 templ bullet(n viewmodel.OutlineNode) {
 	<li
 		id={ "bullet-" + n.ID }
-		class={ "bullet", templ.KV("locked", n.Locked), templ.KV("evidence", n.Evidence) }
+		class={ "bullet", templ.KV("locked", n.Locked), templ.KV("evidence", n.Evidence), templ.KV("in-thread", n.InThread) }
 		data-node-id={ n.ID }
 		data-prev-id={ n.Prev }
 		data-next-id={ n.Next }
@@ -87,6 +89,20 @@ templ bullet(n viewmodel.OutlineNode) {
 						data-on-keydown={ keydownExpr(n.ID) }
 					/>
 				</form>
+				<button
+					type="button"
+					class={ "thread-toggle", templ.KV("on", n.InThread) }
+					tabindex="-1"
+					data-show="!!$threadId"
+					data-on-click={ threadToggleExpr(n.ID) }
+					title="In/out of thread — Brush mode appends to the path"
+				>
+					if n.InThread {
+						&#9673;
+					} else {
+						&#9711;
+					}
+				</button>
 			}
 		</div>
 		if len(n.Children) > 0 {

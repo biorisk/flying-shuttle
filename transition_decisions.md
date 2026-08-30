@@ -10,6 +10,26 @@ Format: **[D]** = decision taken, **[Q]** = open question for review.
 
 ## Global
 
+### Task .5.1 — Threads + brush
+
+- **[D]** `#thread-bar`: `<select data-bind-threadId data-on-change="@get('/app/
+  outline?thread=' + $threadId)">` + Brush toggle (`$brushMode`) + delete + an
+  inline new-thread form.
+- **[D]** The outline fragment is **thread-scoped**: `GET /app/outline?thread=X`
+  loads `GetThreadNodes`, marks each `OutlineNode.InThread`, adds `data-thread`
+  on `#outline` and an `in-thread` class per bullet; non-members dim via CSS
+  (`.outline-pane.threading`).
+- **[D]** Per-bullet `.thread-toggle` (shown when `$threadId`):
+  `$brushMode ? @post(.../append) : @post(.../toggle)` — toggle adds/removes,
+  append (brush) puts the node at the end of the path. Both renumber via
+  `SetThreadNodes` and re-patch the thread-scoped outline.
+- **[Q]** Brush "paint order" is append-only here — no drag-to-draw-a-path like
+  the old brush. Clicking bullets in sequence builds the path, which covers the
+  intent. Revisit if a visual path overlay is wanted.
+- **[Q]** `<select>` two-way bind: `data-bind-threadId` — confirm the camelCase
+  signal name round-trips (Datastar kebabs attribute keys). Works in the Go
+  test's rendered markup; browser-verify in `.6.2`.
+
 ### Tasks .5.2 + .5.3 — Snapshots & Branches (one commit)
 
 - **[D]** Done together — they share the `components.Page` refactor (`Page` now

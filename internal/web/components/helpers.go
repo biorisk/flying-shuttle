@@ -39,6 +39,13 @@ func evidenceExpr(id string) string {
 	return "@get('/app/evidence?node=" + id + "&q=' + encodeURIComponent(evt.target.value))"
 }
 
+// threadToggleExpr toggles a bullet's thread membership, or in Brush mode
+// appends it to the end of the thread's reading path.
+func threadToggleExpr(id string) string {
+	base := "/app/threads/' + $threadId + '/nodes/" + id
+	return "$brushMode ? @post('" + base + "/append') : @post('" + base + "/toggle')"
+}
+
 // keydownExpr is the Datastar expression for a bullet input's keydown handler:
 // Enter adds a sibling (via the form), Tab / Shift-Tab indent / unindent,
 // Backspace-on-empty deletes, Arrow Up/Down move the focus signal. Each
