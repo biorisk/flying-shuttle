@@ -83,6 +83,100 @@
     form.dataset.hasSelection = "1";
   }
 
+  // ---- outline drag-and-drop reorder -------------------------------------
+  //
+  // Drag a bullet's handle; the drop zone (before / after / child) is chosen
+  // from the pointer's vertical position over the target row. On drop we
+  // compute {parent_id, position} from the DOM tree and submit #move-form,
+  // which posts to /app/outline/move and morphs #outline back.
+
+  let dragId = null;
+
+  function bulletLi(node) {
+    while (node && !(node.nodeType === 1 && node.hasAttribute && node.hasAttribute("data-node-id"))) {
+      node = node.parentNode;
+    }
+    return node || null;
+  }
+
+  function zoneFor(li, clientY) {
+    const row = li.querySelector(".bullet-row") || li;
+    const r = row.getBoundingClientRect();
+    const rel = (clientY - r.top) / r.height;
+    if (rel < 0.25) return "before";
+    if (rel > 0.75) return "after";
+    return "child";
+  }
+
+  function childrenList(li) {
+    return li.querySelector(":scope > ul.bullet-children");
+  }
+
+  function computeTarget(li, zone) {
+    if (zone === "child") {
+      const kids = childrenList(li);
+      return { parentId: li.dataset.nodeId, position: kids ? kids.children.length : 0 };
+    }
+    // sibling of li: parent is the li owning li's containing <ul>, or root.
+    const ul = li.parentElement;
+    const parentLi = ul && ul.classList.contains("bullet-children") ? bulletLi(ul.parentElement) : null;
+    const siblings = Array.prototype.filter.call(ul.children, (c) => c.hasAttribute("data-node-id"));
+    let idx = siblings.indexOf(li);
+    if (zone === "after") idx += 1;
+    return { parentId: parentLi ? parentLi.dataset.nodeId : "", position: idx };
+  }
+
+  function clearDropHints() {
+    document.querySelectorAll(".bullet.drop-before, .bullet.drop-after, .bullet.drop-child")
+      .forEach((el) => el.classList.remove("drop-before", "drop-after", "drop-child"));
+  }
+
+  document.addEventListener("dragstart", function (e) {
+    const h = e.target.closest && e.target.closest(".drag-handle");
+    if (!h) return;
+    const li = bulletLi(h);
+    if (!li) return;
+    dragId = li.dataset.nodeId;
+    e.dataTransfer.effectAllowed = "move";
+    try { e.dataTransfer.setData("text/plain", dragId); } catch (_) {}
+  });
+
+  document.addEventListener("dragover", function (e) {
+    if (!dragId) return;
+    const li = bulletLi(e.target);
+    if (!li || li.dataset.nodeId === dragId) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    clearDropHints();
+    li.classList.add("drop-" + zoneFor(li, e.clientY));
+  });
+
+  document.addEventListener("dragend", function () { dragId = null; clearDropHints(); });
+
+  document.addEventListener("drop", function (e) {
+    if (!dragId) return;
+    const li = bulletLi(e.target);
+    clearDropHints();
+    if (!li || li.dataset.nodeId === dragId) { dragId = null; return; }
+    e.preventDefault();
+
+    // Reject dropping onto own subtree.
+    if (li.closest('[data-node-id="' + CSS.escape(dragId) + '"] ul.bullet-children')) {
+      dragId = null;
+      return;
+    }
+
+    const { parentId, position } = computeTarget(li, zoneFor(li, e.clientY));
+    const form = document.getElementById("move-form");
+    if (form) {
+      form.elements["node_id"].value = dragId;
+      form.elements["parent_id"].value = parentId;
+      form.elements["position"].value = String(position);
+      form.requestSubmit();
+    }
+    dragId = null;
+  });
+
   document.addEventListener("selectionchange", function () {
     const sel = document.getSelection();
     const anchor = sel && sel.anchorNode;

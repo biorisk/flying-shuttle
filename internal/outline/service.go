@@ -286,3 +286,28 @@ func previewText(s string, max int) string {
 	}
 	return string(r[:max]) + "…"
 }
+
+// Move reparents nodeID under newParentID (empty = root) at the given sibling
+// position. It refuses to move a node beneath itself or one of its own
+// descendants (which would detach a subtree into a cycle-free orphan).
+func (s *Service) Move(nodeID, newParentID string, position int) error {
+	if nodeID == newParentID {
+		return ErrNoop
+	}
+	forest, moving, err := s.treeAndNode(nodeID)
+	if err != nil {
+		return err
+	}
+	if newParentID != "" {
+		if Find([]*TreeNode{moving}, newParentID) != nil {
+			return ErrNoop // target is a descendant of the node being moved
+		}
+		if Find(forest, newParentID) == nil {
+			return store.ErrNotFound
+		}
+	}
+	if position < 0 {
+		position = 0
+	}
+	return s.Store.MoveNode(nodeID, newParentID, position)
+}

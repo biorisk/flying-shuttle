@@ -13,6 +13,15 @@ templ Outline(vm viewmodel.Outline) {
 		data-show="$centerView === 'outline'"
 		data-effect="const id=$focusId; if(id){ const i=document.querySelector('#bullet-'+CSS.escape(id)+' .bullet-input'); if(i && document.activeElement!==i){ i.focus(); try{ i.setSelectionRange(i.value.length, i.value.length) }catch(e){} } }"
 	>
+		<form
+			id="move-form"
+			hidden
+			data-on-submit__prevent="@post('/app/outline/move', {contentType:'form'})"
+		>
+			<input type="hidden" name="node_id"/>
+			<input type="hidden" name="parent_id"/>
+			<input type="hidden" name="position"/>
+		</form>
 		if vm.Empty() {
 			<div class="outline-empty">
 				<p>No outline yet.</p>
@@ -38,6 +47,9 @@ templ bullet(n viewmodel.OutlineNode) {
 		data-depth={ intString(n.Depth) }
 	>
 		<div class="bullet-row" style={ "padding-left:" + intString(n.Depth*20) + "px" }>
+			if !n.Evidence {
+				<span class="drag-handle" draggable="true" title="Drag to move" aria-hidden="true">&#8942;</span>
+			}
 			if len(n.Children) > 0 {
 				<button
 					type="button"

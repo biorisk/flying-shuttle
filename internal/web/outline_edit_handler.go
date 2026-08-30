@@ -17,6 +17,7 @@ import (
 // route list in Mount stays readable.
 func (h *handlers) mountOutlineEdit(r chi.Router) {
 	r.Post("/outline/roots", h.outlineAddRoot)
+	r.Post("/outline/move", h.outlineMove)
 	r.Route("/outline/nodes/{id}", func(r chi.Router) {
 		r.Patch("/", h.outlineSetTitle)
 		r.Delete("/", h.outlineDelete)
@@ -122,6 +123,30 @@ func (h *handlers) outlineDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.patchOutline(w, r, focus)
+}
+
+// outlineMove reparents/reorders a bullet from a drag-and-drop gesture.
+//
+//	POST /app/outline/move   form: node_id, parent_id (empty = root), position
+func (h *handlers) outlineMove(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	nodeID := r.FormValue("node_id")
+	parentID := r.FormValue("parent_id")
+	position, _ := strconv.Atoi(r.FormValue("position"))
+	if nodeID == "" {
+		http.Error(w, "node_id required", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.d.Outline.Move(nodeID, parentID, position); err != nil &&
+		!errors.Is(err, outline.ErrNoop) {
+		h.editError(w, r, err)
+		return
+	}
+	h.patchOutline(w, r, nodeID)
 }
 
 // outlineSetTitle persists a bullet title on blur. It returns 204 on success

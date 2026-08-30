@@ -10,6 +10,23 @@ Format: **[D]** = decision taken, **[Q]** = open question for review.
 
 ## Global
 
+### Task .4.1 — Outline drag-reorder replacement
+
+- **[D]** Native HTML5 DnD, ~90 lines in `app.js`. A `.drag-handle`
+  (`draggable="true"`, hover-revealed) on each non-evidence bullet. `dragover`
+  computes a before/after/child zone from pointer-Y over the target row and
+  paints `.drop-{zone}`. `drop` computes `{parent_id, position}` from the DOM
+  tree, fills the hidden `#move-form`, and `requestSubmit()`s it →
+  `@post('/app/outline/move')` → `#outline` morph.
+- **[D]** `POST /app/outline/move` (form: `node_id, parent_id, position`) →
+  `outline.Service.Move`, which rejects moving a node onto itself or a
+  descendant (`ErrNoop`). Evidence (`chunk_ref`) bullets aren't draggable.
+- **[Q]** Native DnD only — no touch support, no keyboard DnD, no drag image
+  polish (the dnd-kit niceties are gone, as the plan predicted). Acceptable for
+  desktop; revisit if touch matters.
+- **[Q]** Not browser-tested (Playwright `.6.2`). Endpoint + `Service.Move` +
+  fragment markup are covered by Go tests.
+
 ### Task .3.7 — Attach-evidence endpoint
 
 - **[D]** `POST /app/outline/nodes/{id}/evidence` (form: `chunk_id`,
