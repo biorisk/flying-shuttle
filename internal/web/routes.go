@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/biorisk/flying-shuttle/internal/outline"
+	"github.com/biorisk/flying-shuttle/internal/pipeline"
 	"github.com/biorisk/flying-shuttle/internal/search"
 	"github.com/biorisk/flying-shuttle/internal/store"
 	"github.com/biorisk/flying-shuttle/internal/transcript"
@@ -18,6 +19,7 @@ type Deps struct {
 	Store      store.Store
 	Outline    *outline.Service
 	Transcript *transcript.Service
+	Ingester   *pipeline.Ingester
 	Index      *search.HybridIndex
 }
 
@@ -32,6 +34,8 @@ func Mount(r chi.Router, d Deps) {
 	r.Route("/app", func(r chi.Router) {
 		r.Get("/", h.shell)
 		r.Get("/evidence", h.evidence)
+		r.Get("/ingest", h.ingest)
+		r.Post("/ingest", h.ingestUpload)
 	})
 }
 
@@ -46,6 +50,10 @@ func (h *handlers) evidenceFinder() *EvidenceFinder {
 // shell renders the full two-pane application page.
 func (h *handlers) shell(w http.ResponseWriter, r *http.Request) {
 	// The outline fragment is wired into the initial render by .3.1; the
-	// evidence pane starts idle (empty query).
-	Render(w, r, components.Page(nil, components.Evidence(viewmodel.EvidencePane{})))
+	// evidence pane starts idle; the ingest drawer is SSR'd with current state.
+	Render(w, r, components.Page(
+		nil,
+		components.Evidence(viewmodel.EvidencePane{}),
+		components.Ingest(h.ingestView()),
+	))
 }

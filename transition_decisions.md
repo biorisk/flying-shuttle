@@ -10,6 +10,29 @@ Format: **[D]** = decision taken, **[Q]** = open question for review.
 
 ## Global
 
+### Task .2.3 — Ingest drawer fragment
+
+- **[D]** New package `internal/pipeline` — the transcript ingestion pipeline
+  (`Ingester{Store, UploadDir, Index, AfterIngest}`: `Accept`, `Start`,
+  `StartPending`, `Rechunk`) extracted from `api.uploadHandler` so both the JSON
+  API and the server UI share one path. It's a separate package because
+  indexing pulls in `internal/search`, which already imports `internal/ingest`
+  (would cycle). `api.uploadHandler` now just delegates; `NewRouter` builds one
+  `*pipeline.Ingester` and passes it to both the handler and `web.Deps`.
+- **[D]** `GET /app/ingest` (SSE patch of `#ingest`) + `POST /app/ingest`
+  (multipart, field `files`, accepts many). The upload form uses
+  `data-on-submit__prevent="@post('/app/ingest', {contentType:'form'})"` with
+  `enctype="multipart/form-data"` — Datastar v1.0.3 sends the FormData (files
+  included) as the body when the form is multipart. Verified in the runtime.
+- **[D]** While any upload is pending/processing the fragment self-polls:
+  `data-on-interval__duration.2s="@get('/app/ingest')"`. Drops the attribute
+  once everything is `done`/`failed`.
+- **[D]** Shell SSRs the drawer via `components.Ingest(h.ingestView())`;
+  `components.Page` now takes a third `ingest templ.Component` arg.
+- **[Q]** No dedicated `/events` SSE stream yet (bd `.2.3` scope was just the
+  drawer). Interval-poll is the status mechanism for now; a single push stream
+  can replace it later if it feels heavy.
+
 ### Task .1.6 — /evidence retrieval endpoint
 
 - **[D]** `web.EvidenceFinder{Index, Store}` → `Find(ctx, query, limit)

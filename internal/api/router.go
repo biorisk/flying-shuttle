@@ -9,6 +9,7 @@ import (
 	"github.com/biorisk/flying-shuttle/internal/dag"
 	"github.com/biorisk/flying-shuttle/internal/ingest"
 	"github.com/biorisk/flying-shuttle/internal/outline"
+	"github.com/biorisk/flying-shuttle/internal/pipeline"
 	"github.com/biorisk/flying-shuttle/internal/search"
 	"github.com/biorisk/flying-shuttle/internal/stitch"
 	"github.com/biorisk/flying-shuttle/internal/store"
@@ -42,7 +43,8 @@ func NewRouter(s store.Store, uploadDir string, clusterEmbedder ingest.Embedder,
 	nh := &nodeHandler{store: s}
 	eh := &edgeHandler{store: s}
 	th := &threadHandler{store: s}
-	uh := &uploadHandler{store: s, uploadDir: uploadDir, index: idx, afterIngest: afterIngest}
+	ingester := &pipeline.Ingester{Store: s, UploadDir: uploadDir, Index: idx, AfterIngest: afterIngest}
+	uh := &uploadHandler{store: s, ingester: ingester}
 	sh := &searchHandler{index: idx}
 	clusterer := &search.EmbeddingClusterer{Embedder: clusterEmbedder}
 	sgh := &suggestHandler{store: s, translator: &search.QueryTranslator{Index: idx}, clusterer: clusterer}
@@ -189,6 +191,7 @@ func NewRouter(s store.Store, uploadDir string, clusterEmbedder ingest.Embedder,
 		Store:      s,
 		Outline:    &outline.Service{Store: s},
 		Transcript: &transcript.Service{Store: s},
+		Ingester:   ingester,
 		Index:      idx,
 	})
 

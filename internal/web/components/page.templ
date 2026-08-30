@@ -16,7 +16,7 @@ package components
 //   threadId      — selected audience thread ("" = all)
 //   evidenceWidth — right pane width in px
 //   collapsed     — { [nodeId]: true } map of collapsed outline subtrees
-templ Page(outline, evidence templ.Component) {
+templ Page(outline, evidence, ingest templ.Component) {
 	@Base("Flying Shuttle") {
 		<div
 			id="shell"
@@ -30,9 +30,11 @@ templ Page(outline, evidence templ.Component) {
 					<span>Transcripts</span>
 					<button type="button" class="icon-btn" data-on-click="$drawerOpen = false" title="Close">&times;</button>
 				</header>
-				<div id="ingest" class="drawer-body">
-					<!-- filled by GET /app/ingest (task .2.3) -->
-				</div>
+				if ingest != nil {
+					@ingest
+				} else {
+					<div id="ingest" class="drawer-body"></div>
+				}
 			</aside>
 			<main class="center">
 				<nav class="topbar">

@@ -18,3 +18,19 @@ type EvidencePane struct {
 	NodeID     string
 	Candidates []Candidate
 }
+
+// UploadRow is one transcript in the ingest drawer list.
+type UploadRow struct {
+	ID       string
+	Filename string
+	Status   string // pending | transcribing | done | failed
+	Error    string
+}
+
+// IngestDrawer is the render model for the #ingest fragment.
+type IngestDrawer struct {
+	Uploads []UploadRow
+	// Active is true while any upload is still pending/processing, so the
+	// fragment can poll itself for status updates.
+	Active bool
+}
