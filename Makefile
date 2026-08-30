@@ -1,22 +1,41 @@
-.PHONY: build build-frontend test run lint clean embed-setup embed-server
+.PHONY: build build-frontend generate templ-tools test run lint clean dev embed-setup embed-server
 
-build: build-frontend
+# templ CLI version — keep in lockstep with the github.com/a-h/templ module in go.mod.
+TEMPL_VERSION := v0.3.1020
+
+build: generate build-frontend
 	go build -o bin/shuttle ./cmd/shuttle
 
+# Regenerate *_templ.go from *.templ. Uses the module-pinned templ via `go run`
+# so no separately installed binary is required.
+generate:
+	go run github.com/a-h/templ/cmd/templ generate
+
+# Install the standalone templ CLI (optional — for `templ generate --watch` / LSP).
+templ-tools:
+	go install github.com/a-h/templ/cmd/templ@$(TEMPL_VERSION)
+
+# Legacy React build. Removed at cutover (bd flying-shuttle-6fv.6.1).
 build-frontend:
 	. "$$HOME/.nvm/nvm.sh" && nvm use --delete-prefix node && cd web && npm install && npm run build
 
-test:
+test: generate
 	go test ./...
 
 run: build
 	./bin/shuttle
 
-lint:
+# Dev loop for the server-rendered UI: regenerate templ on change, restart the
+# server. Requires `make templ-tools` and `air` (go install github.com/air-verse/air@latest).
+dev:
+	templ generate --watch --proxy=http://localhost:8080 --cmd="go run ./cmd/shuttle"
+
+lint: generate
 	go vet ./...
 
 clean:
 	rm -rf bin/ web/dist/
+	find . -name '*_templ.go' -delete
 
 # One-time setup for automatic embeddings: create a venv and install deps.
 # Download the model into python/Qwen3-Embedding-4B-4bit-DWQ separately.

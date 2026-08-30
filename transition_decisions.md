@@ -10,6 +10,36 @@ Format: **[D]** = decision taken, **[Q]** = open question for review.
 
 ## Global
 
+### Task .2.1 — templ + Datastar build integration
+
+- **[D]** `github.com/a-h/templ v0.3.1020` + `github.com/starfederation/datastar-go
+  v1.2.2` added. Datastar **v1.0.3** runtime vendored at
+  `internal/web/static/vendor/datastar-v1.0.3.js` (from the GitHub release —
+  npm `@starfederation/datastar@latest` is a stale beta). SDK v1.2.2 speaks the
+  v1.0 `datastar-patch-elements` protocol; runtime confirmed to match.
+- **[Q][important]** templ's latest requires **Go ≥ 1.25**, so `go.mod` bumped
+  `go 1.24.0` → `go 1.25.0` and the Go toolchain auto-downloads 1.25/1.26.
+  `instruction.md` still says "Go 1.24+". Everything builds & tests green on the
+  bumped toolchain. If a 1.25 requirement is unacceptable, pin templ to an
+  older release (`v0.2.x` supports 1.21+) at some feature cost.
+- **[D]** New package `internal/web`:
+  - `web.go` — `//go:embed static`, `StaticFS()`, `DatastarScriptPath` const
+    (bump path + vendored file together).
+  - `render.go` — `Render` (plain HTML), `Patch`/`PatchInto` (Datastar SSE
+    morph via `sse.PatchElementTempl`), `RenderString` (tests).
+  - `components/base.templ` — the HTML document shell (`Base(title)` with
+    `{ children... }`), links `/static/app.css` + the Datastar module.
+  - `static/app.css` — placeholder; real styles land in `.2.2`.
+- **[D]** `*_templ.go` **committed** (not gitignored) so `go build ./...` works
+  without the templ CLI; marked `linguist-generated` in `.gitattributes`.
+  `make build|test|lint` run `templ generate` first; `make clean` deletes them;
+  `make dev` = `templ generate --watch --proxy ... --cmd 'go run ./cmd/shuttle'`.
+- **[D]** `//go:generate` in `web.go` uses `go run github.com/a-h/templ/cmd/templ
+  generate` — no separately installed binary needed. `make templ-tools` installs
+  the standalone CLI for LSP/watch.
+- **[D]** Nothing is wired into the router yet — that's `.2.2`. The React app is
+  untouched and still the served frontend.
+
 ### Task .1.4 — Transcript-ordered retrieval service
 
 - **[D]** New package `internal/transcript`: `Service{Store}` with

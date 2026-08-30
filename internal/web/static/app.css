@@ -1,0 +1,3 @@
+/* Flying Shuttle — server-rendered UI. Real styles land with the two-pane shell (.2.2). */
+:root { color-scheme: light dark; }
+body { margin: 0; font: 14px/1.5 system-ui, sans-serif; }

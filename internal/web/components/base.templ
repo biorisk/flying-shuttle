@@ -1,0 +1,22 @@
+package components
+
+import "github.com/biorisk/flying-shuttle/internal/web"
+
+// Base is the HTML document shell shared by every full-page render. The real
+// two-pane layout is added in task .2.2; this establishes the skeleton, the
+// Datastar runtime include, and the stylesheet link.
+templ Base(title string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ title }</title>
+			<link rel="stylesheet" href="/static/app.css"/>
+			<script type="module" src={ web.DatastarScriptPath }></script>
+		</head>
+		<body>
+			{ children... }
+		</body>
+	</html>
+}
