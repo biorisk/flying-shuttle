@@ -33,7 +33,7 @@ func SnapshotBar(vm viewmodel.SnapshotBar) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<span id=\"snapshot-bar\" class=\"dag-bar\"><button type=\"button\" class=\"dag-btn\" data-on-click=\"@post('/app/snapshots')\" title=\"Save a snapshot\">Snapshot</button> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<span id=\"snapshot-bar\" class=\"dag-bar\"><button type=\"button\" class=\"dag-btn\" data-on-click=\"@post('/snapshots')\" title=\"Save a snapshot\">Snapshot</button> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -87,9 +87,9 @@ func SnapshotBar(vm viewmodel.SnapshotBar) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var5 string
-				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue("$diffAgainst = '" + s.ID + "'; @get('/app/outline?diff=" + s.ID + "')")
+				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue("$diffAgainst = '" + s.ID + "'; @get('/outline?diff=" + s.ID + "')")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/dagbars.templ`, Line: 17, Col: 116}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/dagbars.templ`, Line: 17, Col: 112}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 				if templ_7745c5c3_Err != nil {
@@ -100,9 +100,9 @@ func SnapshotBar(vm viewmodel.SnapshotBar) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var6 string
-				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/app/snapshots/" + s.ID + "/restore')")
+				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/snapshots/" + s.ID + "/restore')")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/dagbars.templ`, Line: 18, Col: 91}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/dagbars.templ`, Line: 18, Col: 87}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 				if templ_7745c5c3_Err != nil {
@@ -113,9 +113,9 @@ func SnapshotBar(vm viewmodel.SnapshotBar) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var7 string
-				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue("@delete('/app/snapshots/" + s.ID + "')")
+				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue("@delete('/snapshots/" + s.ID + "')")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/dagbars.templ`, Line: 19, Col: 85}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/dagbars.templ`, Line: 19, Col: 81}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 				if templ_7745c5c3_Err != nil {
@@ -224,9 +224,9 @@ func BranchBar(vm viewmodel.BranchBar) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var13 string
-				templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/app/branches/" + b.ID + "/switch')")
+				templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/branches/" + b.ID + "/switch')")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/dagbars.templ`, Line: 40, Col: 89}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/dagbars.templ`, Line: 40, Col: 85}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 				if templ_7745c5c3_Err != nil {
@@ -237,9 +237,9 @@ func BranchBar(vm viewmodel.BranchBar) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var14 string
-				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue("@delete('/app/branches/" + b.ID + "')")
+				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue("@delete('/branches/" + b.ID + "')")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/dagbars.templ`, Line: 41, Col: 84}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/dagbars.templ`, Line: 41, Col: 80}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 				if templ_7745c5c3_Err != nil {
@@ -255,7 +255,7 @@ func BranchBar(vm viewmodel.BranchBar) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<li><form class=\"dag-new\" data-on-submit__prevent=\"@post('/app/branches', {contentType:'form'})\"><input name=\"name\" placeholder=\"new branch…\" autocomplete=\"off\"> <button type=\"submit\">+</button></form></li></ul></details></span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<li><form class=\"dag-new\" data-on-submit__prevent=\"@post('/branches', {contentType:'form'})\"><input name=\"name\" placeholder=\"new branch…\" autocomplete=\"off\"> <button type=\"submit\">+</button></form></li></ul></details></span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -26,9 +26,9 @@ type Deps struct {
 	Stitcher   stitch.Stitcher
 }
 
-// Mount attaches the server-rendered UI (templ + Datastar) under /app, plus
-// the /static asset tree. It runs alongside the legacy React app until the
-// cutover (bd flying-shuttle-6fv.6.1), at which point this moves to "/".
+// Mount attaches the server-rendered UI (templ + Datastar): the shell at "/",
+// its fragment endpoints, and the /static asset tree. The JSON API lives under
+// /api/v1 and is mounted separately.
 func Mount(r chi.Router, d Deps) {
 	// Fill in services derivable from the store so callers (and tests) can pass
 	// just Store.
@@ -48,8 +48,8 @@ func Mount(r chi.Router, d Deps) {
 
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(StaticFS()))))
 
-	r.Route("/app", func(r chi.Router) {
-		r.Get("/", h.shell)
+	r.Get("/", h.shell)
+	r.Group(func(r chi.Router) {
 		r.Get("/outline", h.outline)
 		r.Get("/evidence", h.evidence)
 		r.Get("/evidence/transcript", h.transcriptReader)
@@ -100,7 +100,7 @@ func (h *handlers) shell(w http.ResponseWriter, r *http.Request) {
 
 // outline renders the #outline fragment as a Datastar SSE patch.
 //
-//	GET /app/outline
+//	GET /outline
 func (h *handlers) outline(w http.ResponseWriter, r *http.Request) {
 	ov, err := h.outlineViewOpts(outlineOpts{
 		ThreadID:    r.URL.Query().Get("thread"),

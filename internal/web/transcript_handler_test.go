@@ -38,7 +38,7 @@ func TestTranscriptReader_windowAndScrub(t *testing.T) {
 	web.Mount(r, web.Deps{Store: s})
 
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/app/evidence/transcript?chunk=segE&node=n1", nil))
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/evidence/transcript?chunk=segE&node=n1", nil))
 	body := rec.Body.String()
 	for _, want := range []string{
 		"datastar-patch-elements", `id="transcript-reader"`,
@@ -65,11 +65,11 @@ func TestTranscriptReader_hasExcerptForm(t *testing.T) {
 	web.Mount(r, web.Deps{Store: s})
 
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/app/evidence/transcript?chunk=c1&node=n9", nil))
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/evidence/transcript?chunk=c1&node=n9", nil))
 	body := rec.Body.String()
 	for _, want := range []string{
 		`id="excerpt-form"`, `name="chunk_id"`, `name="char_start"`, `name="text"`,
-		"/app/outline/nodes/", "/evidence", `value="c1"`,
+		"/outline/nodes/", "/evidence", `value="c1"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("excerpt form missing %q\n%s", want, body)

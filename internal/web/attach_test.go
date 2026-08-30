@@ -34,7 +34,7 @@ func TestAttachEvidence_wholeChunkAndExcerpt(t *testing.T) {
 
 	// whole chunk (no offsets)
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req(t, "POST", "/app/outline/nodes/"+bullet.ID+"/evidence",
+	r.ServeHTTP(rec, req(t, "POST", "/outline/nodes/"+bullet.ID+"/evidence",
 		url.Values{"chunk_id": {"c1"}}))
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), "datastar-patch-signals") {
 		t.Fatalf("whole-chunk attach: %d %s", rec.Code, rec.Body.String())
@@ -56,7 +56,7 @@ func TestAttachEvidence_wholeChunkAndExcerpt(t *testing.T) {
 	start := len("PREAMBLE ")
 	end := start + len("the words I chose")
 	rec = httptest.NewRecorder()
-	r.ServeHTTP(rec, req(t, "POST", "/app/outline/nodes/"+bullet.ID+"/evidence",
+	r.ServeHTTP(rec, req(t, "POST", "/outline/nodes/"+bullet.ID+"/evidence",
 		url.Values{
 			"chunk_id":   {"c1"},
 			"char_start": {strconv.Itoa(start)},

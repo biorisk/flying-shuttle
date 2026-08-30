@@ -13,7 +13,7 @@ import (
 // outlineRescue recreates a bullet that was removed since the diff baseline,
 // re-linking it to its recorded parent, then re-renders the diffed outline.
 //
-//	POST /app/outline/rescue?diff=<baseline id>&node=<ghost node id>
+//	POST /outline/rescue?diff=<baseline id>&node=<ghost node id>
 func (h *handlers) outlineRescue(w http.ResponseWriter, r *http.Request) {
 	baseID := r.URL.Query().Get("diff")
 	ghostID := r.URL.Query().Get("node")

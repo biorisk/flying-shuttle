@@ -10,6 +10,24 @@ Format: **[D]** = decision taken, **[Q]** = open question for review.
 
 ## Global
 
+### Task .6.1 — Cutover
+
+- **[D]** Server UI moved from `/app` → `/`. Global `/app/` → `/` replace across
+  `internal/web` (templ + handlers + tests + `app.js`); `web.Mount` now does
+  `r.Get("/", shell)` + a `r.Group` for fragments. `/static/*` unchanged.
+- **[D]** `web/` React app **deleted** (`git rm`). `NewRouter` lost its
+  `staticDir` param and the SPA-fallback file server; `main.go` lost
+  `SHUTTLE_STATIC_DIR` and the `os.Stat` dance.
+- **[D]** `Makefile`: `build` no longer runs `build-frontend` (removed); no npm.
+  `clean` drops `web/dist`. `dev` = templ watch + `go run`.
+- **[D]** `instruction.md` rewritten (Go-only, Go 1.25+, no Node, new project
+  layout, fragment endpoints listed). `AGENTS.md` stack line updated. `.gitignore`
+  comment tweaked ("audio" → "transcript").
+- **[Q]** The pre-existing `SHUTTLE_STATIC_DIR` and any deploy scripts that set
+  it are now no-ops — nothing reads it. Fine (env vars are ignored, not errors).
+- Live-smoke: `/` serves the shell, `/outline` the fragment, `/static/app.js`,
+  `/api/v1/*` all 200; no static-dir log line. ✔
+
 ### Task .5.4 — Visual diff + rescue
 
 - **[D]** `outline.Diff(curNodes, curEdges, baseNodes, baseEdges) DiffResult`

@@ -20,7 +20,7 @@
 __pycache__/
 /python/.venv/
 
-# Uploaded audio files
+# Uploaded transcript files
 /uploads/
 
 # Dolt database files (added by bd init)

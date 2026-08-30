@@ -15,7 +15,7 @@ import (
 
 // Ingest is the left-drawer fragment: a transcript upload form and the list of
 // uploaded files with their processing status. Rendered into #ingest by
-// GET /app/ingest and re-patched by POST /app/ingest. While any upload is
+// GET /ingest and re-patched by POST /ingest. While any upload is
 // still processing the fragment polls itself every 2s.
 func Ingest(vm viewmodel.IngestDrawer) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -43,12 +43,12 @@ func Ingest(vm viewmodel.IngestDrawer) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if vm.Active {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " data-on-interval__duration.2s=\"@get('/app/ingest')\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " data-on-interval__duration.2s=\"@get('/ingest')\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "><form class=\"ingest-form\" enctype=\"multipart/form-data\" data-on-submit__prevent=\"@post('/app/ingest', {contentType: 'form'})\"><label class=\"ingest-drop\"><input type=\"file\" name=\"files\" multiple accept=\".txt,.md,.markdown,.text\"> <span>Choose transcript files (.txt, .md)</span></label> <button type=\"submit\" class=\"ingest-submit\">Upload &amp; process</button></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "><form class=\"ingest-form\" enctype=\"multipart/form-data\" data-on-submit__prevent=\"@post('/ingest', {contentType: 'form'})\"><label class=\"ingest-drop\"><input type=\"file\" name=\"files\" multiple accept=\".txt,.md,.markdown,.text\"> <span>Choose transcript files (.txt, .md)</span></label> <button type=\"submit\" class=\"ingest-submit\">Upload &amp; process</button></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

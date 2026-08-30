@@ -32,7 +32,7 @@ func TestDiff_renderAndRescue(t *testing.T) {
 	web.Mount(r, web.Deps{Store: s, Outline: svc})
 
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, httptest.NewRequest("GET", "/app/outline?diff="+snap.ID, nil))
+	r.ServeHTTP(rec, httptest.NewRequest("GET", "/outline?diff="+snap.ID, nil))
 	body := rec.Body.String()
 	if !strings.Contains(body, "diff-changed") {
 		t.Fatalf("renamed bullet should be diff-changed: %s", body)
@@ -46,7 +46,7 @@ func TestDiff_renderAndRescue(t *testing.T) {
 
 	// rescue Doomed (its ghost id == original b.ID)
 	rec = httptest.NewRecorder()
-	r.ServeHTTP(rec, httptest.NewRequest("POST", "/app/outline/rescue?diff="+snap.ID+"&node="+b.ID, nil))
+	r.ServeHTTP(rec, httptest.NewRequest("POST", "/outline/rescue?diff="+snap.ID+"&node="+b.ID, nil))
 	if rec.Code != 200 {
 		t.Fatalf("rescue: %d %s", rec.Code, rec.Body.String())
 	}

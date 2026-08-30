@@ -37,7 +37,7 @@ func ingestRouter(t *testing.T) (chi.Router, store.Store) {
 func TestIngestGet_empty(t *testing.T) {
 	r, _ := ingestRouter(t)
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/app/ingest", nil))
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/ingest", nil))
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), "No transcripts loaded yet") {
 		t.Fatalf("unexpected: %d %s", rec.Code, rec.Body.String())
 	}
@@ -52,7 +52,7 @@ func TestIngestUpload_txt(t *testing.T) {
 	fw.Write([]byte("First paragraph about fear.\n\nSecond paragraph about resolve and courage."))
 	mw.Close()
 
-	req := httptest.NewRequest(http.MethodPost, "/app/ingest", &buf)
+	req := httptest.NewRequest(http.MethodPost, "/ingest", &buf)
 	req.Header.Set("Content-Type", mw.FormDataContentType())
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
@@ -83,7 +83,7 @@ func TestIngestUpload_rejectsNonText(t *testing.T) {
 	fw, _ := mw.CreateFormFile("files", "audio.mp3")
 	fw.Write([]byte("not really audio"))
 	mw.Close()
-	req := httptest.NewRequest(http.MethodPost, "/app/ingest", &buf)
+	req := httptest.NewRequest(http.MethodPost, "/ingest", &buf)
 	req.Header.Set("Content-Type", mw.FormDataContentType())
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)

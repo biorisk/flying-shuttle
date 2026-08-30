@@ -28,7 +28,7 @@ func TestOutlineMove_reparentAndReorder(t *testing.T) {
 
 	// move c under a at position 0
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req(t, "POST", "/app/outline/move", url.Values{
+	r.ServeHTTP(rec, req(t, "POST", "/outline/move", url.Values{
 		"node_id": {c.ID}, "parent_id": {a.ID}, "position": {"0"},
 	}))
 	if rec.Code != 200 {
@@ -41,7 +41,7 @@ func TestOutlineMove_reparentAndReorder(t *testing.T) {
 
 	// moving a node under its own descendant is rejected (no-op, still 200)
 	rec = httptest.NewRecorder()
-	r.ServeHTTP(rec, req(t, "POST", "/app/outline/move", url.Values{
+	r.ServeHTTP(rec, req(t, "POST", "/outline/move", url.Values{
 		"node_id": {a.ID}, "parent_id": {c.ID}, "position": {"0"},
 	}))
 	if rec.Code != 200 {
@@ -58,7 +58,7 @@ func TestOutlineFragment_hasDragHandleAndMoveForm(t *testing.T) {
 	r, svc := outlineRouter(t)
 	svc.AddRoot("x")
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, httptest.NewRequest("GET", "/app/outline", nil))
+	r.ServeHTTP(rec, httptest.NewRequest("GET", "/outline", nil))
 	body := rec.Body.String()
 	for _, w := range []string{`id="move-form"`, `class="drag-handle"`, `draggable="true"`} {
 		if !strings.Contains(body, w) {

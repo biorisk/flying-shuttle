@@ -88,7 +88,7 @@
   // Drag a bullet's handle; the drop zone (before / after / child) is chosen
   // from the pointer's vertical position over the target row. On drop we
   // compute {parent_id, position} from the DOM tree and submit #move-form,
-  // which posts to /app/outline/move and morphs #outline back.
+  // which posts to /outline/move and morphs #outline back.
 
   let dragId = null;
 

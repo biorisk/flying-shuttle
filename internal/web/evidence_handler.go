@@ -10,7 +10,7 @@ import (
 
 // evidence renders the #evidence fragment for the current bullet text.
 //
-//	GET /app/evidence?q=<bullet text>&node=<bullet id>
+//	GET /evidence?q=<bullet text>&node=<bullet id>
 //
 // It always responds as a Datastar SSE patch (the caller is the debounced
 // bullet input wired in .3.4). A blank q yields the idle placeholder.

@@ -27,14 +27,14 @@ func TestExits_addListDelete(t *testing.T) {
 
 	// list exits (empty) — B is an option
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, httptest.NewRequest("GET", "/app/outline/nodes/"+a.ID+"/exits", nil))
+	r.ServeHTTP(rec, httptest.NewRequest("GET", "/outline/nodes/"+a.ID+"/exits", nil))
 	if !strings.Contains(rec.Body.String(), "Scene B") || !strings.Contains(rec.Body.String(), `id="exits-`+a.ID+`"`) {
 		t.Fatalf("exits fragment wrong: %s", rec.Body.String())
 	}
 
 	// add a branch exit A -> B if brave
 	rec = httptest.NewRecorder()
-	r.ServeHTTP(rec, req(t, "POST", "/app/outline/nodes/"+a.ID+"/exits", url.Values{
+	r.ServeHTTP(rec, req(t, "POST", "/outline/nodes/"+a.ID+"/exits", url.Values{
 		"to_node": {b.ID}, "type": {"branch"}, "condition": {"brave"},
 	}))
 	if rec.Code != 200 {
@@ -56,7 +56,7 @@ func TestExits_addListDelete(t *testing.T) {
 
 	// delete it
 	rec = httptest.NewRecorder()
-	r.ServeHTTP(rec, req(t, "DELETE", "/app/outline/edges/"+edgeID+"?node="+a.ID, nil))
+	r.ServeHTTP(rec, req(t, "DELETE", "/outline/edges/"+edgeID+"?node="+a.ID, nil))
 	if rec.Code != 200 {
 		t.Fatalf("delete exit: %d", rec.Code)
 	}

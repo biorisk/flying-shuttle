@@ -25,7 +25,6 @@ func main() {
 	dbPath := env("SHUTTLE_DB", "shuttle.db")
 	addr := env("SHUTTLE_ADDR", ":8080")
 	uploadDir := env("SHUTTLE_UPLOAD_DIR", "uploads")
-	staticDir := env("SHUTTLE_STATIC_DIR", "web/dist")
 	hnswPath := env("SHUTTLE_HNSW_PATH", "shuttle.hnsw")
 	bm25Path := env("SHUTTLE_BM25_PATH", "shuttle.bm25")
 
@@ -103,14 +102,7 @@ func main() {
 
 	stitcher := &stitch.StubStitcher{}
 
-	if info, err := os.Stat(staticDir); err != nil || !info.IsDir() {
-		log.Printf("static dir %q not found, serving API only", staticDir)
-		staticDir = ""
-	} else {
-		log.Printf("serving frontend from %s", staticDir)
-	}
-
-	router := api.NewRouter(s, uploadDir, clusterEmbedder, idx, stitcher, staticDir, afterIngest)
+	router := api.NewRouter(s, uploadDir, clusterEmbedder, idx, stitcher, afterIngest)
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      router,

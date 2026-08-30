@@ -16,7 +16,7 @@ import (
 // bullet from the #excerpt-form fields, then re-renders the outline. Focus
 // stays on the parent bullet and the transcript reader closes.
 //
-//	POST /app/outline/nodes/{id}/evidence
+//	POST /outline/nodes/{id}/evidence
 //	form: chunk_id, char_start?, char_end?, text?
 func (h *handlers) outlineAttachEvidence(w http.ResponseWriter, r *http.Request) {
 	parentID := chi.URLParam(r, "id")

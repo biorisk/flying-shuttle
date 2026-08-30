@@ -8,7 +8,7 @@ import (
 // Stitch is the Preview-tab fragment: the outline (or a thread) linearized and
 // stitched into continuous prose, with verbatim passages and AI "glue" visually
 // distinguished and a glue-ratio readout. Rendered into #stitch by
-// GET /app/stitch.
+// GET /stitch.
 templ Stitch(vm viewmodel.StitchView) {
 	<section id="stitch" class="stitch" data-show="$centerView === 'preview'">
 		<div class="stitch-toolbar">
@@ -19,7 +19,7 @@ templ Stitch(vm viewmodel.StitchView) {
 					min="0"
 					max="100"
 					data-bind-glue
-					data-on-input__debounce.350ms="@get('/app/stitch?thread=' + ($threadId||'') + '&glue=' + $glue)"
+					data-on-input__debounce.350ms="@get('/stitch?thread=' + ($threadId||'') + '&glue=' + $glue)"
 				/>
 				<span data-text="$glue + '%'">{ fmt.Sprintf("%d%%", vm.Glue) }</span>
 			</label>

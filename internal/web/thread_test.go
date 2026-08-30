@@ -26,7 +26,7 @@ func TestThreads_createToggleAppend(t *testing.T) {
 	web.Mount(r, web.Deps{Store: s, Outline: svc})
 
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req(t, "POST", "/app/threads", url.Values{"name": {"Ch1"}}))
+	r.ServeHTTP(rec, req(t, "POST", "/threads", url.Values{"name": {"Ch1"}}))
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), "datastar-patch-signals") {
 		t.Fatalf("create thread: %d %s", rec.Code, rec.Body.String())
 	}
@@ -38,7 +38,7 @@ func TestThreads_createToggleAppend(t *testing.T) {
 
 	// toggle a in
 	rec = httptest.NewRecorder()
-	r.ServeHTTP(rec, req(t, "POST", "/app/threads/"+tid+"/nodes/"+a.ID+"/toggle", nil))
+	r.ServeHTTP(rec, req(t, "POST", "/threads/"+tid+"/nodes/"+a.ID+"/toggle", nil))
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `id="outline"`) {
 		t.Fatalf("toggle: %d", rec.Code)
 	}
@@ -49,7 +49,7 @@ func TestThreads_createToggleAppend(t *testing.T) {
 
 	// append b (brush)
 	rec = httptest.NewRecorder()
-	r.ServeHTTP(rec, req(t, "POST", "/app/threads/"+tid+"/nodes/"+b.ID+"/append", nil))
+	r.ServeHTTP(rec, req(t, "POST", "/threads/"+tid+"/nodes/"+b.ID+"/append", nil))
 	if rec.Code != 200 {
 		t.Fatalf("append: %d", rec.Code)
 	}
@@ -60,7 +60,7 @@ func TestThreads_createToggleAppend(t *testing.T) {
 
 	// toggle a out
 	rec = httptest.NewRecorder()
-	r.ServeHTTP(rec, req(t, "POST", "/app/threads/"+tid+"/nodes/"+a.ID+"/toggle", nil))
+	r.ServeHTTP(rec, req(t, "POST", "/threads/"+tid+"/nodes/"+a.ID+"/toggle", nil))
 	tns, _ = s.GetThreadNodes(tid)
 	if len(tns) != 1 || tns[0].NodeID != b.ID {
 		t.Fatalf("toggle-out failed: %+v", tns)
@@ -68,7 +68,7 @@ func TestThreads_createToggleAppend(t *testing.T) {
 
 	// outline scoped to thread marks membership
 	rec = httptest.NewRecorder()
-	r.ServeHTTP(rec, httptest.NewRequest("GET", "/app/outline?thread="+tid, nil))
+	r.ServeHTTP(rec, httptest.NewRequest("GET", "/outline?thread="+tid, nil))
 	body := rec.Body.String()
 	if !strings.Contains(body, `data-thread="`+tid+`"`) {
 		t.Fatalf("outline not thread-scoped: %s", body)

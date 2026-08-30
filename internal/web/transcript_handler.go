@@ -12,7 +12,7 @@ import (
 // transcriptReader renders the #transcript-reader fragment: a continuous window
 // of one source transcript centred on chunk, with prev/next scrubbing.
 //
-//	GET /app/evidence/transcript?chunk=<id>&node=<bullet id>
+//	GET /evidence/transcript?chunk=<id>&node=<bullet id>
 func (h *handlers) transcriptReader(w http.ResponseWriter, r *http.Request) {
 	chunkID := r.URL.Query().Get("chunk")
 	node := r.URL.Query().Get("node")

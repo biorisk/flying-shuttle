@@ -7,20 +7,20 @@ import (
 
 // Ingest is the left-drawer fragment: a transcript upload form and the list of
 // uploaded files with their processing status. Rendered into #ingest by
-// GET /app/ingest and re-patched by POST /app/ingest. While any upload is
+// GET /ingest and re-patched by POST /ingest. While any upload is
 // still processing the fragment polls itself every 2s.
 templ Ingest(vm viewmodel.IngestDrawer) {
 	<div
 		id="ingest"
 		class="drawer-body"
 		if vm.Active {
-			data-on-interval__duration.2s="@get('/app/ingest')"
+			data-on-interval__duration.2s="@get('/ingest')"
 		}
 	>
 		<form
 			class="ingest-form"
 			enctype="multipart/form-data"
-			data-on-submit__prevent="@post('/app/ingest', {contentType: 'form'})"
+			data-on-submit__prevent="@post('/ingest', {contentType: 'form'})"
 		>
 			<label class="ingest-drop">
 				<input type="file" name="files" multiple accept=".txt,.md,.markdown,.text"/>

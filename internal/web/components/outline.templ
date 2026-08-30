@@ -18,7 +18,7 @@ templ Outline(vm viewmodel.Outline) {
 		<form
 			id="move-form"
 			hidden
-			data-on-submit__prevent="@post('/app/outline/move', {contentType:'form'})"
+			data-on-submit__prevent="@post('/outline/move', {contentType:'form'})"
 		>
 			<input type="hidden" name="node_id"/>
 			<input type="hidden" name="parent_id"/>
@@ -27,7 +27,7 @@ templ Outline(vm viewmodel.Outline) {
 		if vm.Empty() {
 			<div class="outline-empty">
 				<p>No outline yet.</p>
-				<button type="button" class="add-first" data-on-click="@post('/app/outline/roots')">Add the first bullet</button>
+				<button type="button" class="add-first" data-on-click="@post('/outline/roots')">Add the first bullet</button>
 			</div>
 		} else {
 			<ul class="bullet-tree">
@@ -48,7 +48,7 @@ templ bullet(n viewmodel.OutlineNode) {
 				<button
 					type="button"
 					class="ghost-rescue"
-					data-on-click={ "@post('/app/outline/rescue?diff=' + ($diffAgainst||'') + '&node=" + n.ID + "')" }
+					data-on-click={ "@post('/outline/rescue?diff=' + ($diffAgainst||'') + '&node=" + n.ID + "')" }
 				>Rescue</button>
 			</div>
 		</li>
@@ -88,7 +88,7 @@ templ bullet(n viewmodel.OutlineNode) {
 					<span class="bullet-lock" title="Locked">&#128274;</span>
 				}
 			} else {
-				<form class="bullet-form" data-on-submit__prevent={ "@post('/app/outline/nodes/" + n.ID + "/sibling', {contentType:'form'})" }>
+				<form class="bullet-form" data-on-submit__prevent={ "@post('/outline/nodes/" + n.ID + "/sibling', {contentType:'form'})" }>
 					<input type="hidden" name="version" value={ intString(n.Version) }/>
 					<input
 						class="bullet-input"
@@ -98,7 +98,7 @@ templ bullet(n viewmodel.OutlineNode) {
 						placeholder="Untitled"
 						data-on-focus={ "$focusId = '" + n.ID + "'; " + evidenceExpr(n.ID) }
 						data-on-input__debounce.300ms={ evidenceExpr(n.ID) }
-						data-on-blur={ "@patch('/app/outline/nodes/" + n.ID + "', {contentType:'form'})" }
+						data-on-blur={ "@patch('/outline/nodes/" + n.ID + "', {contentType:'form'})" }
 						data-on-keydown={ keydownExpr(n.ID) }
 					/>
 				</form>
@@ -120,7 +120,7 @@ templ bullet(n viewmodel.OutlineNode) {
 					type="button"
 					class="exit-toggle"
 					tabindex="-1"
-					data-on-click={ "$exits['" + n.ID + "'] = !$exits['" + n.ID + "']; $exits['" + n.ID + "'] && @get('/app/outline/nodes/" + n.ID + "/exits')" }
+					data-on-click={ "$exits['" + n.ID + "'] = !$exits['" + n.ID + "']; $exits['" + n.ID + "'] && @get('/outline/nodes/" + n.ID + "/exits')" }
 					title="Continuations / CYOA exits"
 				>&#8631;</button>
 			}

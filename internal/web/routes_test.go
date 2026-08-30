@@ -29,12 +29,12 @@ func testRouter(t *testing.T) chi.Router {
 
 func TestShellRoute(t *testing.T) {
 	r := testRouter(t)
-	req := httptest.NewRequest(http.MethodGet, "/app/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
-		t.Fatalf("GET /app/ = %d", rec.Code)
+		t.Fatalf("GET / = %d", rec.Code)
 	}
 	body := rec.Body.String()
 	for _, want := range []string{
@@ -64,7 +64,7 @@ func TestStaticRoute(t *testing.T) {
 
 func TestEvidenceRoute_blankQuery(t *testing.T) {
 	r := testRouter(t)
-	req := httptest.NewRequest(http.MethodGet, "/app/evidence", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence", nil)
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -82,7 +82,7 @@ func TestEvidenceRoute_blankQuery(t *testing.T) {
 
 func TestEvidenceRoute_withQueryNoIndex(t *testing.T) {
 	r := testRouter(t) // Deps.Index is nil
-	req := httptest.NewRequest(http.MethodGet, "/app/evidence?q=fear&node=n1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence?q=fear&node=n1", nil)
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {

@@ -33,7 +33,7 @@ templ Evidence(vm viewmodel.EvidencePane) {
 								<button
 									type="button"
 									class="candidate-open"
-									data-on-click={ "@get('/app/evidence/transcript?node=' + ($focusId||'') + '&chunk=" + c.ChunkID + "')" }
+									data-on-click={ "@get('/evidence/transcript?node=' + ($focusId||'') + '&chunk=" + c.ChunkID + "')" }
 								>Read in transcript →</button>
 							</div>
 							<p class="candidate-text">{ c.Snippet }</p>
@@ -58,10 +58,10 @@ templ TranscriptReader(vm viewmodel.TranscriptReader) {
 			</header>
 			<div class="reader-scrub">
 				if vm.HasPrev {
-					<button type="button" data-on-click={ "@get('/app/evidence/transcript?node=' + ($focusId||'') + '&chunk=" + vm.PrevChunk + "')" }>‹ earlier</button>
+					<button type="button" data-on-click={ "@get('/evidence/transcript?node=' + ($focusId||'') + '&chunk=" + vm.PrevChunk + "')" }>‹ earlier</button>
 				}
 				if vm.HasNext {
-					<button type="button" data-on-click={ "@get('/app/evidence/transcript?node=' + ($focusId||'') + '&chunk=" + vm.NextChunk + "')" }>later ›</button>
+					<button type="button" data-on-click={ "@get('/evidence/transcript?node=' + ($focusId||'') + '&chunk=" + vm.NextChunk + "')" }>later ›</button>
 				}
 			</div>
 			<div class="reader-body" data-reader-source={ vm.SourceFile }>
@@ -76,7 +76,7 @@ templ TranscriptReader(vm viewmodel.TranscriptReader) {
 			<form
 				id="excerpt-form"
 				class="excerpt-form"
-				data-on-submit__prevent="@post('/app/outline/nodes/' + ($focusId||'') + '/evidence', {contentType:'form'})"
+				data-on-submit__prevent="@post('/outline/nodes/' + ($focusId||'') + '/evidence', {contentType:'form'})"
 			>
 				<input type="hidden" name="chunk_id" value={ vm.FocusChunk }/>
 				<input type="hidden" name="char_start"/>

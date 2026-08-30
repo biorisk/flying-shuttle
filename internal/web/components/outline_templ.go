@@ -48,12 +48,12 @@ func Outline(vm viewmodel.Outline) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" data-class=\"{ threading: $threadId }\" data-show=\"$centerView === 'outline'\" data-effect=\"const id=$focusId; if(id){ const i=document.querySelector('#bullet-'+CSS.escape(id)+' .bullet-input'); if(i && document.activeElement!==i){ i.focus(); try{ i.setSelectionRange(i.value.length, i.value.length) }catch(e){} } }\"><form id=\"move-form\" hidden data-on-submit__prevent=\"@post('/app/outline/move', {contentType:'form'})\"><input type=\"hidden\" name=\"node_id\"> <input type=\"hidden\" name=\"parent_id\"> <input type=\"hidden\" name=\"position\"></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" data-class=\"{ threading: $threadId }\" data-show=\"$centerView === 'outline'\" data-effect=\"const id=$focusId; if(id){ const i=document.querySelector('#bullet-'+CSS.escape(id)+' .bullet-input'); if(i && document.activeElement!==i){ i.focus(); try{ i.setSelectionRange(i.value.length, i.value.length) }catch(e){} } }\"><form id=\"move-form\" hidden data-on-submit__prevent=\"@post('/outline/move', {contentType:'form'})\"><input type=\"hidden\" name=\"node_id\"> <input type=\"hidden\" name=\"parent_id\"> <input type=\"hidden\" name=\"position\"></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if vm.Empty() {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"outline-empty\"><p>No outline yet.</p><button type=\"button\" class=\"add-first\" data-on-click=\"@post('/app/outline/roots')\">Add the first bullet</button></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"outline-empty\"><p>No outline yet.</p><button type=\"button\" class=\"add-first\" data-on-click=\"@post('/outline/roots')\">Add the first bullet</button></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -134,9 +134,9 @@ func bullet(n viewmodel.OutlineNode) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var6 string
-			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/app/outline/rescue?diff=' + ($diffAgainst||'') + '&node=" + n.ID + "')")
+			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/outline/rescue?diff=' + ($diffAgainst||'') + '&node=" + n.ID + "')")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/outline.templ`, Line: 51, Col: 101}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/outline.templ`, Line: 51, Col: 97}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 			if templ_7745c5c3_Err != nil {
@@ -335,9 +335,9 @@ func bullet(n viewmodel.OutlineNode) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var18 string
-				templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/app/outline/nodes/" + n.ID + "/sibling', {contentType:'form'})")
+				templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/outline/nodes/" + n.ID + "/sibling', {contentType:'form'})")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/outline.templ`, Line: 91, Col: 128}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/outline.templ`, Line: 91, Col: 124}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 				if templ_7745c5c3_Err != nil {
@@ -400,9 +400,9 @@ func bullet(n viewmodel.OutlineNode) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var23 string
-				templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue("@patch('/app/outline/nodes/" + n.ID + "', {contentType:'form'})")
+				templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue("@patch('/outline/nodes/" + n.ID + "', {contentType:'form'})")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/outline.templ`, Line: 101, Col: 86}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/outline.templ`, Line: 101, Col: 82}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 				if templ_7745c5c3_Err != nil {
@@ -476,9 +476,9 @@ func bullet(n viewmodel.OutlineNode) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var28 string
-				templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue("$exits['" + n.ID + "'] = !$exits['" + n.ID + "']; $exits['" + n.ID + "'] && @get('/app/outline/nodes/" + n.ID + "/exits')")
+				templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue("$exits['" + n.ID + "'] = !$exits['" + n.ID + "']; $exits['" + n.ID + "'] && @get('/outline/nodes/" + n.ID + "/exits')")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/outline.templ`, Line: 123, Col: 144}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/outline.templ`, Line: 123, Col: 140}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 				if templ_7745c5c3_Err != nil {

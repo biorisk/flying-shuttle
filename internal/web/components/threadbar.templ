@@ -9,7 +9,7 @@ templ ThreadBar(vm viewmodel.ThreadBar) {
 		<select
 			class="thread-select"
 			data-bind-threadId
-			data-on-change="@get('/app/outline?thread=' + ($threadId||''))"
+			data-on-change="@get('/outline?thread=' + ($threadId||''))"
 		>
 			<option value="">All bullets</option>
 			for _, t := range vm.Threads {
@@ -28,12 +28,12 @@ templ ThreadBar(vm viewmodel.ThreadBar) {
 			type="button"
 			class="dag-btn"
 			data-show="!!$threadId"
-			data-on-click="@delete('/app/threads/' + $threadId)"
+			data-on-click="@delete('/threads/' + $threadId)"
 			title="Delete this thread"
 		>✕</button>
 		<form
 			class="dag-new"
-			data-on-submit__prevent="@post('/app/threads', {contentType:'form'})"
+			data-on-submit__prevent="@post('/threads', {contentType:'form'})"
 		>
 			<input name="name" placeholder="new thread…" autocomplete="off"/>
 			<button type="submit">+</button>

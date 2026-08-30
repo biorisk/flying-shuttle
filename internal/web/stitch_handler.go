@@ -14,7 +14,7 @@ import (
 // stitchView renders the Preview fragment: the outline (or a thread) linearized
 // and stitched.
 //
-//	GET /app/stitch?thread=<id>&glue=<0-100>
+//	GET /stitch?thread=<id>&glue=<0-100>
 func (h *handlers) stitchView(w http.ResponseWriter, r *http.Request) {
 	threadID := r.URL.Query().Get("thread")
 	glue := 50

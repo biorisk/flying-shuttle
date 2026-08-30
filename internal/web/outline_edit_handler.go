@@ -127,7 +127,7 @@ func (h *handlers) outlineDelete(w http.ResponseWriter, r *http.Request) {
 
 // outlineMove reparents/reorders a bullet from a drag-and-drop gesture.
 //
-//	POST /app/outline/move   form: node_id, parent_id (empty = root), position
+//	POST /outline/move   form: node_id, parent_id (empty = root), position
 func (h *handlers) outlineMove(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad form", http.StatusBadRequest)

@@ -4,7 +4,7 @@ import "github.com/biorisk/flying-shuttle/internal/web/viewmodel"
 
 // Exits renders a bullet's outgoing CYOA edges (branch = reader chooses,
 // jump = unconditional goto) with add/remove controls. Rendered into
-// #exits-<id> by GET /app/outline/nodes/<id>/exits.
+// #exits-<id> by GET /outline/nodes/<id>/exits.
 templ Exits(vm viewmodel.NodeExits) {
 	<div id={ "exits-" + vm.NodeID } class="bullet-exits">
 		if len(vm.Exits) > 0 {
@@ -16,7 +16,7 @@ templ Exits(vm viewmodel.NodeExits) {
 						if e.Condition != "" {
 							<span class="exit-cond" title="condition">{ "if " + e.Condition }</span>
 						}
-						<button type="button" data-on-click={ "@delete('/app/outline/edges/" + e.EdgeID + "?node=" + vm.NodeID + "')" }>✕</button>
+						<button type="button" data-on-click={ "@delete('/outline/edges/" + e.EdgeID + "?node=" + vm.NodeID + "')" }>✕</button>
 					</li>
 				}
 			</ul>
@@ -24,7 +24,7 @@ templ Exits(vm viewmodel.NodeExits) {
 		if len(vm.Options) > 0 {
 			<form
 				class="exit-add"
-				data-on-submit__prevent={ "@post('/app/outline/nodes/" + vm.NodeID + "/exits', {contentType:'form'})" }
+				data-on-submit__prevent={ "@post('/outline/nodes/" + vm.NodeID + "/exits', {contentType:'form'})" }
 			>
 				<select name="type">
 					<option value="branch">branch (reader chooses)</option>

@@ -32,7 +32,7 @@ func (h *handlers) ingestView() viewmodel.IngestDrawer {
 
 // ingest renders the #ingest drawer fragment (also used to poll for status).
 //
-//	GET /app/ingest
+//	GET /ingest
 func (h *handlers) ingest(w http.ResponseWriter, r *http.Request) {
 	if _, err := Patch(w, r, components.Ingest(h.ingestView())); err != nil {
 		log.Printf("ingest: patch: %v", err)
@@ -42,7 +42,7 @@ func (h *handlers) ingest(w http.ResponseWriter, r *http.Request) {
 // ingestUpload accepts one or more transcript files, starts processing, and
 // patches the refreshed drawer back.
 //
-//	POST /app/ingest   (multipart/form-data, field "files")
+//	POST /ingest   (multipart/form-data, field "files")
 func (h *handlers) ingestUpload(w http.ResponseWriter, r *http.Request) {
 	const maxUpload = 100 << 20
 	r.Body = http.MaxBytesReader(w, r.Body, maxUpload)

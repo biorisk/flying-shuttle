@@ -32,7 +32,7 @@ func TestOutlineFragment_emptyAndPopulated(t *testing.T) {
 	r, svc := outlineRouter(t)
 
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/app/outline", nil))
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/outline", nil))
 	if !strings.Contains(rec.Body.String(), "No outline yet") {
 		t.Fatalf("empty outline missing placeholder: %s", rec.Body.String())
 	}
@@ -42,7 +42,7 @@ func TestOutlineFragment_emptyAndPopulated(t *testing.T) {
 	_ = b
 
 	rec = httptest.NewRecorder()
-	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/app/outline", nil))
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/outline", nil))
 	body := rec.Body.String()
 	for _, want := range []string{
 		"datastar-patch-elements", `id="outline"`,
@@ -63,7 +63,7 @@ func TestOutlineFragment_collapseMarkup(t *testing.T) {
 	svc.AddChild(a.ID, "kid")
 
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/app/outline", nil))
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/outline", nil))
 	// templ HTML-escapes attribute values ("'" -> "&#39;"); assert on the
 	// escaped forms the browser will decode.
 	body := rec.Body.String()
@@ -83,12 +83,12 @@ func TestOutlineFragment_evidenceBinding(t *testing.T) {
 	r, svc := outlineRouter(t)
 	a, _ := svc.AddRoot("x")
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/app/outline", nil))
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/outline", nil))
 	body := rec.Body.String()
 	if !strings.Contains(body, "data-on-input__debounce.300ms") {
 		t.Fatalf("no debounced input binding:\n%s", body)
 	}
-	if !strings.Contains(body, "/app/evidence?node="+a.ID) {
+	if !strings.Contains(body, "/evidence?node="+a.ID) {
 		t.Fatalf("evidence url missing node id:\n%s", body)
 	}
 }

@@ -36,13 +36,13 @@ func activeBranchName(vm viewmodel.BranchBar) string {
 // auto-cancels the previous in-flight request for the same element, so rapid
 // typing collapses to the latest query.
 func evidenceExpr(id string) string {
-	return "@get('/app/evidence?node=" + id + "&q=' + encodeURIComponent(evt.target.value))"
+	return "@get('/evidence?node=" + id + "&q=' + encodeURIComponent(evt.target.value))"
 }
 
 // threadToggleExpr toggles a bullet's thread membership, or in Brush mode
 // appends it to the end of the thread's reading path.
 func threadToggleExpr(id string) string {
-	base := "/app/threads/' + $threadId + '/nodes/" + id
+	base := "/threads/' + $threadId + '/nodes/" + id
 	return "$brushMode ? @post('" + base + "/append') : @post('" + base + "/toggle')"
 }
 
@@ -51,7 +51,7 @@ func threadToggleExpr(id string) string {
 // Backspace-on-empty deletes, Arrow Up/Down move the focus signal. Each
 // structural request carries the form so the current title is persisted first.
 func keydownExpr(id string) string {
-	base := "/app/outline/nodes/" + id
+	base := "/outline/nodes/" + id
 	return "" +
 		"evt.key==='Tab' ? (evt.preventDefault(), evt.shiftKey ? " +
 		"@post('" + base + "/unindent', {contentType:'form'}) : " +

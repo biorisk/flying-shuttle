@@ -30,7 +30,7 @@ func TestSnapshots_saveRestoreDelete(t *testing.T) {
 	a, _ := svc.AddRoot("original")
 
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req(t, "POST", "/app/snapshots", url.Values{"label": {"v1"}}))
+	r.ServeHTTP(rec, req(t, "POST", "/snapshots", url.Values{"label": {"v1"}}))
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `id="snapshot-bar"`) {
 		t.Fatalf("save: %d %s", rec.Code, rec.Body.String())
 	}
@@ -42,7 +42,7 @@ func TestSnapshots_saveRestoreDelete(t *testing.T) {
 		t.Fatalf("want 1 snapshot, got %d", len(snaps))
 	}
 	rec = httptest.NewRecorder()
-	r.ServeHTTP(rec, req(t, "POST", "/app/snapshots/"+snaps[0].ID+"/restore", nil))
+	r.ServeHTTP(rec, req(t, "POST", "/snapshots/"+snaps[0].ID+"/restore", nil))
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `id="outline"`) {
 		t.Fatalf("restore didn't repatch outline: %d", rec.Code)
 	}
@@ -52,7 +52,7 @@ func TestSnapshots_saveRestoreDelete(t *testing.T) {
 	}
 
 	rec = httptest.NewRecorder()
-	r.ServeHTTP(rec, req(t, "DELETE", "/app/snapshots/"+snaps[0].ID, nil))
+	r.ServeHTTP(rec, req(t, "DELETE", "/snapshots/"+snaps[0].ID, nil))
 	if rec.Code != 200 {
 		t.Fatalf("delete: %d", rec.Code)
 	}
@@ -67,7 +67,7 @@ func TestBranches_createSwitch(t *testing.T) {
 	svc.AddRoot("root")
 
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req(t, "POST", "/app/branches", url.Values{"name": {"alt"}}))
+	r.ServeHTTP(rec, req(t, "POST", "/branches", url.Values{"name": {"alt"}}))
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `id="branch-bar"`) {
 		t.Fatalf("create branch: %d %s", rec.Code, rec.Body.String())
 	}
@@ -82,7 +82,7 @@ func TestBranches_createSwitch(t *testing.T) {
 		}
 	}
 	rec = httptest.NewRecorder()
-	r.ServeHTTP(rec, req(t, "POST", "/app/branches/"+altID+"/switch", nil))
+	r.ServeHTTP(rec, req(t, "POST", "/branches/"+altID+"/switch", nil))
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `id="outline"`) {
 		t.Fatalf("switch branch: %d", rec.Code)
 	}

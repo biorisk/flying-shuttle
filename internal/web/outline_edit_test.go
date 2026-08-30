@@ -49,7 +49,7 @@ func do(t *testing.T, r chi.Router, method, path string, form url.Values) *httpt
 func TestOutlineEdit_addRootThenSiblingAndChild(t *testing.T) {
 	r, svc := editRouter(t)
 
-	rec := do(t, r, "POST", "/app/outline/roots", nil)
+	rec := do(t, r, "POST", "/outline/roots", nil)
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), "datastar-patch-signals") {
 		t.Fatalf("add root: %d %s", rec.Code, rec.Body.String())
 	}
@@ -60,7 +60,7 @@ func TestOutlineEdit_addRootThenSiblingAndChild(t *testing.T) {
 	rootID := forest[0].Node.ID
 
 	// sibling, carrying a title for the anchor
-	rec = do(t, r, "POST", "/app/outline/nodes/"+rootID+"/sibling",
+	rec = do(t, r, "POST", "/outline/nodes/"+rootID+"/sibling",
 		url.Values{"title": {"Chapter one"}, "version": {"1"}})
 	if rec.Code != 200 {
 		t.Fatalf("sibling: %d", rec.Code)
@@ -74,7 +74,7 @@ func TestOutlineEdit_addRootThenSiblingAndChild(t *testing.T) {
 	}
 
 	// child of the first root
-	rec = do(t, r, "POST", "/app/outline/nodes/"+rootID+"/child", url.Values{})
+	rec = do(t, r, "POST", "/outline/nodes/"+rootID+"/child", url.Values{})
 	if rec.Code != 200 {
 		t.Fatalf("child: %d", rec.Code)
 	}
@@ -89,7 +89,7 @@ func TestOutlineEdit_indentUnindentDelete(t *testing.T) {
 	a, _ := svc.AddRoot("a")
 	b, _ := svc.AddSibling(a.ID, "b")
 
-	rec := do(t, r, "POST", "/app/outline/nodes/"+b.ID+"/indent", url.Values{"title": {"b"}, "version": {"1"}})
+	rec := do(t, r, "POST", "/outline/nodes/"+b.ID+"/indent", url.Values{"title": {"b"}, "version": {"1"}})
 	if rec.Code != 200 {
 		t.Fatalf("indent: %d", rec.Code)
 	}
@@ -98,7 +98,7 @@ func TestOutlineEdit_indentUnindentDelete(t *testing.T) {
 		t.Fatalf("indent failed: %+v", forest)
 	}
 
-	rec = do(t, r, "POST", "/app/outline/nodes/"+b.ID+"/unindent", url.Values{})
+	rec = do(t, r, "POST", "/outline/nodes/"+b.ID+"/unindent", url.Values{})
 	if rec.Code != 200 {
 		t.Fatalf("unindent: %d", rec.Code)
 	}
@@ -107,7 +107,7 @@ func TestOutlineEdit_indentUnindentDelete(t *testing.T) {
 		t.Fatalf("unindent failed: %+v", forest)
 	}
 
-	rec = do(t, r, "DELETE", "/app/outline/nodes/"+b.ID, nil)
+	rec = do(t, r, "DELETE", "/outline/nodes/"+b.ID, nil)
 	if rec.Code != 200 {
 		t.Fatalf("delete: %d", rec.Code)
 	}
@@ -121,7 +121,7 @@ func TestOutlineEdit_setTitle(t *testing.T) {
 	r, svc := editRouter(t)
 	a, _ := svc.AddRoot("orig")
 
-	rec := do(t, r, "PATCH", "/app/outline/nodes/"+a.ID,
+	rec := do(t, r, "PATCH", "/outline/nodes/"+a.ID,
 		url.Values{"title": {"renamed"}, "version": {"1"}})
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("patch title: %d %s", rec.Code, rec.Body.String())
@@ -132,7 +132,7 @@ func TestOutlineEdit_setTitle(t *testing.T) {
 	}
 
 	// stale version -> full resync fragment
-	rec = do(t, r, "PATCH", "/app/outline/nodes/"+a.ID,
+	rec = do(t, r, "PATCH", "/outline/nodes/"+a.ID,
 		url.Values{"title": {"again"}, "version": {"1"}})
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `id="outline"`) {
 		t.Fatalf("stale patch should resync: %d %s", rec.Code, rec.Body.String())
@@ -144,7 +144,7 @@ func TestOutlineEdit_indentFirstSiblingIsNoop(t *testing.T) {
 	a, _ := svc.AddRoot("a")
 	svc.AddSibling(a.ID, "b")
 
-	rec := do(t, r, "POST", "/app/outline/nodes/"+a.ID+"/indent", url.Values{})
+	rec := do(t, r, "POST", "/outline/nodes/"+a.ID+"/indent", url.Values{})
 	if rec.Code != 200 {
 		t.Fatalf("noop indent should 200, got %d", rec.Code)
 	}

@@ -12,7 +12,7 @@ import "github.com/biorisk/flying-shuttle/internal/web/viewmodel"
 
 // Exits renders a bullet's outgoing CYOA edges (branch = reader chooses,
 // jump = unconditional goto) with add/remove controls. Rendered into
-// #exits-<id> by GET /app/outline/nodes/<id>/exits.
+// #exits-<id> by GET /outline/nodes/<id>/exits.
 func Exits(vm viewmodel.NodeExits) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -111,9 +111,9 @@ func Exits(vm viewmodel.NodeExits) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var6 string
-				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue("@delete('/app/outline/edges/" + e.EdgeID + "?node=" + vm.NodeID + "')")
+				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue("@delete('/outline/edges/" + e.EdgeID + "?node=" + vm.NodeID + "')")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/exits.templ`, Line: 19, Col: 115}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/exits.templ`, Line: 19, Col: 111}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 				if templ_7745c5c3_Err != nil {
@@ -135,9 +135,9 @@ func Exits(vm viewmodel.NodeExits) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var7 string
-			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/app/outline/nodes/" + vm.NodeID + "/exits', {contentType:'form'})")
+			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/outline/nodes/" + vm.NodeID + "/exits', {contentType:'form'})")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/exits.templ`, Line: 27, Col: 105}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/exits.templ`, Line: 27, Col: 101}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 			if templ_7745c5c3_Err != nil {

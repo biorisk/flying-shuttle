@@ -31,7 +31,7 @@ func TestStitchPreview_manuscript(t *testing.T) {
 	web.Mount(r, web.Deps{Store: s, Outline: svc})
 
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/app/stitch?glue=50", nil))
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/stitch?glue=50", nil))
 	body := rec.Body.String()
 	for _, w := range []string{
 		"datastar-patch-elements", `id="stitch"`,
@@ -52,7 +52,7 @@ func TestStitchPreview_exportLink(t *testing.T) {
 	r := chi.NewRouter()
 	web.Mount(r, web.Deps{Store: s})
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/app/stitch", nil))
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/stitch", nil))
 	body := rec.Body.String()
 	if !strings.Contains(body, "data-attr-href") || !strings.Contains(body, "/api/v1/export/markdown/download") {
 		t.Fatalf("export link missing: %s", body)
