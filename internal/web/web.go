@@ -7,9 +7,11 @@ package web
 import (
 	"embed"
 	"io/fs"
+
+	"github.com/biorisk/flying-shuttle/internal/web/components"
 )
 
-//go:generate go run github.com/a-h/templ/cmd/templ generate
+//go:generate go tool templ generate
 
 // staticFS embeds everything under static/ (the vendored Datastar runtime and
 // stylesheet). Served at /static/.
@@ -27,6 +29,6 @@ func StaticFS() fs.FS {
 	return sub
 }
 
-// DatastarScriptPath is the URL path (under the static mount) of the pinned
-// Datastar runtime. Bump this and the vendored file together.
-const DatastarScriptPath = "/static/vendor/datastar-v1.0.3.js"
+// DatastarScriptPath re-exports the pinned Datastar runtime URL from the
+// components package (defined there to keep components dependency-free).
+const DatastarScriptPath = components.DatastarScriptPath

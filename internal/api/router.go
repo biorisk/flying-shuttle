@@ -8,9 +8,12 @@ import (
 
 	"github.com/biorisk/flying-shuttle/internal/dag"
 	"github.com/biorisk/flying-shuttle/internal/ingest"
+	"github.com/biorisk/flying-shuttle/internal/outline"
 	"github.com/biorisk/flying-shuttle/internal/search"
 	"github.com/biorisk/flying-shuttle/internal/stitch"
 	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/transcript"
+	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
 )
@@ -178,6 +181,15 @@ func NewRouter(s store.Store, uploadDir string, clusterEmbedder ingest.Embedder,
 				writeJSON(w, http.StatusOK, roots)
 			})
 		})
+	})
+
+	// Server-rendered UI (templ + Datastar) under /app and /static. Runs
+	// alongside the React app until cutover.
+	web.Mount(r, web.Deps{
+		Store:      s,
+		Outline:    &outline.Service{Store: s},
+		Transcript: &transcript.Service{Store: s},
+		Index:      idx,
 	})
 
 	// Serve frontend static files with SPA fallback.

@@ -1,3 +1,95 @@
-/* Flying Shuttle — server-rendered UI. Real styles land with the two-pane shell (.2.2). */
-:root { color-scheme: light dark; }
-body { margin: 0; font: 14px/1.5 system-ui, sans-serif; }
+/* Flying Shuttle — server-rendered UI.
+   Two-pane shell: [ ingest drawer | outline (center) | evidence ]. */
+
+:root {
+	color-scheme: dark;
+	--bg: #1a1a2e;
+	--panel: #16213e;
+	--panel-2: #0f1830;
+	--edge: rgba(255, 255, 255, 0.08);
+	--text: rgba(255, 255, 255, 0.87);
+	--text-dim: rgba(255, 255, 255, 0.5);
+	--accent: #646cff;
+	--radius: 6px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+	margin: 0;
+	height: 100%;
+	background: var(--bg);
+	color: var(--text);
+	font: 14px/1.55 system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+button {
+	font: inherit;
+	color: inherit;
+	background: transparent;
+	border: 1px solid var(--edge);
+	border-radius: var(--radius);
+	padding: 3px 8px;
+	cursor: pointer;
+}
+button:hover { border-color: var(--accent); }
+.icon-btn { border: none; padding: 2px 6px; font-size: 16px; line-height: 1; color: var(--text-dim); }
+.icon-btn:hover { color: var(--text); }
+
+/* --- shell grid --- */
+.shell {
+	display: grid;
+	grid-template-columns: 0 1fr 420px;
+	grid-template-rows: 100%;
+	height: 100%;
+	transition: grid-template-columns 0.15s ease;
+	overflow: hidden;
+}
+
+.drawer {
+	background: var(--panel-2);
+	border-right: 1px solid var(--edge);
+	overflow: hidden auto;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+}
+.drawer-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--edge);
+	font-weight: 600;
+	white-space: nowrap;
+}
+.drawer-body { padding: 12px; }
+
+.center {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	background: var(--bg);
+}
+.topbar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 6px 12px;
+	border-bottom: 1px solid var(--edge);
+	background: var(--panel);
+}
+.view-tabs button { border: none; color: var(--text-dim); padding: 3px 6px; }
+.view-tabs button.active { color: var(--text); border-bottom: 2px solid var(--accent); border-radius: 0; }
+.thread-bar { margin-left: auto; }
+
+.outline-pane, .preview-pane { flex: 1; overflow: auto; padding: 16px 20px; }
+
+.evidence-pane {
+	background: var(--panel);
+	border-left: 1px solid var(--edge);
+	overflow: auto;
+	padding: 14px 16px;
+	min-width: 0;
+}
+.evidence-empty { color: var(--text-dim); font-style: italic; }

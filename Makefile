@@ -6,10 +6,10 @@ TEMPL_VERSION := v0.3.1020
 build: generate build-frontend
 	go build -o bin/shuttle ./cmd/shuttle
 
-# Regenerate *_templ.go from *.templ. Uses the module-pinned templ via `go run`
-# so no separately installed binary is required.
+# Regenerate *_templ.go from *.templ using the module-pinned templ tool
+# (go.mod `tool` directive) — no separately installed binary required.
 generate:
-	go run github.com/a-h/templ/cmd/templ generate
+	go tool templ generate
 
 # Install the standalone templ CLI (optional — for `templ generate --watch` / LSP).
 templ-tools:

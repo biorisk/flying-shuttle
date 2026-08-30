@@ -10,6 +10,33 @@ Format: **[D]** = decision taken, **[Q]** = open question for review.
 
 ## Global
 
+### Task .2.2 — Two-pane app shell + route
+
+- **[D]** Server UI mounted under **`/app`** (shell at `/app/`) and **`/static/*`**,
+  registered by `web.Mount(r, web.Deps{...})` from `api.NewRouter` *before* the
+  React static catch-all. React stays at `/`. Cutover (`.6.1`) moves `/app` → `/`.
+- **[D]** `web.Deps{Store, Outline, Transcript, Index}` assembled in `NewRouter`
+  (`&outline.Service{Store:s}`, `&transcript.Service{Store:s}`, `idx`). Fields
+  will be consumed by later fragment handlers.
+- **[D]** `components.Page(outline, evidence templ.Component)` — the shell owns
+  layout + the page signals (`data-signals="{ focusId:'', drawerOpen:false,
+  centerView:'outline', threadId:'', evidenceWidth:420, collapsed:{} }"`).
+  `#outline`/`#evidence`/`#ingest`/`#thread-bar`/`#preview` are empty regions
+  filled by their own tasks. Shell handler currently passes `nil, nil`; `.3.1`
+  changes it to SSR the outline.
+- **[D]** Datastar v1 attribute forms verified against the vendored runtime:
+  `data-on-click`, `data-class="{k: expr}"`, `data-show`, `data-signals`,
+  `data-style-<css-prop>="expr"`. (v1 uses hyphens, not `data-on:click`.)
+- **[D]** `DatastarScriptPath` const **moved to `components`** (was in `web`) to
+  break a `web ↔ components` import cycle; `web` re-exports it.
+- **[D]** templ wired as a **go.mod `tool` directive** (`go get -tool`); build via
+  `go tool templ generate`. `go run .../templ generate` failed on missing
+  transitive go.sum entries — the tool directive fixes that.
+- **[D]** Real `static/app.css` written: dark theme ported from the React
+  `index.css` palette (`#1a1a2e`/`#16213e`), CSS-grid shell with a
+  `transition`-animated drawer column.
+- Smoke-tested live: `/app/`, `/static/*`, `/api/v1/*` all 200.
+
 ### Task .2.1 — templ + Datastar build integration
 
 - **[D]** `github.com/a-h/templ v0.3.1020` + `github.com/starfederation/datastar-go

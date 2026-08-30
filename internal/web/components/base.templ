@@ -1,6 +1,9 @@
 package components
 
-import "github.com/biorisk/flying-shuttle/internal/web"
+// DatastarScriptPath is the URL (under the /static mount) of the pinned
+// Datastar runtime. Bump this and the vendored file in internal/web/static
+// together.
+const DatastarScriptPath = "/static/vendor/datastar-v1.0.3.js"
 
 // Base is the HTML document shell shared by every full-page render. The real
 // two-pane layout is added in task .2.2; this establishes the skeleton, the
@@ -13,7 +16,7 @@ templ Base(title string) {
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>{ title }</title>
 			<link rel="stylesheet" href="/static/app.css"/>
-			<script type="module" src={ web.DatastarScriptPath }></script>
+			<script type="module" src={ DatastarScriptPath }></script>
 		</head>
 		<body>
 			{ children... }

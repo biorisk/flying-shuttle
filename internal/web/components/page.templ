@@ -1,0 +1,66 @@
+package components
+
+// Page is the full application shell: a collapsible left ingest drawer, the
+// Outline as the main column, and the Evidence pane on the right. The
+// #outline and #evidence regions are filled by their own fragment endpoints;
+// this component owns the layout and the ephemeral UI signals.
+//
+// Signals (page-scoped, reset on reload — matching the old client):
+//   focusId       — id of the bullet currently being edited (attach target)
+//   drawerOpen    — left ingest drawer visible
+//   centerView    — "outline" | "preview"
+//   threadId      — selected audience thread ("" = all)
+//   evidenceWidth — right pane width in px
+//   collapsed     — { [nodeId]: true } map of collapsed outline subtrees
+templ Page(outline, evidence templ.Component) {
+	@Base("Flying Shuttle") {
+		<div
+			id="shell"
+			class="shell"
+			data-signals="{ focusId: '', drawerOpen: false, centerView: 'outline', threadId: '', evidenceWidth: 420, collapsed: {} }"
+			data-class="{ 'drawer-open': $drawerOpen }"
+			data-style-grid-template-columns="($drawerOpen ? '300px ' : '0 ') + '1fr ' + $evidenceWidth + 'px'"
+		>
+			<aside id="ingest-drawer" class="drawer" aria-label="Transcript ingest">
+				<header class="drawer-head">
+					<span>Transcripts</span>
+					<button type="button" class="icon-btn" data-on-click="$drawerOpen = false" title="Close">&times;</button>
+				</header>
+				<div id="ingest" class="drawer-body">
+					<!-- filled by GET /app/ingest (task .2.3) -->
+				</div>
+			</aside>
+			<main class="center">
+				<nav class="topbar">
+					<button
+						type="button"
+						class="icon-btn drawer-toggle"
+						data-show="!$drawerOpen"
+						data-on-click="$drawerOpen = true"
+						title="Load transcripts"
+					>&#9776;</button>
+					<span class="view-tabs">
+						<button type="button" data-class="{ active: $centerView === 'outline' }" data-on-click="$centerView = 'outline'">Outline</button>
+						<button type="button" data-class="{ active: $centerView === 'preview' }" data-on-click="$centerView = 'preview'">Preview</button>
+					</span>
+					<span id="thread-bar" class="thread-bar"><!-- task .5.1 --></span>
+				</nav>
+				<section id="outline" class="outline-pane" data-show="$centerView === 'outline'">
+					if outline != nil {
+						@outline
+					}
+				</section>
+				<section id="preview" class="preview-pane" data-show="$centerView === 'preview'">
+					<!-- task .5.6 -->
+				</section>
+			</main>
+			<section id="evidence" class="evidence-pane" aria-label="Evidence">
+				if evidence != nil {
+					@evidence
+				} else {
+					<p class="evidence-empty">Start typing a bullet — supporting passages appear here.</p>
+				}
+			</section>
+		</div>
+	}
+}
