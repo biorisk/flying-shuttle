@@ -2,6 +2,7 @@ package dag
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/biorisk/flying-shuttle/internal/model"
@@ -288,5 +289,51 @@ func TestLinearizeAndStitch_glueLevel(t *testing.T) {
 	// Verify glue is present.
 	if result.Stitch.Stats.GlueChars == 0 {
 		t.Fatal("expected glue chars from stub stitcher")
+	}
+}
+
+// TestLinearizeAndStitch_usesExcerptNotWholeChunk is the fidelity regression
+// guard for the evidence-as-text-span change: when a node cites only part of a
+// chunk, the stitched manuscript must contain that part and NOT the rest.
+func TestLinearizeAndStitch_usesExcerptNotWholeChunk(t *testing.T) {
+	s := setupLinearizeStore(t)
+
+	n1 := &model.Node{ID: "n1", Type: "chunk_ref", Title: "Evidence"}
+	if err := s.CreateNode(n1); err != nil {
+		t.Fatal(err)
+	}
+	full := "SECRET_PREAMBLE the part the writer actually chose SECRET_TAIL"
+	c := &model.Chunk{ID: "c1", SourceFile: "interview.txt", Content: full}
+	if err := s.CreateChunk(c); err != nil {
+		t.Fatal(err)
+	}
+
+	// Attach only the middle span as evidence.
+	const want = "the part the writer actually chose"
+	start := len([]rune("SECRET_PREAMBLE "))
+	if err := s.CreateEvidence(&model.Evidence{
+		NodeID: "n1", ChunkID: "c1", SourceFile: "interview.txt",
+		CharStart: start, CharEnd: start + len([]rune(want)), Text: want, Position: 0,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	th := &model.Thread{ID: "t1", Name: "T"}
+	s.CreateThread(th)
+	s.SetThreadNodes("t1", []model.ThreadNode{{ThreadID: "t1", NodeID: "n1", Position: 0}})
+
+	result, err := LinearizeAndStitch(context.Background(), s, &stitch.StubStitcher{}, LinearizeRequest{
+		Mode: ModeThread, ThreadID: "t1", GlueLevel: 50,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	text := result.Stitch.Text
+	if !strings.Contains(text, want) {
+		t.Fatalf("stitched text missing the chosen excerpt: %q", text)
+	}
+	if strings.Contains(text, "SECRET_PREAMBLE") || strings.Contains(text, "SECRET_TAIL") {
+		t.Fatalf("stitched text leaked un-chosen chunk text: %q", text)
 	}
 }

@@ -10,6 +10,21 @@ Format: **[D]** = decision taken, **[Q]** = open question for review.
 
 ## Global
 
+### Task .1.3 — Stitch/export use excerpt
+
+- **[D]** `dag.collectChunks` now iterates `store.ListNodeEvidence(nodeID)` and
+  feeds each evidence row's **`.Text`** (the chosen excerpt) into the stitcher,
+  not the whole `chunk.Content`. Speaker is looked up from the chunk. Node body
+  fallback (no evidence) unchanged.
+- **[D]** Dedup key changed from chunk ID to `chunkID:charStart:charEnd`, so two
+  nodes citing *different* spans of one chunk both render, but an identical span
+  reused is emitted once.
+- **[D]** Export (`internal/export`) needed no change — it consumes
+  `LinearizeResult.Stitch` which is now excerpt-based end to end.
+- **[D]** Regression test `TestLinearizeAndStitch_usesExcerptNotWholeChunk`:
+  attaches a middle span of a chunk, asserts the manuscript contains it and not
+  the surrounding `SECRET_PREAMBLE` / `SECRET_TAIL`.
+
 ### Task .1.5 — internal/outline service
 
 - **[D]** New package `internal/outline`:

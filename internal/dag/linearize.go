@@ -70,37 +70,40 @@ func LinearizeAndStitch(ctx context.Context, s store.Store, stitcher stitch.Stit
 }
 
 // collectChunks gathers stitch inputs from an ordered list of nodes.
-// For each node, it uses associated chunks if available; otherwise it falls
-// back to the node's body text. Shared chunks are deduplicated by ID.
+//
+// For each node it emits one input per attached evidence row, using the
+// evidence's *excerpt text* verbatim — never the whole source chunk — so the
+// stitched manuscript only ever contains text the writer explicitly chose.
+// A node with no evidence falls back to its body text. Identical spans
+// (same chunk + same offsets) appearing under multiple nodes are emitted once.
 func collectChunks(s store.Store, nodes []model.Node) []stitch.ChunkInput {
 	var chunks []stitch.ChunkInput
-	seen := make(map[string]bool)
+	seenSpan := make(map[string]bool)
+	seenBody := make(map[string]bool)
 
 	for _, n := range nodes {
-		nodeChunks, err := s.GetNodeChunks(n.ID)
-		if err != nil || len(nodeChunks) == 0 {
-			// No chunks — use node body as content.
-			if n.Body != "" && !seen[n.ID] {
-				seen[n.ID] = true
-				chunks = append(chunks, stitch.ChunkInput{
-					ID:      n.ID,
-					Content: n.Body,
-				})
+		evidence, err := s.ListNodeEvidence(n.ID)
+		if err != nil || len(evidence) == 0 {
+			if n.Body != "" && !seenBody[n.ID] {
+				seenBody[n.ID] = true
+				chunks = append(chunks, stitch.ChunkInput{ID: n.ID, Content: n.Body})
 			}
 			continue
 		}
-		for _, c := range nodeChunks {
-			if seen[c.ID] {
+		for _, e := range evidence {
+			key := fmt.Sprintf("%s:%d:%d", e.ChunkID, e.CharStart, e.CharEnd)
+			if seenSpan[key] {
 				continue
 			}
-			seen[c.ID] = true
+			seenSpan[key] = true
+
 			speaker := ""
-			if c.Speaker != nil {
+			if c, err := s.GetChunk(e.ChunkID); err == nil && c.Speaker != nil {
 				speaker = *c.Speaker
 			}
 			chunks = append(chunks, stitch.ChunkInput{
-				ID:      c.ID,
-				Content: c.Content,
+				ID:      e.ChunkID,
+				Content: e.Text,
 				Speaker: speaker,
 			})
 		}
