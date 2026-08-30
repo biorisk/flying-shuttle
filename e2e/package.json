@@ -1,0 +1,12 @@
+{
+  "name": "flying-shuttle-e2e",
+  "private": true,
+  "description": "Browser end-to-end tests for the Flying Shuttle UI (not part of the Go build).",
+  "scripts": {
+    "test": "playwright test",
+    "install-browsers": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}

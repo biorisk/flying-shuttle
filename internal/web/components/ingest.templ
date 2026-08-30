@@ -14,13 +14,13 @@ templ Ingest(vm viewmodel.IngestDrawer) {
 		id="ingest"
 		class="drawer-body"
 		if vm.Active {
-			data-on-interval__duration.2s="@get('/ingest')"
+			data-on:interval__duration.2s="@get('/ingest')"
 		}
 	>
 		<form
 			class="ingest-form"
 			enctype="multipart/form-data"
-			data-on-submit__prevent="@post('/ingest', {contentType: 'form'})"
+			data-on:submit__prevent="@post('/ingest', {contentType: 'form'})"
 		>
 			<label class="ingest-drop">
 				<input type="file" name="files" multiple accept=".txt,.md,.markdown,.text"/>

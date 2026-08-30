@@ -25,3 +25,6 @@ __pycache__/
 
 # Dolt database files (added by bd init)
 .dolt/
+
+# Reference docs (binary)
+*.pdf

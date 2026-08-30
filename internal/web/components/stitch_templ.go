@@ -38,7 +38,7 @@ func Stitch(vm viewmodel.StitchView) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<section id=\"stitch\" class=\"stitch\" data-show=\"$centerView === 'preview'\"><div class=\"stitch-toolbar\"><label class=\"glue-label\">Glue <input type=\"range\" min=\"0\" max=\"100\" data-bind-glue data-on-input__debounce.350ms=\"@get('/stitch?thread=' + ($threadId||'') + '&glue=' + $glue)\"> <span data-text=\"$glue + '%'\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<section id=\"stitch\" class=\"stitch\" data-show=\"$centerView === 'preview'\"><div class=\"stitch-toolbar\"><label class=\"glue-label\">Glue <input type=\"range\" min=\"0\" max=\"100\" data-bind=\"glue\" data-on:input__debounce.350ms=\"@get('/stitch?thread=' + ($threadId||'') + '&glue=' + $glue)\"> <span data-text=\"$glue + '%'\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -51,7 +51,7 @@ func Stitch(vm viewmodel.StitchView) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</span></label> <a class=\"stitch-export\" download href=\"/api/v1/export/markdown/download\" data-attr-href=\"'/api/v1/export/markdown/download?thread_id=' + ($threadId||'') + '&glue=' + $glue\">Export .md</a></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</span></label> <a class=\"stitch-export\" download href=\"/api/v1/export/markdown/download\" data-attr:href=\"'/api/v1/export/markdown/download?thread_id=' + ($threadId||'') + '&glue=' + $glue\">Export .md</a></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

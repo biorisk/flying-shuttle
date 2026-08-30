@@ -43,12 +43,12 @@ func Ingest(vm viewmodel.IngestDrawer) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if vm.Active {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " data-on-interval__duration.2s=\"@get('/ingest')\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " data-on:interval__duration.2s=\"@get('/ingest')\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "><form class=\"ingest-form\" enctype=\"multipart/form-data\" data-on-submit__prevent=\"@post('/ingest', {contentType: 'form'})\"><label class=\"ingest-drop\"><input type=\"file\" name=\"files\" multiple accept=\".txt,.md,.markdown,.text\"> <span>Choose transcript files (.txt, .md)</span></label> <button type=\"submit\" class=\"ingest-submit\">Upload &amp; process</button></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "><form class=\"ingest-form\" enctype=\"multipart/form-data\" data-on:submit__prevent=\"@post('/ingest', {contentType: 'form'})\"><label class=\"ingest-drop\"><input type=\"file\" name=\"files\" multiple accept=\".txt,.md,.markdown,.text\"> <span>Choose transcript files (.txt, .md)</span></label> <button type=\"submit\" class=\"ingest-submit\">Upload &amp; process</button></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -1,4 +1,4 @@
-.PHONY: build generate templ-tools test run lint clean dev embed-setup embed-server
+.PHONY: build generate templ-tools test e2e run lint clean dev embed-setup embed-server
 
 # templ CLI version — keep in lockstep with the github.com/a-h/templ module in go.mod.
 TEMPL_VERSION := v0.3.1020
@@ -20,6 +20,10 @@ test: generate
 
 run: build
 	./bin/shuttle
+
+# Browser end-to-end tests (Playwright). Requires: cd e2e && npm ci && npx playwright install chromium
+e2e: build
+	cd e2e && npx playwright test
 
 # Dev loop: regenerate templ on change and restart the server. Requires
 # `make templ-tools`.

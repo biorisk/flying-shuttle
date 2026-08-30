@@ -33,7 +33,7 @@ func ThreadBar(vm viewmodel.ThreadBar) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<span id=\"thread-bar\" class=\"dag-bar\"><select class=\"thread-select\" data-bind-threadId data-on-change=\"@get('/outline?thread=' + ($threadId||''))\"><option value=\"\">All bullets</option> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<span id=\"thread-bar\" class=\"dag-bar\"><select class=\"thread-select\" data-bind=\"threadId\" data-on:change=\"@get('/outline?thread=' + ($threadId||''))\"><option value=\"\">All bullets</option> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -69,7 +69,7 @@ func ThreadBar(vm viewmodel.ThreadBar) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</select> <button type=\"button\" class=\"dag-btn\" data-show=\"!!$threadId\" data-class=\"{ active: $brushMode }\" data-on-click=\"$brushMode = !$brushMode\" title=\"Brush: click bullets to paint the reading path\">Brush</button> <button type=\"button\" class=\"dag-btn\" data-show=\"!!$threadId\" data-on-click=\"@delete('/threads/' + $threadId)\" title=\"Delete this thread\">✕</button><form class=\"dag-new\" data-on-submit__prevent=\"@post('/threads', {contentType:'form'})\"><input name=\"name\" placeholder=\"new thread…\" autocomplete=\"off\"> <button type=\"submit\">+</button></form></span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</select> <button type=\"button\" class=\"dag-btn\" data-show=\"!!$threadId\" data-class=\"{ active: $brushMode }\" data-on:click=\"$brushMode = !$brushMode\" title=\"Brush: click bullets to paint the reading path\">Brush</button> <button type=\"button\" class=\"dag-btn\" data-show=\"!!$threadId\" data-on:click=\"@delete('/threads/' + $threadId)\" title=\"Delete this thread\">✕</button><form class=\"dag-new\" data-on:submit__prevent=\"@post('/threads', {contentType:'form'})\"><input name=\"name\" placeholder=\"new thread…\" autocomplete=\"off\"> <button type=\"submit\">+</button></form></span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

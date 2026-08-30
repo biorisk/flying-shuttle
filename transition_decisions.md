@@ -10,6 +10,39 @@ Format: **[D]** = decision taken, **[Q]** = open question for review.
 
 ## Global
 
+### Task .6.2 — Handler tests + Playwright  ⚠ found a real bug
+
+- **[D][BUG FIX] Datastar v1 attribute syntax is `data-on:click`, not
+  `data-on-click`.** The plugin/key split is on `:` (`data-<plugin>:<key>`).
+  Every `data-on-*`, `data-style-*`, `data-attr-*` I wrote through `.2.2`–`.5.6`
+  was silently ignored by the runtime (no error — the attribute just isn't a
+  recognized plugin). The **first Playwright run caught it** — nothing was
+  clickable. Fixed with a global rewrite across all `.templ` + `helpers.go`:
+  - `data-on-X` → `data-on:X` (click/input/blur/focus/keydown/submit/change/interval)
+  - `data-style-grid-template-columns` → `data-style:grid-template-columns`
+  - `data-attr-href` → `data-attr:href`, `data-attr-disabled` → `data-attr:disabled`
+  - `data-bind-threadId` / `data-bind-glue` → `data-bind="threadId"` /
+    `data-bind="glue"` (the `:key` form kebab-cases the key, breaking camelCase
+    signal names — use the value form).
+  `data-class`, `data-show`, `data-text`, `data-signals`, `data-effect` take no
+  key and were already correct.
+- **[D]** `internal/api/integration_test.go` — `TestFullLoop` drives the real
+  `NewRouter` over HTTP: upload → bullet → evidence → transcript reader →
+  attach → stitch → export, asserting on the SSE fragment bodies.
+- **[D]** `e2e/` — Playwright (`@playwright/test`, chromium), **not** part of the
+  Go build; `make e2e`. One serial `flow.spec.ts` walks keyboard outline
+  editing → evidence → highlight-to-excerpt attach → preview. The
+  excerpt test asserts the attached bullet contains "became resolve" and **not**
+  "terrified" — the fidelity guarantee, verified in a real browser.
+- **[Q]** Playwright tests must be **serial** (`describe.configure({mode:
+  'serial'})`). Running isolated per-test pages against the shared server +
+  single SQLite file produced spurious duplicate writes — `@post` from a closing
+  page racing the next test's reset. curl repro of the exact write sequence is
+  clean, and the Go integration test is clean, so this is a harness artifact,
+  not a product bug. If we want per-test isolation later, give each spec its own
+  server + DB.
+- **[Q]** `e2e/package-lock.json` committed; `node_modules` and `.tmp` ignored.
+
 ### Task .6.1 — Cutover
 
 - **[D]** Server UI moved from `/app` → `/`. Global `/app/` → `/` replace across

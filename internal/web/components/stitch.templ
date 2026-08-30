@@ -18,8 +18,8 @@ templ Stitch(vm viewmodel.StitchView) {
 					type="range"
 					min="0"
 					max="100"
-					data-bind-glue
-					data-on-input__debounce.350ms="@get('/stitch?thread=' + ($threadId||'') + '&glue=' + $glue)"
+					data-bind="glue"
+					data-on:input__debounce.350ms="@get('/stitch?thread=' + ($threadId||'') + '&glue=' + $glue)"
 				/>
 				<span data-text="$glue + '%'">{ fmt.Sprintf("%d%%", vm.Glue) }</span>
 			</label>
@@ -27,7 +27,7 @@ templ Stitch(vm viewmodel.StitchView) {
 				class="stitch-export"
 				download
 				href="/api/v1/export/markdown/download"
-				data-attr-href="'/api/v1/export/markdown/download?thread_id=' + ($threadId||'') + '&glue=' + $glue"
+				data-attr:href="'/api/v1/export/markdown/download?thread_id=' + ($threadId||'') + '&glue=' + $glue"
 			>Export .md</a>
 		</div>
 		if vm.Err != "" {

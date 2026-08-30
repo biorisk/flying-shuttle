@@ -85,7 +85,7 @@ func TestOutlineFragment_evidenceBinding(t *testing.T) {
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/outline", nil))
 	body := rec.Body.String()
-	if !strings.Contains(body, "data-on-input__debounce.300ms") {
+	if !strings.Contains(body, "data-on:input__debounce.300ms") {
 		t.Fatalf("no debounced input binding:\n%s", body)
 	}
 	if !strings.Contains(body, "/evidence?node="+a.ID) {

@@ -6,7 +6,7 @@ import "github.com/biorisk/flying-shuttle/internal/web/viewmodel"
 // restore/delete earlier ones. Rendered into #snapshot-bar.
 templ SnapshotBar(vm viewmodel.SnapshotBar) {
 	<span id="snapshot-bar" class="dag-bar">
-		<button type="button" class="dag-btn" data-on-click="@post('/snapshots')" title="Save a snapshot">Snapshot</button>
+		<button type="button" class="dag-btn" data-on:click="@post('/snapshots')" title="Save a snapshot">Snapshot</button>
 		if len(vm.Snapshots) > 0 {
 			<details class="dag-menu">
 				<summary>{ pluralN(len(vm.Snapshots), "snapshot", "snapshots") }</summary>
@@ -14,9 +14,9 @@ templ SnapshotBar(vm viewmodel.SnapshotBar) {
 					for _, s := range vm.Snapshots {
 						<li>
 							<span class="dag-menu-label" title={ s.Created }>{ orDash(s.Label) }</span>
-							<button type="button" data-on-click={ "$diffAgainst = '" + s.ID + "'; @get('/outline?diff=" + s.ID + "')" }>Diff</button>
-							<button type="button" data-on-click={ "@post('/snapshots/" + s.ID + "/restore')" }>Restore</button>
-							<button type="button" data-on-click={ "@delete('/snapshots/" + s.ID + "')" }>✕</button>
+							<button type="button" data-on:click={ "$diffAgainst = '" + s.ID + "'; @get('/outline?diff=" + s.ID + "')" }>Diff</button>
+							<button type="button" data-on:click={ "@post('/snapshots/" + s.ID + "/restore')" }>Restore</button>
+							<button type="button" data-on:click={ "@delete('/snapshots/" + s.ID + "')" }>✕</button>
 						</li>
 					}
 				</ul>
@@ -37,15 +37,15 @@ templ BranchBar(vm viewmodel.BranchBar) {
 					<li>
 						<span class={ "dag-menu-label", templ.KV("active", b.Active) }>{ b.Name }</span>
 						if !b.Active {
-							<button type="button" data-on-click={ "@post('/branches/" + b.ID + "/switch')" }>Switch</button>
-							<button type="button" data-on-click={ "@delete('/branches/" + b.ID + "')" }>✕</button>
+							<button type="button" data-on:click={ "@post('/branches/" + b.ID + "/switch')" }>Switch</button>
+							<button type="button" data-on:click={ "@delete('/branches/" + b.ID + "')" }>✕</button>
 						}
 					</li>
 				}
 				<li>
 					<form
 						class="dag-new"
-						data-on-submit__prevent="@post('/branches', {contentType:'form'})"
+						data-on:submit__prevent="@post('/branches', {contentType:'form'})"
 					>
 						<input name="name" placeholder="new branch…" autocomplete="off"/>
 						<button type="submit">+</button>

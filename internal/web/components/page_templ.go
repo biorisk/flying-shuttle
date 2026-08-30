@@ -72,7 +72,7 @@ func Page(c PageContent) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"shell\" class=\"shell\" data-signals=\"{ focusId: '', drawerOpen: false, centerView: 'outline', threadId: '', evidenceWidth: 420, collapsed: {}, readerChunk: '', glue: 50, brushMode: false, exits: {}, diffAgainst: '' }\" data-class=\"{ 'drawer-open': $drawerOpen }\" data-style-grid-template-columns=\"($drawerOpen ? '300px ' : '0 ') + '1fr ' + $evidenceWidth + 'px'\"><aside id=\"ingest-drawer\" class=\"drawer\" aria-label=\"Transcript ingest\"><header class=\"drawer-head\"><span>Transcripts</span> <button type=\"button\" class=\"icon-btn\" data-on-click=\"$drawerOpen = false\" title=\"Close\">&times;</button></header>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"shell\" class=\"shell\" data-signals=\"{ focusId: '', drawerOpen: false, centerView: 'outline', threadId: '', evidenceWidth: 420, collapsed: {}, readerChunk: '', glue: 50, brushMode: false, exits: {}, diffAgainst: '' }\" data-class=\"{ 'drawer-open': $drawerOpen }\" data-style:grid-template-columns=\"($drawerOpen ? '300px ' : '0 ') + '1fr ' + $evidenceWidth + 'px'\"><aside id=\"ingest-drawer\" class=\"drawer\" aria-label=\"Transcript ingest\"><header class=\"drawer-head\"><span>Transcripts</span> <button type=\"button\" class=\"icon-btn\" data-on:click=\"$drawerOpen = false\" title=\"Close\">&times;</button></header>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -87,7 +87,7 @@ func Page(c PageContent) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</aside><main class=\"center\"><nav class=\"topbar\"><button type=\"button\" class=\"icon-btn drawer-toggle\" data-show=\"!$drawerOpen\" data-on-click=\"$drawerOpen = true\" title=\"Load transcripts\">&#9776;</button> <span class=\"view-tabs\"><button type=\"button\" data-class=\"{ active: $centerView === 'outline' }\" data-on-click=\"$centerView = 'outline'\">Outline</button> <button type=\"button\" data-class=\"{ active: $centerView === 'preview' }\" data-on-click=\"$centerView = 'preview'; @get('/stitch?thread=' + ($threadId||'') + '&glue=' + $glue)\">Preview</button></span> <span class=\"dag-bars\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</aside><main class=\"center\"><nav class=\"topbar\"><button type=\"button\" class=\"icon-btn drawer-toggle\" data-show=\"!$drawerOpen\" data-on:click=\"$drawerOpen = true\" title=\"Load transcripts\">&#9776;</button> <span class=\"view-tabs\"><button type=\"button\" data-class=\"{ active: $centerView === 'outline' }\" data-on:click=\"$centerView = 'outline'\">Outline</button> <button type=\"button\" data-class=\"{ active: $centerView === 'preview' }\" data-on:click=\"$centerView = 'preview'; @get('/stitch?thread=' + ($threadId||'') + '&glue=' + $glue)\">Preview</button></span> <span class=\"dag-bars\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

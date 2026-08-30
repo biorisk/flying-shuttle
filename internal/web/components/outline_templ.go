@@ -48,12 +48,12 @@ func Outline(vm viewmodel.Outline) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" data-class=\"{ threading: $threadId }\" data-show=\"$centerView === 'outline'\" data-effect=\"const id=$focusId; if(id){ const i=document.querySelector('#bullet-'+CSS.escape(id)+' .bullet-input'); if(i && document.activeElement!==i){ i.focus(); try{ i.setSelectionRange(i.value.length, i.value.length) }catch(e){} } }\"><form id=\"move-form\" hidden data-on-submit__prevent=\"@post('/outline/move', {contentType:'form'})\"><input type=\"hidden\" name=\"node_id\"> <input type=\"hidden\" name=\"parent_id\"> <input type=\"hidden\" name=\"position\"></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" data-class=\"{ threading: $threadId }\" data-show=\"$centerView === 'outline'\" data-effect=\"const id=$focusId; if(id){ const i=document.querySelector('#bullet-'+CSS.escape(id)+' .bullet-input'); if(i && document.activeElement!==i){ i.focus(); try{ i.setSelectionRange(i.value.length, i.value.length) }catch(e){} } }\"><form id=\"move-form\" hidden data-on:submit__prevent=\"@post('/outline/move', {contentType:'form'})\"><input type=\"hidden\" name=\"node_id\"> <input type=\"hidden\" name=\"parent_id\"> <input type=\"hidden\" name=\"position\"></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if vm.Empty() {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"outline-empty\"><p>No outline yet.</p><button type=\"button\" class=\"add-first\" data-on-click=\"@post('/outline/roots')\">Add the first bullet</button></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"outline-empty\"><p>No outline yet.</p><button type=\"button\" class=\"add-first\" data-on:click=\"@post('/outline/roots')\">Add the first bullet</button></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -129,7 +129,7 @@ func bullet(n viewmodel.OutlineNode) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</span> <button type=\"button\" class=\"ghost-rescue\" data-on-click=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</span> <button type=\"button\" class=\"ghost-rescue\" data-on:click=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -254,7 +254,7 @@ func bullet(n viewmodel.OutlineNode) templ.Component {
 				}
 			}
 			if len(n.Children) > 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<button type=\"button\" class=\"bullet-toggle\" tabindex=\"-1\" data-on-click=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<button type=\"button\" class=\"bullet-toggle\" tabindex=\"-1\" data-on:click=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -330,7 +330,7 @@ func bullet(n viewmodel.OutlineNode) templ.Component {
 					}
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<form class=\"bullet-form\" data-on-submit__prevent=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<form class=\"bullet-form\" data-on:submit__prevent=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -369,7 +369,7 @@ func bullet(n viewmodel.OutlineNode) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "\" autocomplete=\"off\" placeholder=\"Untitled\" data-on-focus=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "\" autocomplete=\"off\" placeholder=\"Untitled\" data-on:focus=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -382,7 +382,7 @@ func bullet(n viewmodel.OutlineNode) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "\" data-on-input__debounce.300ms=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "\" data-on:input__debounce.300ms=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -395,7 +395,7 @@ func bullet(n viewmodel.OutlineNode) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "\" data-on-blur=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "\" data-on:blur=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -408,7 +408,7 @@ func bullet(n viewmodel.OutlineNode) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "\" data-on-keydown=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "\" data-on:keydown=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -443,7 +443,7 @@ func bullet(n viewmodel.OutlineNode) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "\" tabindex=\"-1\" data-show=\"!!$threadId\" data-on-click=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "\" tabindex=\"-1\" data-show=\"!!$threadId\" data-on:click=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -471,7 +471,7 @@ func bullet(n viewmodel.OutlineNode) templ.Component {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "</button> <button type=\"button\" class=\"exit-toggle\" tabindex=\"-1\" data-on-click=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "</button> <button type=\"button\" class=\"exit-toggle\" tabindex=\"-1\" data-on:click=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

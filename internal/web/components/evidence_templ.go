@@ -161,7 +161,7 @@ func Evidence(vm viewmodel.EvidencePane) templ.Component {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<button type=\"button\" class=\"candidate-open\" data-on-click=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<button type=\"button\" class=\"candidate-open\" data-on:click=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -242,7 +242,7 @@ func TranscriptReader(vm viewmodel.TranscriptReader) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if !vm.Empty() {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<header class=\"reader-head\"><button type=\"button\" class=\"reader-back\" data-on-click=\"$readerChunk = ''\">← passages</button> <span class=\"reader-source\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<header class=\"reader-head\"><button type=\"button\" class=\"reader-back\" data-on:click=\"$readerChunk = ''\">← passages</button> <span class=\"reader-source\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -260,7 +260,7 @@ func TranscriptReader(vm viewmodel.TranscriptReader) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if vm.HasPrev {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<button type=\"button\" data-on-click=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<button type=\"button\" data-on:click=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -279,7 +279,7 @@ func TranscriptReader(vm viewmodel.TranscriptReader) templ.Component {
 				}
 			}
 			if vm.HasNext {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<button type=\"button\" data-on-click=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<button type=\"button\" data-on:click=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -377,7 +377,7 @@ func TranscriptReader(vm viewmodel.TranscriptReader) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "</div><form id=\"excerpt-form\" class=\"excerpt-form\" data-on-submit__prevent=\"@post('/outline/nodes/' + ($focusId||'') + '/evidence', {contentType:'form'})\"><input type=\"hidden\" name=\"chunk_id\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "</div><form id=\"excerpt-form\" class=\"excerpt-form\" data-on:submit__prevent=\"@post('/outline/nodes/' + ($focusId||'') + '/evidence', {contentType:'form'})\"><input type=\"hidden\" name=\"chunk_id\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -390,7 +390,7 @@ func TranscriptReader(vm viewmodel.TranscriptReader) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "\"> <input type=\"hidden\" name=\"char_start\"> <input type=\"hidden\" name=\"char_end\"> <input type=\"hidden\" name=\"text\"> <button type=\"submit\" class=\"excerpt-add\" data-attr-disabled=\"!$focusId\">Add as evidence</button> <span class=\"excerpt-hint\">Select text above to attach just that span.</span></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "\"> <input type=\"hidden\" name=\"char_start\"> <input type=\"hidden\" name=\"char_end\"> <input type=\"hidden\" name=\"text\"> <button type=\"submit\" class=\"excerpt-add\" data-attr:disabled=\"!$focusId\">Add as evidence</button> <span class=\"excerpt-hint\">Select text above to attach just that span.</span></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
