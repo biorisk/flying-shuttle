@@ -10,6 +10,32 @@ Format: **[D]** = decision taken, **[Q]** = open question for review.
 
 ## Global
 
+### Task .1.5 — internal/outline service
+
+- **[D]** New package `internal/outline`:
+  - `tree.go` — pure: `TreeNode`, `BuildTree`, `Flatten`, `Find`, `Neighbors`
+    (for `data-prev-id`/`data-next-id`). Port of `outlineStore.buildTree`:
+    outline-only nodes, linear-only edges, roots = no incoming linear edge,
+    children by edge weight then creation time, roots by creation time.
+  - `service.go` — `Service{Store}` with `AddRoot/AddChild/AddChildAt/
+    AddSibling/Indent/Unindent/Delete` + `Tree()`.
+- **[D]** No `Store.WithTx` added. The structural ops compose the existing
+  **atomic** `store.MoveNode` (delete-incoming-linear + reweight + insert, all
+  in one tx) with `CreateNode`. Worst-case failure window = an orphan root node
+  between `CreateNode` and `MoveNode` (recoverable, not corrupting). Revisit if
+  we ever see it in practice.
+- **[D]** `Indent`/`Unindent` read the tree, locate the node among its
+  siblings, then delegate to `MoveNode`. `Indent` on the first sibling and
+  `Unindent` on a root return `outline.ErrNoop` (caller treats as silent
+  success — matches the React early-returns).
+- **[Q]** `AddSibling` on a **root** node just creates another root; since roots
+  order by `CreatedAt` the new node lands last, not necessarily immediately
+  after the anchor. Matches the old client ("root level, no edge needed"). If
+  we want true positional root ordering later, roots need explicit weights (a
+  synthetic parent, or a `root_order` column).
+- **[D]** `BuildTree` sorts outline nodes by `CreatedAt` (tie-break ID) rather
+  than trusting input slice order, so callers don't have to pre-sort.
+
 ### Task .1.2 — Evidence-as-text-span schema
 
 - **[D]** New `evidence` table (migration `005_evidence.sql`): `id, node_id,
