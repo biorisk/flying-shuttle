@@ -9,6 +9,13 @@ import (
 // intString renders an int for use in an attribute value.
 func intString(n int) string { return strconv.Itoa(n) }
 
+// evidenceExpr fetches the evidence pane for the current bullet text. Datastar
+// auto-cancels the previous in-flight request for the same element, so rapid
+// typing collapses to the latest query.
+func evidenceExpr(id string) string {
+	return "@get('/app/evidence?node=" + id + "&q=' + encodeURIComponent(evt.target.value))"
+}
+
 // keydownExpr is the Datastar expression for a bullet input's keydown handler:
 // Enter adds a sibling (via the form), Tab / Shift-Tab indent / unindent,
 // Backspace-on-empty deletes, Arrow Up/Down move the focus signal. Each

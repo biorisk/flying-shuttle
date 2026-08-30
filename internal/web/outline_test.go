@@ -64,14 +64,31 @@ func TestOutlineFragment_collapseMarkup(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/app/outline", nil))
+	// templ HTML-escapes attribute values ("'" -> "&#39;"); assert on the
+	// escaped forms the browser will decode.
 	body := rec.Body.String()
+	esc := strings.NewReplacer("'", "&#39;")
 	for _, want := range []string{
 		"bullet-toggle",
-		"$collapsed['" + a.ID + "'] = !$collapsed['" + a.ID + "']",
-		`data-show="!$collapsed['` + a.ID + `']"`,
+		esc.Replace("$collapsed['" + a.ID + "'] = !$collapsed['" + a.ID + "']"),
+		esc.Replace(`data-show="!$collapsed['` + a.ID + `']"`),
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("collapse markup missing %q\n%s", want, body)
 		}
+	}
+}
+
+func TestOutlineFragment_evidenceBinding(t *testing.T) {
+	r, svc := outlineRouter(t)
+	a, _ := svc.AddRoot("x")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/app/outline", nil))
+	body := rec.Body.String()
+	if !strings.Contains(body, "data-on-input__debounce.300ms") {
+		t.Fatalf("no debounced input binding:\n%s", body)
+	}
+	if !strings.Contains(body, "/app/evidence?node="+a.ID) {
+		t.Fatalf("evidence url missing node id:\n%s", body)
 	}
 }

@@ -69,7 +69,8 @@ templ bullet(n viewmodel.OutlineNode) {
 						value={ n.Title }
 						autocomplete="off"
 						placeholder="Untitled"
-						data-on-focus={ "$focusId = '" + n.ID + "'" }
+						data-on-focus={ "$focusId = '" + n.ID + "'; " + evidenceExpr(n.ID) }
+						data-on-input__debounce.300ms={ evidenceExpr(n.ID) }
 						data-on-blur={ "@patch('/app/outline/nodes/" + n.ID + "', {contentType:'form'})" }
 						data-on-keydown={ keydownExpr(n.ID) }
 					/>
