@@ -20,21 +20,29 @@ type TreeNode struct {
 
 // BuildTree assembles the outline forest from flat nodes and edges.
 //
-// Semantics (must match the former client implementation exactly):
-//   - only nodes of type "outline" participate
+// Semantics:
+//   - outline nodes and their chunk_ref (evidence) children participate;
+//     "synth" nodes and orphan chunk_refs are ignored
 //   - only edges of type "linear" define parent → child
-//   - a root is an outline node with no incoming linear edge
+//   - a root is an *outline* node with no incoming linear edge (a chunk_ref is
+//     never a root)
 //   - siblings are ordered by edge weight, ties broken by node creation time
 //   - roots are ordered by node creation time
+//
+// This matches the former client `buildTree` for outline structure, and
+// additionally surfaces the locked evidence sub-bullets that attach-evidence
+// creates as chunk_ref children.
 func BuildTree(nodes []model.Node, edges []model.Edge) []*TreeNode {
 	nodeByID := make(map[string]model.Node, len(nodes))
-	var order []string // outline node IDs in creation order
+	var order []string // outline node IDs in creation order (root candidates)
 	for _, n := range nodes {
-		if n.Type != model.NodeTypeOutline {
-			continue
+		switch n.Type {
+		case model.NodeTypeOutline:
+			nodeByID[n.ID] = n
+			order = append(order, n.ID)
+		case model.NodeTypeChunkRef:
+			nodeByID[n.ID] = n // eligible as a child, never a root
 		}
-		nodeByID[n.ID] = n
-		order = append(order, n.ID)
 	}
 	sort.SliceStable(order, func(i, j int) bool {
 		a, b := nodeByID[order[i]], nodeByID[order[j]]
@@ -64,9 +72,20 @@ func BuildTree(nodes []model.Node, edges []model.Edge) []*TreeNode {
 		hasParent[e.ToNode] = true
 	}
 
-	// Stable index for creation-order tie-breaks.
-	idx := make(map[string]int, len(order))
-	for i, id := range order {
+	// Stable index for creation-order tie-breaks (covers evidence children too).
+	allIDs := make([]string, 0, len(nodeByID))
+	for id := range nodeByID {
+		allIDs = append(allIDs, id)
+	}
+	sort.Slice(allIDs, func(i, j int) bool {
+		a, b := nodeByID[allIDs[i]], nodeByID[allIDs[j]]
+		if !a.CreatedAt.Equal(b.CreatedAt) {
+			return a.CreatedAt.Before(b.CreatedAt)
+		}
+		return a.ID < b.ID
+	})
+	idx := make(map[string]int, len(allIDs))
+	for i, id := range allIDs {
 		idx[id] = i
 	}
 

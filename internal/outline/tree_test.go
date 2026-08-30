@@ -53,16 +53,16 @@ func TestBuildTree_childrenByWeight(t *testing.T) {
 	}
 }
 
-func TestBuildTree_ignoresNonOutlineAndNonLinear(t *testing.T) {
+func TestBuildTree_ignoresNonLinearAndSynth(t *testing.T) {
 	nodes := []model.Node{
 		n("root", 1),
 		n("child", 2),
-		{ID: "ref", Type: model.NodeTypeChunkRef, CreatedAt: time.Unix(3, 0)},
+		{ID: "synth", Type: model.NodeTypeSynth, CreatedAt: time.Unix(3, 0)},
 	}
 	edges := []model.Edge{
 		linear("root", "child", 0),
-		{ID: "b", FromNode: "root", ToNode: "child", Type: model.EdgeTypeBranch},
-		linear("root", "ref", 1), // ref is chunk_ref -> excluded
+		{ID: "b", FromNode: "root", ToNode: "child", Type: model.EdgeTypeBranch}, // non-linear: ignored
+		linear("root", "synth", 1), // synth: ignored
 	}
 	forest := BuildTree(nodes, edges)
 	if len(forest) != 1 || len(forest[0].Children) != 1 || forest[0].Children[0].Node.ID != "child" {
@@ -83,5 +83,30 @@ func TestNeighbors(t *testing.T) {
 	}
 	if p, nx := Neighbors(forest, "c"); p != "b" || nx != "" {
 		t.Fatalf("c neighbors: %q %q", p, nx)
+	}
+}
+
+func TestBuildTree_includesChunkRefEvidenceChildren(t *testing.T) {
+	nodes := []model.Node{
+		n("root", 1),
+		{ID: "ev1", Type: model.NodeTypeChunkRef, Title: "quoted passage", Locked: true, CreatedAt: time.Unix(2, 0)},
+		n("child", 3),
+		{ID: "synth1", Type: model.NodeTypeSynth, Title: "nope", CreatedAt: time.Unix(4, 0)},
+	}
+	edges := []model.Edge{
+		linear("root", "ev1", 0),
+		linear("root", "child", 1),
+		linear("root", "synth1", 2),
+	}
+	forest := BuildTree(nodes, edges)
+	if len(forest) != 1 {
+		t.Fatalf("want 1 root, got %d", len(forest))
+	}
+	kids := ids(forest[0].Children)
+	if len(kids) != 2 || kids[0] != "ev1" || kids[1] != "child" {
+		t.Fatalf("want [ev1 child], got %v", kids)
+	}
+	if forest[0].Children[0].Node.Type != model.NodeTypeChunkRef {
+		t.Fatalf("evidence child type wrong")
 	}
 }

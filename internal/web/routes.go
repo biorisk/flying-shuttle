@@ -1,6 +1,7 @@
 package web
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/biorisk/flying-shuttle/internal/outline"
@@ -27,12 +28,24 @@ type Deps struct {
 // the /static asset tree. It runs alongside the legacy React app until the
 // cutover (bd flying-shuttle-6fv.6.1), at which point this moves to "/".
 func Mount(r chi.Router, d Deps) {
+	// Fill in services derivable from the store so callers (and tests) can pass
+	// just Store.
+	if d.Outline == nil && d.Store != nil {
+		d.Outline = &outline.Service{Store: d.Store}
+	}
+	if d.Transcript == nil && d.Store != nil {
+		d.Transcript = &transcript.Service{Store: d.Store}
+	}
+	if d.Ingester == nil && d.Store != nil {
+		d.Ingester = &pipeline.Ingester{Store: d.Store}
+	}
 	h := &handlers{d: d}
 
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(StaticFS()))))
 
 	r.Route("/app", func(r chi.Router) {
 		r.Get("/", h.shell)
+		r.Get("/outline", h.outline)
 		r.Get("/evidence", h.evidence)
 		r.Get("/ingest", h.ingest)
 		r.Post("/ingest", h.ingestUpload)
@@ -47,13 +60,28 @@ func (h *handlers) evidenceFinder() *EvidenceFinder {
 	return &EvidenceFinder{Index: h.d.Index, Store: h.d.Store}
 }
 
-// shell renders the full two-pane application page.
+// shell renders the full two-pane application page with every region SSR'd.
 func (h *handlers) shell(w http.ResponseWriter, r *http.Request) {
-	// The outline fragment is wired into the initial render by .3.1; the
-	// evidence pane starts idle; the ingest drawer is SSR'd with current state.
+	ov, err := h.outlineView()
+	if err != nil {
+		log.Printf("shell: outline: %v", err)
+	}
 	Render(w, r, components.Page(
-		nil,
+		components.Outline(ov),
 		components.Evidence(viewmodel.EvidencePane{}),
 		components.Ingest(h.ingestView()),
 	))
+}
+
+// outline renders the #outline fragment as a Datastar SSE patch.
+//
+//	GET /app/outline
+func (h *handlers) outline(w http.ResponseWriter, r *http.Request) {
+	ov, err := h.outlineView()
+	if err != nil {
+		log.Printf("outline: %v", err)
+	}
+	if _, err := Patch(w, r, components.Outline(ov)); err != nil {
+		log.Printf("outline: patch: %v", err)
+	}
 }

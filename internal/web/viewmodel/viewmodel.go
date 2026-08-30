@@ -19,6 +19,29 @@ type EvidencePane struct {
 	Candidates []Candidate
 }
 
+// OutlineNode is one bullet in the rendered outline tree. Prev/Next are the
+// flattened-order neighbour ids for keyboard navigation.
+type OutlineNode struct {
+	ID       string
+	Title    string
+	Body     string
+	Type     string // "outline" | "chunk_ref"
+	Locked   bool
+	Evidence bool // chunk_ref evidence sub-bullet
+	Depth    int
+	Prev     string
+	Next     string
+	Children []OutlineNode
+}
+
+// Outline is the render model for the #outline fragment.
+type Outline struct {
+	Roots []OutlineNode
+}
+
+// Empty reports whether the outline has no bullets at all.
+func (o Outline) Empty() bool { return len(o.Roots) == 0 }
+
 // UploadRow is one transcript in the ingest drawer list.
 type UploadRow struct {
 	ID       string

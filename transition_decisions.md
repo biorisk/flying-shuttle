@@ -10,6 +10,23 @@ Format: **[D]** = decision taken, **[Q]** = open question for review.
 
 ## Global
 
+### Task .3.1 — Read-only outline fragment
+
+- **[D]** `outline.BuildTree` **extended** to include `chunk_ref` nodes as
+  children (evidence sub-bullets) — outline nodes are still the only root
+  candidates; `synth` and non-linear edges still ignored. Resolves the `.1.5`
+  open question: evidence attaches as a real locked bullet in the tree.
+- **[D]** `GET /app/outline` → SSE patch of `#outline`; shell SSRs it too.
+  `components.Outline` owns `<section id="outline" data-show="$centerView===
+  'outline'">`; `components.bullet` recurses. Each `<li id="bullet-{id}">`
+  carries `data-node-id`, `data-prev-id`, `data-next-id` (flattened-order
+  neighbours, computed in `outlineView`) and `data-depth`.
+- **[D]** Read-only: titles render as `<span>`, evidence bullets as
+  `<blockquote>` (body → title fallback). Editing / add-control / drag come in
+  `.3.2`+.
+- **[D]** `web.Mount` now fills `Deps.Outline/Transcript/Ingester` from
+  `Deps.Store` when nil, so callers/tests can pass just the store.
+
 ### Task .2.3 — Ingest drawer fragment
 
 - **[D]** New package `internal/pipeline` — the transcript ingestion pipeline

@@ -1,0 +1,57 @@
+package components
+
+import "github.com/biorisk/flying-shuttle/internal/web/viewmodel"
+
+// Outline is the center-pane fragment: the nested bullet tree. Rendered into
+// #outline on first load and re-patched by the structural endpoints (.3.2+).
+// Read-only in this task — editing, drag-reorder and the add-bullet control
+// are layered on by later tasks.
+templ Outline(vm viewmodel.Outline) {
+	<section id="outline" class="outline-pane" data-show="$centerView === 'outline'">
+		if vm.Empty() {
+			<p class="outline-empty">No outline yet. Load a transcript, then start a bullet.</p>
+		} else {
+			<ul class="bullet-tree">
+				for _, n := range vm.Roots {
+					@bullet(n)
+				}
+			</ul>
+		}
+	</section>
+}
+
+templ bullet(n viewmodel.OutlineNode) {
+	<li
+		id={ "bullet-" + n.ID }
+		class={ "bullet", templ.KV("locked", n.Locked), templ.KV("evidence", n.Evidence) }
+		data-node-id={ n.ID }
+		data-prev-id={ n.Prev }
+		data-next-id={ n.Next }
+		data-depth={ intString(n.Depth) }
+	>
+		<div class="bullet-row" style={ "padding-left:" + intString(n.Depth*20) + "px" }>
+			<span class="bullet-dot" aria-hidden="true">
+				if n.Evidence {
+					&#9642;
+				} else {
+					&bull;
+				}
+			</span>
+			if n.Evidence {
+				<blockquote class="bullet-evidence">{ evidenceText(n) }</blockquote>
+			} else {
+				<span class="bullet-title">{ n.Title }</span>
+			}
+			if n.Locked {
+				<span class="bullet-lock" title="Locked">&#128274;</span>
+			}
+		</div>
+		if len(n.Children) > 0 {
+			<ul class="bullet-children">
+				for _, c := range n.Children {
+					@bullet(c)
+				}
+			</ul>
+		}
+	</li>
+}

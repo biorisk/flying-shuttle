@@ -51,13 +51,11 @@ templ Page(outline, evidence, ingest templ.Component) {
 					</span>
 					<span id="thread-bar" class="thread-bar"><!-- task .5.1 --></span>
 				</nav>
-				<div class="center-scroll" data-show="$centerView === 'outline'">
-					if outline != nil {
-						@outline
-					} else {
-						<section id="outline" class="outline-pane"></section>
-					}
-				</div>
+				if outline != nil {
+					@outline
+				} else {
+					<section id="outline" class="outline-pane" data-show="$centerView === 'outline'"></section>
+				}
 				<section id="preview" class="preview-pane" data-show="$centerView === 'preview'">
 					<!-- task .5.6 -->
 				</section>
