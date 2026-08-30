@@ -55,3 +55,24 @@ func TestTranscriptReader_windowAndScrub(t *testing.T) {
 		t.Fatalf("scrub buttons missing neighbour chunk ids: %s", body)
 	}
 }
+
+func TestTranscriptReader_hasExcerptForm(t *testing.T) {
+	s, _ := store.NewSQLiteStore(":memory:")
+	s.Migrate()
+	t.Cleanup(func() { s.Close() })
+	s.CreateChunk(&model.Chunk{ID: "c1", SourceFile: "a.txt", Content: "hello world here", StartOffset: 0, EndOffset: 16})
+	r := chi.NewRouter()
+	web.Mount(r, web.Deps{Store: s})
+
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/app/evidence/transcript?chunk=c1&node=n9", nil))
+	body := rec.Body.String()
+	for _, want := range []string{
+		`id="excerpt-form"`, `name="chunk_id"`, `name="char_start"`, `name="text"`,
+		"/app/outline/nodes/", "/evidence", `value="c1"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("excerpt form missing %q\n%s", want, body)
+		}
+	}
+}

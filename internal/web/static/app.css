@@ -150,3 +150,7 @@ button:hover { border-color: var(--accent); }
 .reader-scrub button { font-size: 11px; }
 .reader-body { line-height: 1.7; font-size: 14px; user-select: text; }
 .reader-seg.focus { background: rgba(100, 108, 255, 0.18); border-radius: 3px; }
+.excerpt-form { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
+.excerpt-add { align-self: flex-start; border-color: var(--accent); color: var(--text); }
+.excerpt-add[disabled] { opacity: .4; cursor: not-allowed; }
+.excerpt-hint { font-size: 11px; color: var(--text-dim); }

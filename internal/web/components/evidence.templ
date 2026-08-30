@@ -73,6 +73,20 @@ templ TranscriptReader(vm viewmodel.TranscriptReader) {
 					>{ seg.Text + " " }</span>
 				}
 			</div>
+			<form
+				id="excerpt-form"
+				class="excerpt-form"
+				data-on-submit__prevent="@post('/app/outline/nodes/' + ($focusId||'') + '/evidence', {contentType:'form'})"
+			>
+				<input type="hidden" name="chunk_id" value={ vm.FocusChunk }/>
+				<input type="hidden" name="char_start"/>
+				<input type="hidden" name="char_end"/>
+				<input type="hidden" name="text"/>
+				<button type="submit" class="excerpt-add" data-attr-disabled="!$focusId">
+					Add as evidence
+				</button>
+				<span class="excerpt-hint">Select text above to attach just that span.</span>
+			</form>
 		}
 	</div>
 }

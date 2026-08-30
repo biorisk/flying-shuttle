@@ -10,6 +10,26 @@ Format: **[D]** = decision taken, **[Q]** = open question for review.
 
 ## Global
 
+### Task .3.6 — Highlight-to-excerpt selection JS
+
+- **[D]** `internal/web/static/app.js` (vendored, `<script defer>` in Base) — the
+  only imperative JS in the project. A `selectionchange` listener scoped to
+  `.reader-body` maps the selection onto `{chunk_id, char_start, char_end,
+  text}` and writes them into the hidden `#excerpt-form`.
+- **[D]** Offsets are **relative to a single chunk's `Content`** (that's the
+  evidence model). A selection crossing chunk boundaries is **clamped to the
+  chunk it starts in** — chunks are ~160 words so a within-chunk selection is
+  almost always what's wanted. `form.dataset.hasSelection` distinguishes
+  excerpt vs whole-chunk.
+- **[D]** `#excerpt-form` lives in `TranscriptReader`; its submit is already
+  wired to `@post('/app/outline/nodes/'+$focusId+'/evidence', {contentType:
+  'form'})` — the endpoint arrives in `.3.7`. No selection → `char_start/end`
+  blank → whole `FocusChunk`.
+- **[Q]** `selectionchange` fires a lot; the handler is cheap (DOM walk over a
+  ~5-chunk window) so no debounce. Revisit if profiling says otherwise.
+- **[Q]** Not browser-tested yet (Playwright `.6.2`). `node --check` passes;
+  offset logic has unit-test-shaped risk — consider a jsdom test in `.6.2`.
+
 ### Task .3.5 — Transcript reader/scrubber fragment
 
 - **[D]** `#evidence` now stacks two regions: `#evidence-candidates`
