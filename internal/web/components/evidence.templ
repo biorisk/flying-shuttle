@@ -1,0 +1,38 @@
+package components
+
+import (
+	"fmt"
+	"github.com/biorisk/flying-shuttle/internal/web/viewmodel"
+)
+
+// Evidence is the right-pane fragment: ranked candidate passages for whatever
+// bullet is being edited. Rendered into #evidence by GET /app/evidence.
+// The per-candidate transcript reader (.3.5), selection (.3.6) and attach
+// button (.3.7) are layered on later.
+templ Evidence(vm viewmodel.EvidencePane) {
+	<div id="evidence" class="evidence-pane" aria-label="Evidence">
+		if vm.Query == "" {
+			<p class="evidence-empty">Start typing a bullet — supporting passages appear here.</p>
+		} else if len(vm.Candidates) == 0 {
+			<p class="evidence-empty">No passages found for “{ vm.Query }”.</p>
+		} else {
+			<header class="evidence-head">
+				<span class="evidence-count">{ fmt.Sprintf("%d passages", len(vm.Candidates)) }</span>
+				<span class="evidence-q" title="query">{ vm.Query }</span>
+			</header>
+			<ul class="candidate-list">
+				for _, c := range vm.Candidates {
+					<li class="candidate" data-chunk={ c.ChunkID } data-source={ c.SourceFile }>
+						<div class="candidate-meta">
+							<span class="candidate-source">{ c.SourceFile }</span>
+							if c.Speaker != "" {
+								<span class="candidate-speaker">{ c.Speaker }</span>
+							}
+						</div>
+						<p class="candidate-text">{ c.Snippet }</p>
+					</li>
+				}
+			</ul>
+		}
+	</div>
+}

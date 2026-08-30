@@ -8,6 +8,7 @@ import (
 	"github.com/biorisk/flying-shuttle/internal/store"
 	"github.com/biorisk/flying-shuttle/internal/transcript"
 	"github.com/biorisk/flying-shuttle/internal/web/components"
+	"github.com/biorisk/flying-shuttle/internal/web/viewmodel"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -30,6 +31,7 @@ func Mount(r chi.Router, d Deps) {
 
 	r.Route("/app", func(r chi.Router) {
 		r.Get("/", h.shell)
+		r.Get("/evidence", h.evidence)
 	})
 }
 
@@ -37,9 +39,13 @@ type handlers struct {
 	d Deps
 }
 
+func (h *handlers) evidenceFinder() *EvidenceFinder {
+	return &EvidenceFinder{Index: h.d.Index, Store: h.d.Store}
+}
+
 // shell renders the full two-pane application page.
 func (h *handlers) shell(w http.ResponseWriter, r *http.Request) {
-	// Outline/evidence fragments are wired into the initial render by later
-	// tasks (.3.1 / .3.4); for now the shell renders with empty regions.
-	Render(w, r, components.Page(nil, nil))
+	// The outline fragment is wired into the initial render by .3.1; the
+	// evidence pane starts idle (empty query).
+	Render(w, r, components.Page(nil, components.Evidence(viewmodel.EvidencePane{})))
 }

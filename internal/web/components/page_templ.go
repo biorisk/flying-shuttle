@@ -9,9 +9,13 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 // Page is the full application shell: a collapsible left ingest drawer, the
-// Outline as the main column, and the Evidence pane on the right. The
-// #outline and #evidence regions are filled by their own fragment endpoints;
-// this component owns the layout and the ephemeral UI signals.
+// Outline as the main column, and the Evidence pane on the right.
+//
+// The outline and evidence arguments are the *fragment* components — each owns
+// its own root element (`#outline`, `#evidence`), so the same component is used
+// for the initial server render here and for later Datastar SSE patches. When
+// nil, a matching empty placeholder element is rendered to keep the grid and
+// the patch targets intact.
 //
 // Signals (page-scoped, reset on reload — matching the old client):
 //
@@ -54,7 +58,7 @@ func Page(outline, evidence templ.Component) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"shell\" class=\"shell\" data-signals=\"{ focusId: '', drawerOpen: false, centerView: 'outline', threadId: '', evidenceWidth: 420, collapsed: {} }\" data-class=\"{ 'drawer-open': $drawerOpen }\" data-style-grid-template-columns=\"($drawerOpen ? '300px ' : '0 ') + '1fr ' + $evidenceWidth + 'px'\"><aside id=\"ingest-drawer\" class=\"drawer\" aria-label=\"Transcript ingest\"><header class=\"drawer-head\"><span>Transcripts</span> <button type=\"button\" class=\"icon-btn\" data-on-click=\"$drawerOpen = false\" title=\"Close\">&times;</button></header><div id=\"ingest\" class=\"drawer-body\"><!-- filled by GET /app/ingest (task .2.3) --></div></aside><main class=\"center\"><nav class=\"topbar\"><button type=\"button\" class=\"icon-btn drawer-toggle\" data-show=\"!$drawerOpen\" data-on-click=\"$drawerOpen = true\" title=\"Load transcripts\">&#9776;</button> <span class=\"view-tabs\"><button type=\"button\" data-class=\"{ active: $centerView === 'outline' }\" data-on-click=\"$centerView = 'outline'\">Outline</button> <button type=\"button\" data-class=\"{ active: $centerView === 'preview' }\" data-on-click=\"$centerView = 'preview'\">Preview</button></span> <span id=\"thread-bar\" class=\"thread-bar\"><!-- task .5.1 --></span></nav><section id=\"outline\" class=\"outline-pane\" data-show=\"$centerView === 'outline'\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"shell\" class=\"shell\" data-signals=\"{ focusId: '', drawerOpen: false, centerView: 'outline', threadId: '', evidenceWidth: 420, collapsed: {} }\" data-class=\"{ 'drawer-open': $drawerOpen }\" data-style-grid-template-columns=\"($drawerOpen ? '300px ' : '0 ') + '1fr ' + $evidenceWidth + 'px'\"><aside id=\"ingest-drawer\" class=\"drawer\" aria-label=\"Transcript ingest\"><header class=\"drawer-head\"><span>Transcripts</span> <button type=\"button\" class=\"icon-btn\" data-on-click=\"$drawerOpen = false\" title=\"Close\">&times;</button></header><div id=\"ingest\" class=\"drawer-body\"><!-- filled by GET /app/ingest (task .2.3) --></div></aside><main class=\"center\"><nav class=\"topbar\"><button type=\"button\" class=\"icon-btn drawer-toggle\" data-show=\"!$drawerOpen\" data-on-click=\"$drawerOpen = true\" title=\"Load transcripts\">&#9776;</button> <span class=\"view-tabs\"><button type=\"button\" data-class=\"{ active: $centerView === 'outline' }\" data-on-click=\"$centerView = 'outline'\">Outline</button> <button type=\"button\" data-class=\"{ active: $centerView === 'preview' }\" data-on-click=\"$centerView = 'preview'\">Preview</button></span> <span id=\"thread-bar\" class=\"thread-bar\"><!-- task .5.1 --></span></nav><div class=\"center-scroll\" data-show=\"$centerView === 'outline'\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -63,8 +67,13 @@ func Page(outline, evidence templ.Component) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
+			} else {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<section id=\"outline\" class=\"outline-pane\"></section>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</section><section id=\"preview\" class=\"preview-pane\" data-show=\"$centerView === 'preview'\"><!-- task .5.6 --></section></main><section id=\"evidence\" class=\"evidence-pane\" aria-label=\"Evidence\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div><section id=\"preview\" class=\"preview-pane\" data-show=\"$centerView === 'preview'\"><!-- task .5.6 --></section></main>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -74,12 +83,12 @@ func Page(outline, evidence templ.Component) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<p class=\"evidence-empty\">Start typing a bullet — supporting passages appear here.</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<section id=\"evidence\" class=\"evidence-pane\" aria-label=\"Evidence\"><p class=\"evidence-empty\">Start typing a bullet — supporting passages appear here.</p></section>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</section></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

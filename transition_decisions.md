@@ -10,6 +10,29 @@ Format: **[D]** = decision taken, **[Q]** = open question for review.
 
 ## Global
 
+### Task .1.6 — /evidence retrieval endpoint
+
+- **[D]** `web.EvidenceFinder{Index, Store}` → `Find(ctx, query, limit)
+  []viewmodel.Candidate`. Runs `HybridIndex.Search` (already degrades to
+  BM25-only if the embedder is down), resolves hits to chunks, trims snippets
+  to 320 runes. Blank query / nil index → `nil`.
+- **[D]** `GET /app/evidence?q=&node=` always responds as a **Datastar SSE
+  patch** of the `#evidence` fragment (`web.Patch` → `PatchElementTempl`).
+  Consumers are always `@get` (wired in `.3.4`); the shell SSRs the idle pane
+  directly via `components.Evidence`.
+- **[D]** New leaf package `internal/web/viewmodel` for the plain structs shared
+  between handlers and templ components (`Candidate`, `EvidencePane`) — keeps
+  `components` free of a dependency on `internal/web`.
+- **[D]** `components.Page` reworked so the outline/evidence **fragment
+  components own their own root element** (`#outline`, `#evidence`); Page embeds
+  the same component for SSR and renders a matching placeholder when nil. No
+  more double-id.
+- **[Q]** "Suggested sub-points" (ex-ghost-proposals) not built here — the
+  `EmbeddingClusterer` needs a live embedder. Deferred to `.3.4`/`.5.x`; the
+  candidate list is the core and is complete. Card buttons (read-in-transcript,
+  attach) are layered on in `.3.5`–`.3.7`; cards currently carry
+  `data-chunk`/`data-source` hooks only.
+
 ### Task .2.2 — Two-pane app shell + route
 
 - **[D]** Server UI mounted under **`/app`** (shell at `/app/`) and **`/static/*`**,
