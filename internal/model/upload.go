@@ -24,11 +24,11 @@ type Upload struct {
 
 // TranscriptSegment represents a diarized segment of a transcription.
 type TranscriptSegment struct {
-	ID        string  `json:"id"`
-	UploadID  string  `json:"upload_id"`
-	Speaker   string  `json:"speaker"`
-	Text      string  `json:"text"`
-	StartMs   int64   `json:"start_ms"`
-	EndMs     int64   `json:"end_ms"`
+	ID        string    `json:"id"`
+	UploadID  string    `json:"upload_id"`
+	Speaker   string    `json:"speaker"`
+	Text      string    `json:"text"`
+	StartMs   int64     `json:"start_ms"`
+	EndMs     int64     `json:"end_ms"`
 	CreatedAt time.Time `json:"created_at"`
 }

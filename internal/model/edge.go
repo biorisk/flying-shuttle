@@ -12,11 +12,11 @@ const (
 )
 
 type Edge struct {
-	ID        string   `json:"id"`
-	FromNode  string   `json:"from_node"`
-	ToNode    string   `json:"to_node"`
-	Type      EdgeType `json:"type"`
-	Condition *string  `json:"condition,omitempty"`
-	Weight    int      `json:"weight"`
+	ID        string    `json:"id"`
+	FromNode  string    `json:"from_node"`
+	ToNode    string    `json:"to_node"`
+	Type      EdgeType  `json:"type"`
+	Condition *string   `json:"condition,omitempty"`
+	Weight    int       `json:"weight"`
 	CreatedAt time.Time `json:"created_at"`
 }

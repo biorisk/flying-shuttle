@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/biorisk/flying-shuttle/internal/export"
 	"github.com/biorisk/flying-shuttle/internal/stitch"
@@ -48,6 +49,11 @@ func (h *exportHandler) downloadMarkdown(w http.ResponseWriter, r *http.Request)
 	}
 
 	glueLevel := 50
+	if v := r.URL.Query().Get("glue"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			glueLevel = n
+		}
+	}
 	result, err := export.GenerateMarkdown(h.store, h.stitcher, export.ExportRequest{
 		ThreadID:  threadID,
 		GlueLevel: glueLevel,

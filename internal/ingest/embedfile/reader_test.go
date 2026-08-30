@@ -24,10 +24,10 @@ func writeFembed(t *testing.T, path string, dims int, records []embedfile.Record
 
 	// Header
 	f.Write([]byte{0x46, 0x45, 0x4D, 0x42}) // magic "FEMB"
-	writeU16(f, 1)                           // version
+	writeU16(f, 1)                          // version
 	writeU16(f, uint16(dims))               // dims
 	writeU32(f, uint32(len(records)))       // record_count
-	f.Write(make([]byte, 4))                 // reserved
+	f.Write(make([]byte, 4))                // reserved
 
 	for _, rec := range records {
 		sf := []byte(rec.SourceFile)

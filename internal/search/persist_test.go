@@ -128,7 +128,7 @@ func TestHybridIndex_ConcurrentIndexSearchSnapshot(t *testing.T) {
 	done := make(chan struct{})
 	go func() { // writer
 		for i := 0; i < 500; i++ {
-			idx.IndexChunk(&model.Chunk{ID: string(rune('a' + i%26)) + "-" + itoa(i), Content: "term content here"})
+			idx.IndexChunk(&model.Chunk{ID: string(rune('a'+i%26)) + "-" + itoa(i), Content: "term content here"})
 		}
 		close(done)
 	}()

@@ -44,3 +44,17 @@ func TestStitchPreview_manuscript(t *testing.T) {
 		}
 	}
 }
+
+func TestStitchPreview_exportLink(t *testing.T) {
+	s, _ := store.NewSQLiteStore(":memory:")
+	s.Migrate()
+	t.Cleanup(func() { s.Close() })
+	r := chi.NewRouter()
+	web.Mount(r, web.Deps{Store: s})
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/app/stitch", nil))
+	body := rec.Body.String()
+	if !strings.Contains(body, "data-attr-href") || !strings.Contains(body, "/api/v1/export/markdown/download") {
+		t.Fatalf("export link missing: %s", body)
+	}
+}

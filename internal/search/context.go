@@ -5,8 +5,8 @@ import "context"
 // ContextCheck is the result of verifying a node's chunks against a parent context.
 type ContextCheck struct {
 	InContext bool    `json:"in_context"`
-	Score    float64 `json:"score"`             // 0–1 relevance of node chunks to parent
-	Message  string  `json:"message,omitempty"` // warning text when out of context
+	Score     float64 `json:"score"`             // 0–1 relevance of node chunks to parent
+	Message   string  `json:"message,omitempty"` // warning text when out of context
 }
 
 // ContextChecker verifies whether a node's evidence fits a parent's semantic context.
@@ -64,7 +64,7 @@ func (cc *ContextChecker) Check(ctx context.Context, parentTitle string, chunkID
 
 	check := &ContextCheck{
 		InContext: avgScore >= threshold,
-		Score:    avgScore,
+		Score:     avgScore,
 	}
 	if !check.InContext {
 		check.Message = "Out of Context"

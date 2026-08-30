@@ -57,10 +57,10 @@ func TestNodeCRUD(t *testing.T) {
 	s := newTestStore(t)
 
 	n := &model.Node{
-		ID:    uuid.NewString(),
-		Type:  model.NodeTypeOutline,
-		Title: "Chapter 1",
-		Body:  "Opening scene",
+		ID:     uuid.NewString(),
+		Type:   model.NodeTypeOutline,
+		Title:  "Chapter 1",
+		Body:   "Opening scene",
 		Labels: map[string]string{"act": "1"},
 	}
 	if err := s.CreateNode(n); err != nil {

@@ -9,9 +9,9 @@ import (
 
 // Issue represents a single graph integrity problem.
 type Issue struct {
-	Type    string `json:"type"`    // "cycle", "self_link", "dangling_edge", "orphan_thread_ref"
+	Type    string `json:"type"` // "cycle", "self_link", "dangling_edge", "orphan_thread_ref"
 	Message string `json:"message"`
-	ID      string `json:"id"`      // ID of the problematic entity
+	ID      string `json:"id"` // ID of the problematic entity
 }
 
 // Report is the result of a full graph validation.

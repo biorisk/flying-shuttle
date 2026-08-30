@@ -10,7 +10,7 @@ import (
 )
 
 type suggestHandler struct {
-	store     store.Store
+	store      store.Store
 	translator *search.QueryTranslator
 	clusterer  search.ChunkClusterer
 }
