@@ -10,6 +10,27 @@ Format: **[D]** = decision taken, **[Q]** = open question for review.
 
 ## Global
 
+### Task .5.4 — Visual diff + rescue
+
+- **[D]** `outline.Diff(curNodes, curEdges, baseNodes, baseEdges) DiffResult`
+  ports `computeDiff`: added / changed (title|body|locked) status map + `Ghost`s
+  for removed bullets, each anchored to its nearest still-existing baseline
+  ancestor (walks the baseline linear-edge parent chain). Unit-tested.
+- **[D]** `GET /app/outline?diff=<id>` — `id` resolves as snapshot first, then
+  branch. `outlineViewOpts` merges thread + diff. Ghost bullets are injected
+  into the tree under their anchor (or as roots); changed/added bullets get
+  `diff-changed` / `diff-added` classes (colored left border).
+- **[D]** Snapshot rows get a **Diff** button (`$diffAgainst = id; @get('/app/
+  outline?diff=id')`). Ghost rows render a **Rescue** button →
+  `POST /app/outline/rescue?diff=&node=` recreates the node (+ re-links to its
+  recorded parent) and re-renders the diffed outline.
+- **[Q]** No explicit "exit diff mode" button yet — switching thread or editing
+  re-fetches `#outline` without `?diff`, which clears it. A dedicated toggle
+  bound to `$diffAgainst` would be tidier; low priority.
+- **[Q]** Diff compares against the *stored* snapshot/branch DAG; it doesn't
+  diff two arbitrary branches against each other (the old `loadBranchForCompare`
+  did). Add later if needed.
+
 ### Task .5.5 — CYOA exit widget
 
 - **[D]** Per outline bullet: a `⎇` toggle sets `$exits['<id>']` and `@get`s

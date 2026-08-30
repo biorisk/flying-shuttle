@@ -59,6 +59,7 @@ func Mount(r chi.Router, d Deps) {
 		h.mountOutlineEdit(r)
 		h.mountThreads(r)
 		h.mountExits(r)
+		r.Post("/outline/rescue", h.outlineRescue)
 
 		r.Get("/snapshots", h.snapshotBar)
 		r.Post("/snapshots", h.snapshotCreate)
@@ -101,7 +102,10 @@ func (h *handlers) shell(w http.ResponseWriter, r *http.Request) {
 //
 //	GET /app/outline
 func (h *handlers) outline(w http.ResponseWriter, r *http.Request) {
-	ov, err := h.outlineViewFor(r.URL.Query().Get("thread"))
+	ov, err := h.outlineViewOpts(outlineOpts{
+		ThreadID:    r.URL.Query().Get("thread"),
+		DiffAgainst: r.URL.Query().Get("diff"),
+	})
 	if err != nil {
 		log.Printf("outline: %v", err)
 	}

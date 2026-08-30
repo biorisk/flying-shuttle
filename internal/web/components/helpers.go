@@ -83,3 +83,10 @@ func exitGlyph(t string) string {
 		return "→"
 	}
 }
+
+func orEmpty(s string) string {
+	if s == "" {
+		return "(untitled)"
+	}
+	return s
+}

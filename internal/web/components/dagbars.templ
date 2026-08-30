@@ -14,6 +14,7 @@ templ SnapshotBar(vm viewmodel.SnapshotBar) {
 					for _, s := range vm.Snapshots {
 						<li>
 							<span class="dag-menu-label" title={ s.Created }>{ orDash(s.Label) }</span>
+							<button type="button" data-on-click={ "$diffAgainst = '" + s.ID + "'; @get('/app/outline?diff=" + s.ID + "')" }>Diff</button>
 							<button type="button" data-on-click={ "@post('/app/snapshots/" + s.ID + "/restore')" }>Restore</button>
 							<button type="button" data-on-click={ "@delete('/app/snapshots/" + s.ID + "')" }>✕</button>
 						</li>

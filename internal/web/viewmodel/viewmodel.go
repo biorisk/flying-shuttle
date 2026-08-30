@@ -55,14 +55,17 @@ type OutlineNode struct {
 	Depth    int
 	Prev     string
 	Next     string
-	InThread bool // member of the currently-rendered thread
+	InThread bool   // member of the currently-rendered thread
+	Diff     string // "" | "added" | "changed" (diff mode)
+	Ghost    bool   // removed-since-baseline bullet, shown for Rescue
 	Children []OutlineNode
 }
 
 // Outline is the render model for the #outline fragment.
 type Outline struct {
-	Roots    []OutlineNode
-	ThreadID string // the thread this render is scoped to ("" = none)
+	Roots       []OutlineNode
+	ThreadID    string // the thread this render is scoped to ("" = none)
+	DiffAgainst string // snapshot/branch id being diffed against ("" = none)
 }
 
 // ThreadRow is one thread in the thread bar.

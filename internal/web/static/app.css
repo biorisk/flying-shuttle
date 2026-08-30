@@ -210,3 +210,10 @@ button:hover { border-color: var(--accent); }
 .exit-add { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
 .exit-add select, .exit-add input { font: inherit; font-size: 11px; background: var(--bg); border: 1px solid var(--edge); color: var(--text); border-radius: 4px; padding: 1px 3px; }
 .exit-empty { color: var(--text-dim); }
+
+/* --- diff --- */
+.bullet.diff-added > .bullet-row { box-shadow: inset 3px 0 0 #46a758; }
+.bullet.diff-changed > .bullet-row { box-shadow: inset 3px 0 0 #f5a623; }
+.bullet.ghost { opacity: .6; }
+.bullet.ghost .ghost-title { text-decoration: line-through; color: var(--text-dim); }
+.ghost-rescue { font-size: 11px; margin-left: 8px; border-color: var(--accent); }

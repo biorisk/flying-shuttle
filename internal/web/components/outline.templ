@@ -40,15 +40,28 @@ templ Outline(vm viewmodel.Outline) {
 }
 
 templ bullet(n viewmodel.OutlineNode) {
-	<li
-		id={ "bullet-" + n.ID }
-		class={ "bullet", templ.KV("locked", n.Locked), templ.KV("evidence", n.Evidence), templ.KV("in-thread", n.InThread) }
-		data-node-id={ n.ID }
-		data-prev-id={ n.Prev }
-		data-next-id={ n.Next }
-		data-depth={ intString(n.Depth) }
-	>
-		<div class="bullet-row" style={ "padding-left:" + intString(n.Depth*20) + "px" }>
+	if n.Ghost {
+		<li class="bullet ghost" style={ "padding-left:" + intString(n.Depth*20) + "px" }>
+			<div class="bullet-row">
+				<span class="bullet-dot" aria-hidden="true">&bull;</span>
+				<span class="ghost-title">{ orEmpty(n.Title) }</span>
+				<button
+					type="button"
+					class="ghost-rescue"
+					data-on-click={ "@post('/app/outline/rescue?diff=' + ($diffAgainst||'') + '&node=" + n.ID + "')" }
+				>Rescue</button>
+			</div>
+		</li>
+	} else {
+		<li
+			id={ "bullet-" + n.ID }
+			class={ "bullet", templ.KV("locked", n.Locked), templ.KV("evidence", n.Evidence), templ.KV("in-thread", n.InThread), templ.KV("diff-added", n.Diff == "added"), templ.KV("diff-changed", n.Diff == "changed") }
+			data-node-id={ n.ID }
+			data-prev-id={ n.Prev }
+			data-next-id={ n.Next }
+			data-depth={ intString(n.Depth) }
+		>
+			<div class="bullet-row" style={ "padding-left:" + intString(n.Depth*20) + "px" }>
 			if !n.Evidence {
 				<span class="drag-handle" draggable="true" title="Drag to move" aria-hidden="true">&#8942;</span>
 			}
@@ -115,12 +128,13 @@ templ bullet(n viewmodel.OutlineNode) {
 		if !n.Evidence {
 			<div id={ "exits-" + n.ID } class="bullet-exits" data-show={ "!!$exits['" + n.ID + "']" }></div>
 		}
-		if len(n.Children) > 0 {
-			<ul class="bullet-children" data-show={ "!$collapsed['" + n.ID + "']" }>
-				for _, c := range n.Children {
-					@bullet(c)
-				}
-			</ul>
-		}
-	</li>
+			if len(n.Children) > 0 {
+				<ul class="bullet-children" data-show={ "!$collapsed['" + n.ID + "']" }>
+					for _, c := range n.Children {
+						@bullet(c)
+					}
+				</ul>
+			}
+		</li>
+	}
 }
