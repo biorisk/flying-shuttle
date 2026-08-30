@@ -24,6 +24,7 @@ func (h *handlers) mountOutlineEdit(r chi.Router) {
 		r.Post("/child", h.outlineAddChild)
 		r.Post("/indent", h.outlineIndent)
 		r.Post("/unindent", h.outlineUnindent)
+		r.Post("/evidence", h.outlineAttachEvidence)
 	})
 }
 

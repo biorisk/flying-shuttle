@@ -10,6 +10,27 @@ Format: **[D]** = decision taken, **[Q]** = open question for review.
 
 ## Global
 
+### Task .3.7 — Attach-evidence endpoint
+
+- **[D]** `POST /app/outline/nodes/{id}/evidence` (form: `chunk_id`,
+  `char_start?`, `char_end?`, `text?`) → `outline.Service.AttachEvidence`:
+  creates a **locked `chunk_ref`** node (Title = 80-rune preview, Body = full
+  excerpt, `Labels["source_file"]`), attaches it as the last child of `{id}`
+  via `MoveNode`, and writes the `evidence` row. Degenerate/empty range →
+  whole chunk. Returns `#outline` patch + `MarshalAndPatchSignals({focusId:
+  parentID, readerChunk: ''})` — focus stays on the bullet you're editing, the
+  reader closes.
+- **[D]** `outline.Service` also gained `SetLocked(id, locked)` for the
+  unlock affordance (used by `.5.5`/later; not yet surfaced in the UI).
+- **[D]** The evidence bullet renders via the `.3.1` chunk_ref branch
+  (`<blockquote class="bullet-evidence">`), so it appears immediately in the
+  patched outline.
+- **[Q]** Attach isn't one transaction (CreateNode → MoveNode → CreateEvidence).
+  Same tradeoff as the other structural ops (`.1.5` decision). Worst case: an
+  orphan locked node with no evidence row. Acceptable for now.
+- Live-smoke: type bullet → upload transcript → attach chunk → locked evidence
+  sub-bullet appears. ✔
+
 ### Task .3.6 — Highlight-to-excerpt selection JS
 
 - **[D]** `internal/web/static/app.js` (vendored, `<script defer>` in Base) — the

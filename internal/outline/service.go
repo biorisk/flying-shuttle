@@ -217,3 +217,72 @@ func (s *Service) FocusAfterDelete(id string) (string, error) {
 	}
 	return "", nil
 }
+
+// AttachEvidence creates a locked chunk_ref sub-bullet under parentID holding
+// the given passage, and records the evidence row linking it to its source
+// chunk. When text is empty (or the range is degenerate) the whole chunk is
+// attached. Returns the new evidence bullet.
+func (s *Service) AttachEvidence(parentID, chunkID string, charStart, charEnd int, text string) (*model.Node, error) {
+	chunk, err := s.Store.GetChunk(chunkID)
+	if err != nil {
+		return nil, err
+	}
+	runes := []rune(chunk.Content)
+	if text == "" || charEnd <= charStart || charStart < 0 || charEnd > len(runes) {
+		charStart, charEnd, text = 0, len(runes), chunk.Content
+	}
+
+	_, parent, err := s.treeAndNode(parentID)
+	if err != nil {
+		return nil, err
+	}
+
+	node := &model.Node{
+		ID:     uuid.NewString(),
+		Type:   model.NodeTypeChunkRef,
+		Title:  previewText(text, 80),
+		Body:   text,
+		Locked: true,
+		Labels: map[string]string{"source_file": chunk.SourceFile},
+	}
+	if err := s.Store.CreateNode(node); err != nil {
+		return nil, err
+	}
+	if err := s.Store.MoveNode(node.ID, parentID, len(parent.Children)); err != nil {
+		return nil, err
+	}
+
+	if err := s.Store.CreateEvidence(&model.Evidence{
+		NodeID:     node.ID,
+		ChunkID:    chunkID,
+		SourceFile: chunk.SourceFile,
+		CharStart:  charStart,
+		CharEnd:    charEnd,
+		Text:       text,
+		Position:   0,
+	}); err != nil {
+		return nil, err
+	}
+	return node, nil
+}
+
+// SetLocked toggles a bullet's locked flag.
+func (s *Service) SetLocked(id string, locked bool) (*model.Node, error) {
+	n, err := s.Store.GetNode(id)
+	if err != nil {
+		return nil, err
+	}
+	n.Locked = locked
+	if err := s.Store.UpdateNode(n); err != nil {
+		return nil, err
+	}
+	return n, nil
+}
+
+func previewText(s string, max int) string {
+	r := []rune(s)
+	if len(r) <= max {
+		return s
+	}
+	return string(r[:max]) + "…"
+}
