@@ -14,12 +14,13 @@ type chunkHandler struct {
 }
 
 func (h *chunkHandler) list(w http.ResponseWriter, r *http.Request) {
-	chunks, err := h.store.ListChunks()
+	limit, offset := parsePage(r)
+	chunks, total, err := h.store.ListChunksPage(limit, offset)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, chunks)
+	writePage(w, http.StatusOK, chunks, total, limit, offset)
 }
 
 func (h *chunkHandler) create(w http.ResponseWriter, r *http.Request) {

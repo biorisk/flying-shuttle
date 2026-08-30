@@ -12,6 +12,14 @@
 *.db-shm
 *.db-wal
 
+# Search index snapshots (rebuilt from the DB)
+*.bm25
+*.hnsw
+
+# Python
+__pycache__/
+/python/.venv/
+
 # Uploaded audio files
 /uploads/
 

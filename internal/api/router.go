@@ -18,8 +18,10 @@ import (
 // NewRouter builds the chi router with all API routes.
 // If staticDir is non-empty and the directory exists, it serves the frontend
 // build from that path with SPA fallback (unknown paths return index.html).
-// hnswPath is the path used to persist the HNSW vector index; empty to disable.
-func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, chunker *ingest.Chunker, idx *search.HybridIndex, stitcher stitch.Stitcher, staticDir string, hnswPath string) http.Handler {
+// afterIngest, if non-nil, is called after new chunks are stored and indexed
+// (e.g. to nudge the embedding backfiller). It must not block.
+// clusterEmbedder backs the cluster-suggestion feature; it may be a stub.
+func NewRouter(s store.Store, uploadDir string, clusterEmbedder ingest.Embedder, idx *search.HybridIndex, stitcher stitch.Stitcher, staticDir string, afterIngest func()) http.Handler {
 	r := chi.NewRouter()
 
 	// Global middleware
@@ -37,9 +39,9 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, 
 	nh := &nodeHandler{store: s}
 	eh := &edgeHandler{store: s}
 	th := &threadHandler{store: s}
-	uh := &uploadHandler{store: s, uploadDir: uploadDir, transcribe: transcriber, chunker: chunker, index: idx}
+	uh := &uploadHandler{store: s, uploadDir: uploadDir, index: idx, afterIngest: afterIngest}
 	sh := &searchHandler{index: idx}
-	clusterer := &search.EmbeddingClusterer{Embedder: chunker.Embedder}
+	clusterer := &search.EmbeddingClusterer{Embedder: clusterEmbedder}
 	sgh := &suggestHandler{store: s, translator: &search.QueryTranslator{Index: idx}, clusterer: clusterer}
 	sth := &stitchHandler{store: s, stitcher: stitcher}
 	lh := &linearizeHandler{store: s, stitcher: stitcher}
@@ -47,7 +49,7 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, 
 	exh := &exportHandler{store: s, stitcher: stitcher}
 	snh := &snapshotHandler{store: s}
 	bh := &branchHandler{store: s}
-	ih := &ingestHandler{store: s, idx: idx, hnswPath: hnswPath}
+	ih := &ingestHandler{store: s, idx: idx}
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(jsonContent)
@@ -71,7 +73,7 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, 
 				r.Put("/chunks", nh.setChunks)
 				r.Get("/edges", nh.getEdges)
 				r.Post("/move", nh.move)
-			r.Post("/check-context", cxh.checkContext)
+				r.Post("/check-context", cxh.checkContext)
 				r.Get("/suggest", sgh.suggest)
 				r.Get("/suggest-clusters", sgh.suggestClusters)
 			})
@@ -96,7 +98,7 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, 
 				r.Get("/nodes", th.getNodes)
 				r.Put("/nodes", th.setNodes)
 				r.Get("/render", th.render)
-			r.Get("/linearize", lh.linearizeThread)
+				r.Get("/linearize", lh.linearizeThread)
 			})
 		})
 
@@ -104,6 +106,7 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, 
 		r.Route("/uploads", func(r chi.Router) {
 			r.Get("/", uh.list)
 			r.Post("/", uh.create)
+			r.Post("/process", uh.process)
 			r.Route("/{id}", func(r chi.Router) {
 				r.Get("/", uh.get)
 				r.Get("/segments", uh.listSegments)
@@ -116,9 +119,9 @@ func NewRouter(s store.Store, uploadDir string, transcriber ingest.Transcriber, 
 
 		// Ingest (pre-computed embeddings from Python pipeline)
 		r.Route("/ingest", func(r chi.Router) {
-			r.Post("/embed-file", ih.importEmbedFile)           // binary .fembed
+			r.Post("/embed-file", ih.importEmbedFile)              // binary .fembed
 			r.Post("/embed-file-legacy", ih.importLegacyEmbedFile) // TSV .embed
-			r.Post("/directory", ih.importDirectory)            // dir of *.fembed
+			r.Post("/directory", ih.importDirectory)               // dir of *.fembed
 			r.Post("/directory-legacy", ih.importLegacyDirectory)  // dir of *.embed
 		})
 

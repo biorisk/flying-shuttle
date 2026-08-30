@@ -1,8 +1,13 @@
 package search
 
 import (
+	"bufio"
 	"context"
+	"io"
+	"os"
+	"path/filepath"
 	"sort"
+	"sync/atomic"
 
 	"github.com/biorisk/flying-shuttle/internal/ingest"
 	"github.com/biorisk/flying-shuttle/internal/model"
@@ -28,7 +33,21 @@ type HybridIndex struct {
 	// RRFk is the RRF constant (default 60). Higher values give more
 	// weight to lower-ranked results.
 	RRFk float64
+
+	// dirty is set whenever the in-memory index diverges from its last
+	// on-disk snapshot. The Snapshotter clears it after a successful flush.
+	dirty atomic.Bool
 }
+
+// MarkDirty flags the index as having unsaved changes.
+func (h *HybridIndex) MarkDirty() { h.dirty.Store(true) }
+
+// Dirty reports whether the index has changed since the last snapshot.
+func (h *HybridIndex) Dirty() bool { return h.dirty.Load() }
+
+// ClearDirty resets the dirty flag. Call it immediately before a flush so
+// concurrent writes during the flush re-mark the index dirty.
+func (h *HybridIndex) ClearDirty() { h.dirty.Store(false) }
 
 // NewHybridIndex creates an empty hybrid index. Pass a nil embedder to enable
 // BM25-only mode (vector search is skipped at query time).
@@ -43,12 +62,8 @@ func NewHybridIndex(embedder ingest.Embedder) *HybridIndex {
 
 // IndexChunks populates both BM25 and vector indexes from a slice of chunks.
 func (h *HybridIndex) IndexChunks(chunks []model.Chunk) {
-	for _, c := range chunks {
-		h.BM25.Add(c.ID, c.Content)
-		if len(c.EmbeddingVec) > 0 {
-			vec := ingest.BytesToFloat32s(c.EmbeddingVec)
-			h.Vector.Add(c.ID, vec)
-		}
+	for i := range chunks {
+		h.IndexChunk(&chunks[i])
 	}
 }
 
@@ -59,6 +74,13 @@ func (h *HybridIndex) IndexChunk(c *model.Chunk) {
 		vec := ingest.BytesToFloat32s(c.EmbeddingVec)
 		h.Vector.Add(c.ID, vec)
 	}
+	h.dirty.Store(true)
+}
+
+// SetChunkVector adds or replaces a chunk's embedding in the vector index.
+func (h *HybridIndex) SetChunkVector(id string, vec []float32) {
+	h.Vector.Add(id, vec)
+	h.dirty.Store(true)
 }
 
 // Search performs hybrid retrieval: BM25 keyword search fused with vector
@@ -75,10 +97,15 @@ func (h *HybridIndex) Search(ctx context.Context, query string, limit int) ([]Re
 	bm25Results := h.BM25.Search(query, candidateLimit)
 
 	var vecResults []Result
-	if h.Embedder != nil {
+	if h.Embedder != nil && h.Vector.Len() > 0 {
 		qVec, err := h.Embedder.Embed(ctx, query)
 		if err != nil {
-			return nil, err
+			// Embedder unavailable (e.g. still warming up) — degrade to
+			// BM25-only rather than failing the whole query.
+			if limit > 0 && len(bm25Results) > limit {
+				return bm25Results[:limit], nil
+			}
+			return bm25Results, nil
 		}
 		vecResults = h.Vector.Search(qVec, candidateLimit)
 	}
@@ -89,6 +116,78 @@ func (h *HybridIndex) Search(ctx context.Context, query string, limit int) ([]Re
 		fused = fused[:limit]
 	}
 	return fused, nil
+}
+
+// LoadBM25 restores the BM25 index from a snapshot file. A missing file is
+// not an error — the index is simply left empty for the caller to rebuild.
+func (h *HybridIndex) LoadBM25(path string) (bool, error) {
+	f, err := os.Open(path)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+	if err := h.BM25.Load(bufio.NewReader(f)); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// LoadVector restores the HNSW vector index from a snapshot file. A missing
+// file is not an error.
+func (h *HybridIndex) LoadVector(path string) (bool, error) {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return false, nil
+	}
+	if err := h.Vector.Load(path); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// SnapshotBM25 atomically writes the BM25 index to path.
+func (h *HybridIndex) SnapshotBM25(path string) error {
+	return atomicWrite(path, h.BM25.Save)
+}
+
+// SnapshotVector atomically writes the HNSW vector index to path.
+func (h *HybridIndex) SnapshotVector(path string) error {
+	return atomicWrite(path, h.Vector.Export)
+}
+
+// atomicWrite writes via a temp file in the same directory, then renames it
+// over path so readers never see a half-written index.
+func atomicWrite(path string, encode func(io.Writer) error) (err error) {
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*.tmp")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer func() {
+		if err != nil {
+			os.Remove(tmpName)
+		}
+	}()
+
+	bw := bufio.NewWriter(tmp)
+	if err = encode(bw); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err = bw.Flush(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err = tmp.Sync(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err = tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmpName, path)
 }
 
 func (h *HybridIndex) rrfk() float64 {

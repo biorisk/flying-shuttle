@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/biorisk/flying-shuttle/internal/model"
@@ -121,6 +122,169 @@ func (s *SQLiteStore) ListChunks() ([]model.Chunk, error) {
 		out = append(out, *c)
 	}
 	return out, rows.Err()
+}
+
+// ListChunksPage returns a page of chunks ordered by creation time, plus the
+// total number of chunks in the store (so callers can render "N of M").
+// A limit <= 0 means "no limit" (return everything from offset onward).
+func (s *SQLiteStore) ListChunksPage(limit, offset int) ([]model.Chunk, int, error) {
+	var total int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM chunks`).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	q := `SELECT id, source_file, content, start_offset, end_offset, speaker, embedding_vec, created_at FROM chunks ORDER BY created_at LIMIT ? OFFSET ?`
+	lim := limit
+	if lim <= 0 {
+		lim = -1 // SQLite: negative LIMIT means no upper bound
+	}
+	rows, err := s.db.Query(q, lim, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	var out []model.Chunk
+	for rows.Next() {
+		c, err := scanChunkRows(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		out = append(out, *c)
+	}
+	return out, total, rows.Err()
+}
+
+// ListChunkIDs returns just the IDs of every chunk, cheaply (no content).
+// Used to reconcile the search index against the store on startup.
+func (s *SQLiteStore) ListChunkIDs() ([]string, error) {
+	rows, err := s.db.Query(`SELECT id FROM chunks`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+// ListChunkIDsWithEmbedding returns the IDs of chunks that have an embedding
+// vector stored, cheaply (no content or vector data).
+func (s *SQLiteStore) ListChunkIDsWithEmbedding() ([]string, error) {
+	rows, err := s.db.Query(`SELECT id FROM chunks WHERE embedding_vec IS NOT NULL AND length(embedding_vec) > 0`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+// GetChunksByIDs returns the chunks with the given IDs, in no particular order.
+func (s *SQLiteStore) GetChunksByIDs(ids []string) ([]model.Chunk, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	out := make([]model.Chunk, 0, len(ids))
+	const batch = 500 // keep well under SQLite's parameter limit
+	for start := 0; start < len(ids); start += batch {
+		end := start + batch
+		if end > len(ids) {
+			end = len(ids)
+		}
+		chunk := ids[start:end]
+		ph := make([]string, len(chunk))
+		args := make([]any, len(chunk))
+		for i, id := range chunk {
+			ph[i] = "?"
+			args[i] = id
+		}
+		q := `SELECT id, source_file, content, start_offset, end_offset, speaker, embedding_vec, created_at
+		      FROM chunks WHERE id IN (` + strings.Join(ph, ",") + `)`
+		rows, err := s.db.Query(q, args...)
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			c, err := scanChunkRows(rows)
+			if err != nil {
+				rows.Close()
+				return nil, err
+			}
+			out = append(out, *c)
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		rows.Close()
+	}
+	return out, nil
+}
+
+// ListChunksMissingEmbedding returns up to limit chunks that have no embedding
+// vector yet, oldest first. limit <= 0 returns all of them.
+func (s *SQLiteStore) ListChunksMissingEmbedding(limit int) ([]model.Chunk, error) {
+	q := `SELECT id, source_file, content, start_offset, end_offset, speaker, embedding_vec, created_at
+	      FROM chunks
+	      WHERE embedding_vec IS NULL OR length(embedding_vec) = 0
+	      ORDER BY created_at`
+	var args []any
+	if limit > 0 {
+		q += ` LIMIT ?`
+		args = append(args, limit)
+	}
+	rows, err := s.db.Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []model.Chunk
+	for rows.Next() {
+		c, err := scanChunkRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *c)
+	}
+	return out, rows.Err()
+}
+
+// CountChunksMissingEmbedding returns how many chunks still lack an embedding.
+func (s *SQLiteStore) CountChunksMissingEmbedding() (int, error) {
+	var n int
+	err := s.db.QueryRow(
+		`SELECT count(*) FROM chunks WHERE embedding_vec IS NULL OR length(embedding_vec) = 0`,
+	).Scan(&n)
+	return n, err
+}
+
+// SetChunkEmbedding attaches (or replaces) a chunk's embedding vector. Chunk
+// content is immutable; the embedding is derived metadata filled in
+// asynchronously once an embedder is available.
+func (s *SQLiteStore) SetChunkEmbedding(id string, vec []byte) error {
+	res, err := s.db.Exec(`UPDATE chunks SET embedding_vec = ? WHERE id = ?`, vec, id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return fmt.Errorf("chunk %s: %w", id, ErrNotFound)
+	}
+	return nil
 }
 
 // --- Nodes ---
@@ -613,6 +777,38 @@ func (s *SQLiteStore) ListUploads() ([]model.Upload, error) {
 		out = append(out, *u)
 	}
 	return out, rows.Err()
+}
+
+// ListUploadsPage returns a page of uploads (newest first) plus the total
+// upload count. A limit <= 0 means "no limit".
+func (s *SQLiteStore) ListUploadsPage(limit, offset int) ([]model.Upload, int, error) {
+	var total int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM uploads`).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	lim := limit
+	if lim <= 0 {
+		lim = -1
+	}
+	rows, err := s.db.Query(
+		`SELECT id, filename, format, size_bytes, status, error, created_at, updated_at FROM uploads ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+		lim, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	var out []model.Upload
+	for rows.Next() {
+		u, err := scanUpload(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		out = append(out, *u)
+	}
+	return out, total, rows.Err()
 }
 
 func (s *SQLiteStore) UpdateUploadStatus(id string, status model.UploadStatus, errMsg string) error {

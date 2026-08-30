@@ -1,0 +1,5 @@
+# Embedding pipeline (Apple Silicon / MLX).
+# The model itself is downloaded separately into
+# python/Qwen3-Embedding-4B-4bit-DWQ (see embed.py MODEL_PATH).
+mlx-lm>=0.19
+numpy>=1.26

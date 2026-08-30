@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { chunks as chunksApi } from "../services/api";
 import type { Chunk } from "../types/model";
@@ -98,35 +98,64 @@ function DraggableSegment({
   );
 }
 
+// The ribbon renders one draggable DOM node per chunk; loading thousands at once
+// makes drag interactions janky, so we page and let the user pull more.
+const RIBBON_PAGE = 200;
+
+function sortChunks(list: Chunk[]): Chunk[] {
+  return [...list].sort((a, b) => {
+    if (a.source_file !== b.source_file)
+      return a.source_file.localeCompare(b.source_file);
+    return a.start_offset - b.start_offset;
+  });
+}
+
 export default function AudioRibbon() {
   const [chunks, setChunks] = useState<Chunk[]>([]);
-  const [segments, setSegments] = useState<RibbonSegment[]>([]);
+  const [total, setTotal] = useState(0);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     chunksApi
-      .list()
-      .then((allChunks) => {
-        // Sort by source file then offset for sequential display.
-        const sorted = allChunks.sort((a, b) => {
-          if (a.source_file !== b.source_file) return a.source_file.localeCompare(b.source_file);
-          return a.start_offset - b.start_offset;
-        });
-        setChunks(sorted);
-
-        // Build clusters.
-        const numClusters = Math.min(8, Math.max(2, Math.ceil(sorted.length / 3)));
-        const centroids = buildCentroids(sorted, numClusters);
-        const segs = sorted.map((chunk) => {
-          const clusterIdx = assignCluster(chunk, centroids);
-          return { chunk, clusterIdx, color: clusterColor(clusterIdx) };
-        });
-        setSegments(segs);
+      .list({ limit: RIBBON_PAGE, offset: 0 })
+      .then((page) => {
+        if (cancelled) return;
+        setChunks(sortChunks(page.items));
+        setTotal(page.total);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  const loadMore = useCallback(() => {
+    setLoadingMore(true);
+    chunksApi
+      .list({ limit: RIBBON_PAGE, offset: chunks.length })
+      .then((page) => {
+        setChunks((prev) => sortChunks([...prev, ...page.items]));
+        setTotal(page.total);
+      })
+      .finally(() => setLoadingMore(false));
+  }, [chunks.length]);
+
+  // Derive cluster segments from whatever is currently loaded.
+  const segments = useMemo<RibbonSegment[]>(() => {
+    if (chunks.length === 0) return [];
+    const numClusters = Math.min(8, Math.max(2, Math.ceil(chunks.length / 3)));
+    const centroids = buildCentroids(chunks, numClusters);
+    return chunks.map((chunk) => {
+      const clusterIdx = assignCluster(chunk, centroids);
+      return { chunk, clusterIdx, color: clusterColor(clusterIdx) };
+    });
+  }, [chunks]);
 
   const handleSegmentClick = useCallback((idx: number) => {
     setSelectedIdx(idx);
@@ -135,9 +164,17 @@ export default function AudioRibbon() {
   if (loading) return <p className="pane-placeholder">Loading ribbon...</p>;
   if (chunks.length === 0) return null;
 
+  const hasMore = chunks.length < total;
+
   return (
     <div className="audio-ribbon">
-      <h4 className="section-heading">Audio Ribbon</h4>
+      <h4 className="section-heading">
+        Audio Ribbon
+        <span className="section-count">
+          {chunks.length}
+          {total > chunks.length ? ` / ${total}` : ""}
+        </span>
+      </h4>
       <div className="ribbon-container">
         <div className="ribbon-bar">
           {segments.map((seg, i) => (
@@ -176,6 +213,17 @@ export default function AudioRibbon() {
             <p className="ribbon-hint">Click a ribbon segment to view its content</p>
           )}
         </div>
+        {hasMore && (
+          <button
+            className="ribbon-load-more"
+            onClick={loadMore}
+            disabled={loadingMore}
+          >
+            {loadingMore
+              ? "Loading…"
+              : `Load ${Math.min(RIBBON_PAGE, total - chunks.length)} more`}
+          </button>
+        )}
       </div>
     </div>
   );

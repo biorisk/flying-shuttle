@@ -7,11 +7,21 @@ type Store interface {
 	Migrate() error
 	Close() error
 
-	// Chunks (immutable — no Update or Delete)
+	// Chunks (content is immutable; the embedding vector is derived metadata
+	// and may be filled in later via SetChunkEmbedding)
 	CreateChunk(c *model.Chunk) error
 	CreateChunks(chunks []model.Chunk) error // batch insert in a single transaction
 	GetChunk(id string) (*model.Chunk, error)
 	ListChunks() ([]model.Chunk, error)
+	// ListChunksPage returns a page (ordered by created_at) plus the total count.
+	// limit <= 0 means unlimited.
+	ListChunksPage(limit, offset int) ([]model.Chunk, int, error)
+	ListChunkIDs() ([]string, error)
+	ListChunkIDsWithEmbedding() ([]string, error)
+	GetChunksByIDs(ids []string) ([]model.Chunk, error)
+	ListChunksMissingEmbedding(limit int) ([]model.Chunk, error)
+	CountChunksMissingEmbedding() (int, error)
+	SetChunkEmbedding(id string, vec []byte) error
 
 	// Nodes
 	CreateNode(n *model.Node) error
@@ -51,6 +61,9 @@ type Store interface {
 	CreateUpload(u *model.Upload) error
 	GetUpload(id string) (*model.Upload, error)
 	ListUploads() ([]model.Upload, error)
+	// ListUploadsPage returns a page (newest first) plus the total count.
+	// limit <= 0 means unlimited.
+	ListUploadsPage(limit, offset int) ([]model.Upload, int, error)
 	UpdateUploadStatus(id string, status model.UploadStatus, errMsg string) error
 
 	// Transcript segments

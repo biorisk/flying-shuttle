@@ -1,7 +1,7 @@
 package api
 
 import (
-	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,21 +18,21 @@ import (
 )
 
 type uploadHandler struct {
-	store      store.Store
-	uploadDir  string
-	transcribe ingest.Transcriber
-	chunker    *ingest.Chunker
-	index      *search.HybridIndex
+	store       store.Store
+	uploadDir   string
+	index       *search.HybridIndex
+	afterIngest func() // optional; nudges the embedding backfiller
 }
 
-// list returns all uploads.
+// list returns a page of uploads (newest first) with pagination metadata.
 func (h *uploadHandler) list(w http.ResponseWriter, r *http.Request) {
-	uploads, err := h.store.ListUploads()
+	limit, offset := parsePage(r)
+	uploads, total, err := h.store.ListUploadsPage(limit, offset)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, uploads)
+	writePage(w, http.StatusOK, uploads, total, limit, offset)
 }
 
 // get returns a single upload by ID.
@@ -46,7 +46,8 @@ func (h *uploadHandler) get(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, u)
 }
 
-// create handles multipart file upload.
+// create handles multipart upload of a plain-text transcript. Audio is no
+// longer supported — only .txt/.md/.markdown/.text files are accepted.
 func (h *uploadHandler) create(w http.ResponseWriter, r *http.Request) {
 	// 100 MB max
 	const maxUpload = 100 << 20
@@ -60,9 +61,8 @@ func (h *uploadHandler) create(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 
 	ext := strings.ToLower(filepath.Ext(header.Filename))
-	allowed := map[string]bool{".mp3": true, ".wav": true, ".m4a": true, ".ogg": true, ".flac": true, ".webm": true}
-	if !allowed[ext] {
-		writeError(w, http.StatusBadRequest, fmt.Sprintf("unsupported format: %s", ext))
+	if !ingest.IsTextTranscript(ext) {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("unsupported format: %s (transcripts only: .txt, .md, .markdown, .text)", ext))
 		return
 	}
 
@@ -97,55 +97,124 @@ func (h *uploadHandler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Kick off transcription in background.
-	go h.transcribeAsync(id, destPath)
+	// With ?defer=1 (batch uploads) the file is only persisted here; the
+	// caller starts processing via POST /uploads/process once every file in
+	// the batch is on disk. Otherwise processing begins immediately.
+	if r.FormValue("defer") == "" {
+		h.startProcessing(u)
+	}
 
 	writeJSON(w, http.StatusCreated, u)
 }
 
-// transcribeAsync runs transcription and stores segments.
-func (h *uploadHandler) transcribeAsync(uploadID, filePath string) {
+// diskPath returns the on-disk location of an upload's file.
+func (h *uploadHandler) diskPath(u *model.Upload) string {
+	return filepath.Join(h.uploadDir, u.ID+"."+u.Format)
+}
+
+// startProcessing kicks off transcript ingestion for an upload in the
+// background.
+func (h *uploadHandler) startProcessing(u *model.Upload) {
+	go h.ingestTranscriptAsync(u.ID, h.diskPath(u), u.Filename)
+}
+
+// process starts processing for a batch of already-uploaded files. Body:
+// {"ids": [...]}; an empty or omitted list processes every pending upload.
+// Only uploads still in the "pending" state are started, so repeated calls
+// are safe.
+func (h *uploadHandler) process(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		IDs []string `json:"ids"`
+	}
+	if r.ContentLength != 0 {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+			return
+		}
+	}
+
+	ids := req.IDs
+	if len(ids) == 0 {
+		all, err := h.store.ListUploads()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		for _, u := range all {
+			if u.Status == model.UploadStatusPending {
+				ids = append(ids, u.ID)
+			}
+		}
+	}
+
+	started := 0
+	for _, id := range ids {
+		u, err := h.store.GetUpload(id)
+		if err != nil || u.Status != model.UploadStatusPending {
+			continue
+		}
+		h.startProcessing(u)
+		started++
+	}
+
+	writeJSON(w, http.StatusOK, map[string]int{"started": started})
+}
+
+// ingestTranscriptAsync ingests an already-written plain-text transcript:
+// it parses the file into segments, chunks them, and indexes the chunks.
+func (h *uploadHandler) ingestTranscriptAsync(uploadID, filePath, sourceName string) {
 	_ = h.store.UpdateUploadStatus(uploadID, model.UploadStatusTranscribing, "")
 
-	ctx := context.Background()
-	result, err := h.transcribe.Transcribe(ctx, filePath)
+	raw, err := os.ReadFile(filePath)
 	if err != nil {
-		_ = h.store.UpdateUploadStatus(uploadID, model.UploadStatusFailed, err.Error())
+		_ = h.store.UpdateUploadStatus(uploadID, model.UploadStatusFailed, "read transcript: "+err.Error())
 		return
 	}
 
-	for i := range result.Segments {
-		seg := &result.Segments[i]
+	segments := ingest.ParseTranscript(string(raw))
+	if len(segments) == 0 {
+		_ = h.store.UpdateUploadStatus(uploadID, model.UploadStatusFailed, "transcript is empty")
+		return
+	}
+
+	for i := range segments {
+		seg := &segments[i]
 		seg.ID = uuid.NewString()
 		seg.UploadID = uploadID
 		if err := h.store.CreateTranscriptSegment(seg); err != nil {
-			_ = h.store.UpdateUploadStatus(uploadID, model.UploadStatusFailed, err.Error())
+			_ = h.store.UpdateUploadStatus(uploadID, model.UploadStatusFailed, "store segment: "+err.Error())
 			return
 		}
 	}
 
-	// Run semantic chunking on the stored segments.
-	if h.chunker != nil && len(result.Segments) > 0 {
-		chunks, err := h.chunker.ChunkSegments(ctx, filePath, result.Segments)
-		if err != nil {
-			_ = h.store.UpdateUploadStatus(uploadID, model.UploadStatusFailed, "chunking: "+err.Error())
-			return
-		}
-		for i := range chunks {
-			if err := h.store.CreateChunk(&chunks[i]); err != nil {
-				_ = h.store.UpdateUploadStatus(uploadID, model.UploadStatusFailed, "store chunk: "+err.Error())
-				return
-			}
-			if h.index != nil {
-				h.index.IndexChunk(&chunks[i])
-			}
-		}
+	chunks := ingest.ChunkTranscript(sourceName, segments)
+	if err := h.storeAndIndexChunks(chunks); err != nil {
+		_ = h.store.UpdateUploadStatus(uploadID, model.UploadStatusFailed, err.Error())
+		return
 	}
 
 	_ = h.store.UpdateUploadStatus(uploadID, model.UploadStatusDone, "")
 }
 
-// rechunk triggers semantic chunking for an upload's transcript segments.
+// storeAndIndexChunks persists chunks, adds them to the search index, and
+// nudges the embedding backfiller.
+func (h *uploadHandler) storeAndIndexChunks(chunks []model.Chunk) error {
+	for i := range chunks {
+		if err := h.store.CreateChunk(&chunks[i]); err != nil {
+			return fmt.Errorf("store chunk: %w", err)
+		}
+		if h.index != nil {
+			h.index.IndexChunk(&chunks[i])
+		}
+	}
+	if len(chunks) > 0 && h.afterIngest != nil {
+		h.afterIngest()
+	}
+	return nil
+}
+
+// rechunk re-runs transcript chunking for an upload's stored segments and
+// indexes the resulting chunks.
 func (h *uploadHandler) rechunk(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	u, err := h.store.GetUpload(id)
@@ -164,20 +233,10 @@ func (h *uploadHandler) rechunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chunks, err := h.chunker.ChunkSegments(r.Context(), u.Filename, segs)
-	if err != nil {
+	chunks := ingest.ChunkTranscript(u.Filename, segs)
+	if err := h.storeAndIndexChunks(chunks); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
-	}
-
-	for i := range chunks {
-		if err := h.store.CreateChunk(&chunks[i]); err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		if h.index != nil {
-			h.index.IndexChunk(&chunks[i])
-		}
 	}
 
 	writeJSON(w, http.StatusCreated, chunks)

@@ -1,24 +1,23 @@
 import { useCallback, useEffect, useState } from "react";
 import { useOutlineStore } from "../stores/outlineStore";
 import { useGhostStore } from "../stores/ghostStore";
+import type { GhostProposal } from "../types/ghost";
 import { edges as edgesApi } from "../services/api";
-import { shallow } from "zustand/shallow";
 
 interface ExitWidgetProps {
   nodeId: string;
   depth: number;
 }
 
+// Stable reference so the zustand selector doesn't return a fresh array
+// every render (which would trigger an infinite update loop).
+const EMPTY_PROPOSALS: GhostProposal[] = [];
+
 export default function ExitWidget({ nodeId, depth }: ExitWidgetProps) {
-  const { allEdges, allNodes, fetchOutline } = useOutlineStore(
-    (s) => ({
-      allEdges: s.allEdges,
-      allNodes: s.allNodes,
-      fetchOutline: s.fetchOutline,
-    }),
-    shallow
-  );
-  const proposals = useGhostStore((s) => s.proposals[nodeId] ?? []);
+  const allEdges = useOutlineStore((s) => s.allEdges);
+  const allNodes = useOutlineStore((s) => s.allNodes);
+  const fetchOutline = useOutlineStore((s) => s.fetchOutline);
+  const proposals = useGhostStore((s) => s.proposals[nodeId] ?? EMPTY_PROPOSALS);
 
   const [adding, setAdding] = useState(false);
   const [exitType, setExitType] = useState<"linear" | "branch">("linear");

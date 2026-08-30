@@ -94,6 +94,29 @@ export function flattenTree(
   return result;
 }
 
+// patchTreeNode returns a new tree with the matching node's `.node` replaced by
+// fn(node). Unchanged branches keep their identity so React can skip them.
+function patchTreeNode(
+  tree: TreeNode[],
+  id: string,
+  fn: (n: Node) => Node
+): TreeNode[] {
+  let changed = false;
+  const next = tree.map((tn) => {
+    if (tn.node.id === id) {
+      changed = true;
+      return { ...tn, node: fn(tn.node) };
+    }
+    const kids = patchTreeNode(tn.children, id, fn);
+    if (kids !== tn.children) {
+      changed = true;
+      return { ...tn, children: kids };
+    }
+    return tn;
+  });
+  return changed ? next : tree;
+}
+
 function findInTree(tree: TreeNode[], id: string): TreeNode | null {
   for (const tn of tree) {
     if (tn.node.id === id) return tn;
@@ -322,23 +345,46 @@ export const useOutlineStore = create<OutlineState>((set, get) => ({
 
   updateTitle: async (nodeId: string, title: string) => {
     const node = get().allNodes.find((n) => n.id === nodeId);
-    if (!node) return;
+    if (!node || node.title === title) return;
+
+    // Optimistic: patch local state, then persist without a full refetch.
+    set((s) => ({
+      allNodes: s.allNodes.map((n) => (n.id === nodeId ? { ...n, title } : n)),
+      tree: patchTreeNode(s.tree, nodeId, (n) => ({ ...n, title })),
+    }));
+
     try {
-      await nodesApi.update(nodeId, { ...node, title });
-      await get().fetchOutline();
+      const updated = await nodesApi.update(nodeId, { ...node, title });
+      // Reconcile server-assigned fields (version bump, updated_at).
+      set((s) => ({
+        allNodes: s.allNodes.map((n) => (n.id === nodeId ? updated : n)),
+        tree: patchTreeNode(s.tree, nodeId, () => updated),
+      }));
     } catch (e) {
       set({ error: (e as Error).message });
+      await get().fetchOutline(); // roll back to server truth
     }
   },
 
   toggleLock: async (nodeId: string) => {
     const node = get().allNodes.find((n) => n.id === nodeId);
     if (!node) return;
+    const locked = !node.locked;
+
+    set((s) => ({
+      allNodes: s.allNodes.map((n) => (n.id === nodeId ? { ...n, locked } : n)),
+      tree: patchTreeNode(s.tree, nodeId, (n) => ({ ...n, locked })),
+    }));
+
     try {
-      await nodesApi.update(nodeId, { ...node, locked: !node.locked });
-      await get().fetchOutline();
+      const updated = await nodesApi.update(nodeId, { ...node, locked });
+      set((s) => ({
+        allNodes: s.allNodes.map((n) => (n.id === nodeId ? updated : n)),
+        tree: patchTreeNode(s.tree, nodeId, () => updated),
+      }));
     } catch (e) {
       set({ error: (e as Error).message });
+      await get().fetchOutline();
     }
   },
 

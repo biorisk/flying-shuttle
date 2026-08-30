@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"path/filepath"
 
@@ -17,9 +16,8 @@ import (
 )
 
 type ingestHandler struct {
-	store    store.Store
-	idx      *search.HybridIndex
-	hnswPath string // path for HNSW persistence; empty to skip saving
+	store store.Store
+	idx   *search.HybridIndex
 }
 
 // POST /api/v1/ingest/embed-file
@@ -150,13 +148,8 @@ func (h *ingestHandler) importStream(s embedfile.Streamer, path string) (int, er
 		return 0, fmt.Errorf("store chunks from %q: %w", path, err)
 	}
 
+	// IndexChunks marks the index dirty; the Snapshotter persists it.
 	h.idx.IndexChunks(chunks)
-
-	if h.hnswPath != "" {
-		if err := h.idx.Vector.Save(h.hnswPath); err != nil {
-			log.Printf("warning: failed to save HNSW index to %s: %v", h.hnswPath, err)
-		}
-	}
 
 	return len(chunks), nil
 }
