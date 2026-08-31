@@ -68,6 +68,14 @@ type Outline struct {
 	DiffAgainst string // snapshot/branch id being diffed against ("" = none)
 }
 
+// ProjectBar is the render model for the #project-bar picker.
+type ProjectBar struct {
+	Current   string
+	Names     []string
+	CanSwitch bool
+	Switching string // non-empty while a switch is in progress
+}
+
 // ThreadRow is one thread in the thread bar.
 type ThreadRow struct {
 	ID   string

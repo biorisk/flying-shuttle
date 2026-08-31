@@ -1,0 +1,40 @@
+package components
+
+import "github.com/biorisk/flying-shuttle/internal/web/viewmodel"
+
+// ProjectBar is the top-left project picker. Switching a project restarts the
+// server (see main.go), so the fragment shows a "switching…" state and the
+// page reloads once it's back.
+templ ProjectBar(vm viewmodel.ProjectBar) {
+	<span id="project-bar" class="project-bar">
+		if vm.Switching != "" {
+			<span class="project-switching">Switching to { vm.Switching }…</span>
+		} else if vm.CanSwitch {
+			<select
+				class="project-select"
+				data-on:change="@post('/project/switch?name=' + encodeURIComponent(evt.target.value))"
+			>
+				for _, n := range vm.Names {
+					if n == vm.Current {
+						<option value={ n } selected>{ n }</option>
+					} else {
+						<option value={ n }>{ n }</option>
+					}
+				}
+			</select>
+			<details class="dag-menu project-new">
+				<summary>+</summary>
+				<ul>
+					<li>
+						<form data-on:submit__prevent="@post('/project/new', {contentType:'form'})">
+							<input name="name" placeholder="new project…" autocomplete="off" pattern="[a-z0-9][a-z0-9_-]*"/>
+							<button type="submit">create</button>
+						</form>
+					</li>
+				</ul>
+			</details>
+		} else {
+			<span class="project-name">{ orDash(vm.Current) }</span>
+		}
+	</span>
+}

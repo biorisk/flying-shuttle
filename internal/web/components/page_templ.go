@@ -34,6 +34,7 @@ type PageContent struct {
 	Evidence    templ.Component
 	Ingest      templ.Component
 	Preview     templ.Component
+	ProjectBar  templ.Component
 	ThreadBar   templ.Component
 	SnapshotBar templ.Component
 	BranchBar   templ.Component
@@ -87,7 +88,22 @@ func Page(c PageContent) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</aside><main class=\"center\"><nav class=\"topbar\"><button type=\"button\" class=\"icon-btn drawer-toggle\" data-show=\"!$drawerOpen\" data-on:click=\"$drawerOpen = true\" title=\"Load transcripts\">&#9776;</button> <span class=\"view-tabs\"><button type=\"button\" data-class=\"{ active: $centerView === 'outline' }\" data-on:click=\"$centerView = 'outline'\">Outline</button> <button type=\"button\" data-class=\"{ active: $centerView === 'preview' }\" data-on:click=\"$centerView = 'preview'; @get('/stitch?thread=' + ($threadId||'') + '&glue=' + $glue)\">Preview</button></span> <span class=\"dag-bars\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</aside><main class=\"center\"><nav class=\"topbar\"><button type=\"button\" class=\"icon-btn drawer-toggle\" data-show=\"!$drawerOpen\" data-on:click=\"$drawerOpen = true\" title=\"Load transcripts\">&#9776;</button> ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if c.ProjectBar != nil {
+				templ_7745c5c3_Err = c.ProjectBar.Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			} else {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<span id=\"project-bar\" class=\"project-bar\"></span> ")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<span class=\"view-tabs\"><button type=\"button\" data-class=\"{ active: $centerView === 'outline' }\" data-on:click=\"$centerView = 'outline'\">Outline</button> <button type=\"button\" data-class=\"{ active: $centerView === 'preview' }\" data-on:click=\"$centerView = 'preview'; @get('/stitch?thread=' + ($threadId||'') + '&glue=' + $glue)\">Preview</button></span> <span class=\"dag-bars\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -97,7 +113,7 @@ func Page(c PageContent) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<span id=\"thread-bar\" class=\"dag-bar\"></span> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<span id=\"thread-bar\" class=\"dag-bar\"></span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -108,7 +124,7 @@ func Page(c PageContent) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<span id=\"snapshot-bar\" class=\"dag-bar\"></span> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<span id=\"snapshot-bar\" class=\"dag-bar\"></span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -119,12 +135,12 @@ func Page(c PageContent) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<span id=\"branch-bar\" class=\"dag-bar\"></span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<span id=\"branch-bar\" class=\"dag-bar\"></span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</span></nav>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</span></nav>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -134,7 +150,7 @@ func Page(c PageContent) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<section id=\"outline\" class=\"outline-pane\" data-show=\"$centerView === 'outline'\"></section>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<section id=\"outline\" class=\"outline-pane\" data-show=\"$centerView === 'outline'\"></section>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -145,12 +161,12 @@ func Page(c PageContent) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<section id=\"stitch\" class=\"stitch\" data-show=\"$centerView === 'preview'\"></section>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<section id=\"stitch\" class=\"stitch\" data-show=\"$centerView === 'preview'\"></section>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</main>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</main>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -160,12 +176,12 @@ func Page(c PageContent) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<section id=\"evidence\" class=\"evidence-pane\" aria-label=\"Evidence\"><p class=\"evidence-empty\">Start typing a bullet — supporting passages appear here.</p></section>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<section id=\"evidence\" class=\"evidence-pane\" aria-label=\"Evidence\"><p class=\"evidence-empty\">Start typing a bullet — supporting passages appear here.</p></section>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

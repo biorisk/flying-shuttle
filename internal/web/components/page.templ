@@ -24,6 +24,7 @@ type PageContent struct {
 	Evidence    templ.Component
 	Ingest      templ.Component
 	Preview     templ.Component
+	ProjectBar  templ.Component
 	ThreadBar   templ.Component
 	SnapshotBar templ.Component
 	BranchBar   templ.Component
@@ -58,6 +59,11 @@ templ Page(c PageContent) {
 						data-on:click="$drawerOpen = true"
 						title="Load transcripts"
 					>&#9776;</button>
+					if c.ProjectBar != nil {
+						@c.ProjectBar
+					} else {
+						<span id="project-bar" class="project-bar"></span>
+					}
 					<span class="view-tabs">
 						<button type="button" data-class="{ active: $centerView === 'outline' }" data-on:click="$centerView = 'outline'">Outline</button>
 						<button type="button" data-class="{ active: $centerView === 'preview' }" data-on:click="$centerView = 'preview'; @get('/stitch?thread=' + ($threadId||'') + '&glue=' + $glue)">Preview</button>

@@ -223,3 +223,10 @@ button:hover { border-color: var(--accent); }
 .ingest-summary .s-done { color: #46a758; }
 .ingest-summary .s-failed { color: #e5484d; }
 .upload-list { max-height: 40vh; overflow: auto; }
+
+/* --- project picker --- */
+.project-bar { display: inline-flex; align-items: center; gap: 4px; }
+.project-select { font: inherit; font-weight: 600; background: var(--bg); border: 1px solid var(--edge); color: var(--text); border-radius: 4px; padding: 2px 6px; }
+.project-name { font-weight: 600; }
+.project-switching { color: var(--accent); font-size: 12px; }
+.project-new > summary { cursor: pointer; color: var(--text-dim); padding: 0 4px; }

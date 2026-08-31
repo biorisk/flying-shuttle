@@ -25,6 +25,10 @@ type Deps struct {
 	Ingester   *pipeline.Ingester
 	Index      *search.HybridIndex
 	Stitcher   stitch.Stitcher
+
+	ProjectName   string
+	ProjectHome   string            // ~/.shuttle — for listing/creating projects
+	SwitchProject func(name string) // persist choice + re-exec; nil disables the picker
 }
 
 // Mount attaches the server-rendered UI (templ + Datastar): the shell at "/",
@@ -51,6 +55,8 @@ func Mount(r chi.Router, d Deps) {
 
 	r.Get("/", h.shell)
 	r.Get("/export.md", h.exportMarkdown)
+	r.Post("/project/switch", h.projectSwitch)
+	r.Post("/project/new", h.projectNew)
 
 	// Test hook: wipe the outline. Registered only when SHUTTLE_E2E=1 so the
 	// Playwright suite can reset between scenarios without a JSON CRUD API.
@@ -101,6 +107,7 @@ func (h *handlers) shell(w http.ResponseWriter, r *http.Request) {
 		Evidence:    components.Evidence(viewmodel.EvidencePane{}),
 		Ingest:      components.Ingest(h.ingestView()),
 		Preview:     components.Stitch(viewmodel.StitchView{Glue: 50}),
+		ProjectBar:  components.ProjectBar(h.projectBarView()),
 		ThreadBar:   components.ThreadBar(h.threadBarView()),
 		SnapshotBar: components.SnapshotBar(h.snapshotBarView()),
 		BranchBar:   components.BranchBar(h.branchBarView()),
