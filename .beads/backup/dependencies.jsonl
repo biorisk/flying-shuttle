@@ -73,5 +73,17 @@
 {"created_at":"2026-08-30T14:32:09Z","created_by":"biorisk","depends_on_id":"flying-shuttle-6fv.3.7","issue_id":"flying-shuttle-6fv.6.2","type":"blocks"}
 {"created_at":"2026-08-30T14:32:09Z","created_by":"biorisk","depends_on_id":"flying-shuttle-6fv.4.1","issue_id":"flying-shuttle-6fv.6.2","type":"blocks"}
 {"created_at":"2026-08-30T14:32:06Z","created_by":"biorisk","depends_on_id":"flying-shuttle-6fv.6","issue_id":"flying-shuttle-6fv.6.2","type":"parent-child"}
+{"created_at":"2026-08-30T17:11:06Z","created_by":"biorisk","depends_on_id":"flying-shuttle-9ng","issue_id":"flying-shuttle-9ng.1","type":"parent-child"}
+{"created_at":"2026-08-30T17:11:06Z","created_by":"biorisk","depends_on_id":"flying-shuttle-9ng","issue_id":"flying-shuttle-9ng.2","type":"parent-child"}
+{"created_at":"2026-08-30T17:11:06Z","created_by":"biorisk","depends_on_id":"flying-shuttle-9ng.1","issue_id":"flying-shuttle-9ng.2","type":"blocks"}
+{"created_at":"2026-08-30T17:11:06Z","created_by":"biorisk","depends_on_id":"flying-shuttle-9ng","issue_id":"flying-shuttle-9ng.3","type":"parent-child"}
+{"created_at":"2026-08-30T17:11:06Z","created_by":"biorisk","depends_on_id":"flying-shuttle-9ng.1","issue_id":"flying-shuttle-9ng.3","type":"blocks"}
+{"created_at":"2026-08-30T17:11:06Z","created_by":"biorisk","depends_on_id":"flying-shuttle-9ng","issue_id":"flying-shuttle-9ng.4","type":"parent-child"}
+{"created_at":"2026-08-30T17:11:06Z","created_by":"biorisk","depends_on_id":"flying-shuttle-9ng.2","issue_id":"flying-shuttle-9ng.4","type":"blocks"}
+{"created_at":"2026-08-30T17:11:06Z","created_by":"biorisk","depends_on_id":"flying-shuttle-9ng.3","issue_id":"flying-shuttle-9ng.4","type":"blocks"}
+{"created_at":"2026-08-30T17:11:06Z","created_by":"biorisk","depends_on_id":"flying-shuttle-9ng","issue_id":"flying-shuttle-9ng.5","type":"parent-child"}
+{"created_at":"2026-08-30T17:11:06Z","created_by":"biorisk","depends_on_id":"flying-shuttle-9ng.2","issue_id":"flying-shuttle-9ng.5","type":"blocks"}
+{"created_at":"2026-08-30T17:11:06Z","created_by":"biorisk","depends_on_id":"flying-shuttle-9ng.3","issue_id":"flying-shuttle-9ng.5","type":"blocks"}
+{"created_at":"2026-08-30T17:11:06Z","created_by":"biorisk","depends_on_id":"flying-shuttle-9ng.4","issue_id":"flying-shuttle-9ng.5","type":"blocks"}
 {"created_at":"2026-03-01T16:48:55Z","created_by":"biorisk","depends_on_id":"flying-shuttle-vv9","issue_id":"flying-shuttle-mv5","type":"blocks"}
 {"created_at":"2026-03-01T16:48:44Z","created_by":"biorisk","depends_on_id":"flying-shuttle-7p6","issue_id":"flying-shuttle-vv9","type":"discovered-from"}
