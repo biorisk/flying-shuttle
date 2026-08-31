@@ -94,3 +94,17 @@ test("preview stitches the attached passage", async ({ page }) => {
   await expect(page.locator("#stitch")).toContainText("became resolve");
   await expect(page.locator("#stitch .span-glue")).toHaveCount(0); // single passage, no glue yet
 });
+
+test("outline preview renders as a formatted page with width + format controls", async ({ page, context }) => {
+  await page.goto("/");
+  const [preview] = await Promise.all([
+    context.waitForEvent("page"),
+    page.getByRole("link", { name: /outline/ }).click(),
+  ]);
+  await preview.waitForLoadState();
+  await expect(preview.locator(".markdown-body h1").first()).toBeVisible();
+  await expect(preview.locator('.doc-width input[value="landscape"]')).toHaveCount(1);
+  await expect(preview.getByRole("link", { name: "rendered" })).toHaveClass(/active/);
+  await expect(preview.getByRole("link", { name: "raw" })).toBeVisible();
+  await expect(preview.getByRole("link", { name: "PDF" })).toBeVisible();
+});

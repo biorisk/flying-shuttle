@@ -114,7 +114,11 @@ Every project is a directory under `~/.shuttle/`:
 - **`/`** — the app. The UI drives itself through HTML-fragment endpoints
   (`/outline`, `/evidence`, `/stitch`, `/snapshots`, `/branches`, `/threads`, …)
   that return Datastar SSE patches. Not a stable API.
-- **`GET /export.md?thread=&glue=&title=`** — download the stitched manuscript.
+- **Preview** — the outline mirror and the stitched manuscript, each as a
+  formatted page with width presets (letter / landscape / fit) and format tabs:
+  `GET /outline.{html,md,pdf}` and `GET /export.{html,md,pdf}`
+  (`/export.md` downloads; `?inline=1` views it). `/preview.events` is an SSE
+  stream that reloads the page when the working doc changes.
 - **`GET /healthz`** — liveness.
 - **`POST /api/v1/ingest/{embed-file,embed-file-legacy,directory,directory-legacy}`**
   — the only JSON API. Body `{"path": "…"}` pointing at a `.fembed` / `.embed`
@@ -137,6 +141,7 @@ internal/
   web/                  server-rendered UI: templ components, Datastar handlers, static assets
   project/              ~/.shuttle home, per-project paths, config
   workingdocs/          outline.md + state.json mirror + recovery
+  mdrender/             markdown -> HTML + PDF (preview); pdf.go from `godown`
   outline/              outline tree + structural ops + diff
   transcript/           scrubbable transcript windows
   pipeline/             transcript ingestion

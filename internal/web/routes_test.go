@@ -38,7 +38,7 @@ func TestShellRoute(t *testing.T) {
 	}
 	body := rec.Body.String()
 	for _, want := range []string{
-		`id="shell"`, `id="outline"`, `id="evidence"`, `id="ingest-drawer"`,
+		`id="shell"`, `id="outline"`, `id="evidence"`, `id="ingest-drawer"`, `href="/outline.html"`,
 		"data-signals=", web.DatastarScriptPath,
 	} {
 		if !strings.Contains(body, want) {

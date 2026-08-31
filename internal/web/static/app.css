@@ -230,3 +230,9 @@ button:hover { border-color: var(--accent); }
 .project-name { font-weight: 600; }
 .project-switching { color: var(--accent); font-size: 12px; }
 .project-new > summary { cursor: pointer; color: var(--text-dim); padding: 0 4px; }
+
+/* --- preview links --- */
+.outline-preview-link { color: var(--text-dim); font-size: 12px; text-decoration: none; }
+.outline-preview-link:hover { color: var(--text); }
+.stitch-export { display: inline-flex; gap: 10px; }
+.stitch-export a { color: var(--accent); font-size: 12px; text-decoration: none; }

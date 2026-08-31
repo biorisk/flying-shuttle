@@ -103,7 +103,7 @@ func Page(c PageContent) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<span class=\"view-tabs\"><button type=\"button\" data-class=\"{ active: $centerView === 'outline' }\" data-on:click=\"$centerView = 'outline'\">Outline</button> <button type=\"button\" data-class=\"{ active: $centerView === 'preview' }\" data-on:click=\"$centerView = 'preview'; @get('/stitch?thread=' + ($threadId||'') + '&glue=' + $glue)\">Preview</button></span> <span class=\"dag-bars\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<span class=\"view-tabs\"><button type=\"button\" data-class=\"{ active: $centerView === 'outline' }\" data-on:click=\"$centerView = 'outline'\">Outline</button> <button type=\"button\" data-class=\"{ active: $centerView === 'preview' }\" data-on:click=\"$centerView = 'preview'; @get('/stitch?thread=' + ($threadId||'') + '&glue=' + $glue)\">Preview</button></span> <a class=\"outline-preview-link\" href=\"/outline.html\" target=\"_blank\" title=\"Open the outline as a formatted page (rendered / raw / PDF)\">outline&#8599;</a> <span class=\"dag-bars\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -54,7 +54,9 @@ func TestStitchPreview_exportLink(t *testing.T) {
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/stitch", nil))
 	body := rec.Body.String()
-	if !strings.Contains(body, "data-attr:href") || !strings.Contains(body, "/export.md") {
-		t.Fatalf("export link missing: %s", body)
+	for _, w := range []string{"/export.md", "/export.html", "/export.pdf", "data-attr:href"} {
+		if !strings.Contains(body, w) {
+			t.Fatalf("export link %q missing:\n%s", w, body)
+		}
 	}
 }

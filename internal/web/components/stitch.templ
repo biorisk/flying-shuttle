@@ -23,12 +23,23 @@ templ Stitch(vm viewmodel.StitchView) {
 				/>
 				<span data-text="$glue + '%'">{ fmt.Sprintf("%d%%", vm.Glue) }</span>
 			</label>
-			<a
-				class="stitch-export"
-				download
-				href="/export.md"
-				data-attr:href="'/export.md?thread=' + ($threadId||'') + '&glue=' + $glue"
-			>Export .md</a>
+			<span class="stitch-export">
+				<a
+					target="_blank"
+					href="/export.html"
+					data-attr:href="'/export.html?thread=' + ($threadId||'') + '&glue=' + $glue"
+				>preview</a>
+				<a
+					target="_blank"
+					href="/export.pdf"
+					data-attr:href="'/export.pdf?thread=' + ($threadId||'') + '&glue=' + $glue"
+				>.pdf</a>
+				<a
+					download
+					href="/export.md"
+					data-attr:href="'/export.md?thread=' + ($threadId||'') + '&glue=' + $glue"
+				>.md</a>
+			</span>
 		</div>
 		if vm.Err != "" {
 			<p class="stitch-error">{ vm.Err }</p>
