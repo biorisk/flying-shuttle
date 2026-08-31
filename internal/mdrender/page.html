@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{.Title}}</title>
+<style>{{.CSS}}</style>
+<script>
+// Apply the saved page-width preset before first paint so the article does not
+// flash at one width and reflow to another.
+(function () {
+  try {
+    var w = localStorage.getItem("shuttle-preview-width");
+    if (w === "landscape" || w === "fit") document.documentElement.dataset.width = w;
+  } catch (e) { /* storage unavailable: fall back to letter */ }
+})();
+</script>
+</head>
+<body>
+<article class="markdown-body">
+<header class="doc-header">
+  {{if .BackURL}}<a class="doc-back" href="{{.BackURL}}">&larr; {{.BackLabel}}</a>{{end}}
+  <h1 class="doc-name">{{.Title}}</h1>
+  <fieldset class="doc-width">
+    <label><input type="radio" name="doc-width" value="letter">letter</label>
+    <label><input type="radio" name="doc-width" value="landscape">landscape</label>
+    <label><input type="radio" name="doc-width" value="fit">fit</label>
+  </fieldset>
+  <nav class="doc-actions">
+    {{if .RenderedURL}}<a href="{{.RenderedURL}}"{{if eq .Format "rendered"}} class="active" aria-current="page"{{end}}>rendered</a>{{end}}
+    {{if .RawURL}}<a href="{{.RawURL}}"{{if eq .Format "raw"}} class="active" aria-current="page"{{end}}>raw</a>{{end}}
+    {{if .PDFURL}}<a href="{{.PDFURL}}">PDF</a>{{end}}
+  </nav>
+</header>
+<script>
+// Keep the width radios in step with the applied preset and remember the choice.
+(function () {
+  var root = document.documentElement;
+  var current = root.dataset.width || "letter";
+  document.querySelectorAll(".doc-width input").forEach(function (r) {
+    r.checked = r.value === current;
+    r.addEventListener("change", function () {
+      if (r.value === "letter") delete root.dataset.width;
+      else root.dataset.width = r.value;
+      try { localStorage.setItem("shuttle-preview-width", r.value); } catch (e) {}
+    });
+  });
+})();
+</script>
+{{.Body}}
+</article>
+{{if .LiveURL}}
+<script>
+(function () {
+  var es = new EventSource("{{.LiveURL}}");
+  es.addEventListener("reload", function () { location.reload(); });
+  es.onerror = function () { /* browser auto-reconnects */ };
+})();
+</script>
+{{end}}
+</body>
+</html>

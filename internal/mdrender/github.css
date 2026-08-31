@@ -1,0 +1,188 @@
+:root {
+  color-scheme: light dark;
+  --fg: #1f2328;
+  --muted: #59636e;
+  --bg: #ffffff;
+  --border: #d1d9e0;
+  --code-bg: #f6f8fa;
+  --accent: #0969da;
+  --quote: #59636e;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #e6edf3;
+    --muted: #9198a1;
+    --bg: #0d1117;
+    --border: #30363d;
+    --code-bg: #151b23;
+    --accent: #4493f8;
+    --quote: #9198a1;
+  }
+}
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+  margin: 0;
+  padding: 0;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
+    Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  font-size: 16px;
+  line-height: 1.5;
+}
+.markdown-body {
+  box-sizing: border-box;
+  max-width: var(--page-width, 860px);
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+  word-wrap: break-word;
+}
+/* Page width presets. Letter is the 860px default; landscape widens it by the
+   11:8.5 ratio of a rotated letter sheet; fit lets the article use the whole
+   viewport. */
+:root[data-width="landscape"] { --page-width: 1113px; }
+:root[data-width="fit"] { --page-width: none; }
+
+.doc-width {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: .85em;
+}
+.doc-width label {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+}
+.doc-width input { margin: 0; }
+.markdown-body > *:first-child { margin-top: 0; }
+.markdown-body > *:last-child { margin-bottom: 0; }
+
+/* Header above every rendered document: name, backlink, and the raw/PDF
+   renderings of the same file. */
+.doc-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.doc-header .doc-name {
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 1em;
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  word-break: break-all;
+}
+.doc-header .doc-back { white-space: nowrap; }
+.doc-actions { display: flex; gap: 12px; white-space: nowrap; }
+
+h1, h2, h3, h4, h5, h6 {
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+h1 { font-size: 2em; padding-bottom: .3em; border-bottom: 1px solid var(--border); }
+h2 { font-size: 1.5em; padding-bottom: .3em; border-bottom: 1px solid var(--border); }
+h3 { font-size: 1.25em; }
+h4 { font-size: 1em; }
+h5 { font-size: .875em; }
+h6 { font-size: .85em; color: var(--muted); }
+
+p, blockquote, ul, ol, dl, table, pre { margin-top: 0; margin-bottom: 16px; }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+blockquote {
+  padding: 0 1em;
+  color: var(--quote);
+  border-left: .25em solid var(--border);
+}
+blockquote > :first-child { margin-top: 0; }
+blockquote > :last-child { margin-bottom: 0; }
+
+ul, ol { padding-left: 2em; }
+li + li { margin-top: .25em; }
+
+code, kbd, pre, samp {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  font-size: 85%;
+}
+code {
+  padding: .2em .4em;
+  margin: 0;
+  background: var(--code-bg);
+  border-radius: 6px;
+}
+pre {
+  padding: 16px;
+  overflow: auto;
+  background: var(--code-bg);
+  border-radius: 6px;
+  line-height: 1.45;
+}
+pre code {
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: 0;
+  font-size: 100%;
+  white-space: pre;
+}
+
+table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow: auto;
+  border-collapse: collapse;
+}
+table th, table td {
+  padding: 6px 13px;
+  border: 1px solid var(--border);
+}
+table tr { background: var(--bg); border-top: 1px solid var(--border); }
+table tr:nth-child(2n) { background: var(--code-bg); }
+
+hr {
+  height: .25em;
+  padding: 0;
+  margin: 24px 0;
+  background-color: var(--border);
+  border: 0;
+}
+
+img { max-width: 100%; box-sizing: border-box; background-color: var(--bg); }
+
+kbd {
+  display: inline-block;
+  padding: 3px 5px;
+  font-size: 11px;
+  line-height: 10px;
+  color: var(--fg);
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+
+input[type="checkbox"] { margin: 0 .2em .25em -1.4em; vertical-align: middle; }
+.task-list-item { list-style-type: none; }
+.task-list-item + .task-list-item { margin-top: 4px; }
+
+.doc-actions a.active { font-weight: 600; color: var(--fg); text-decoration: none; }

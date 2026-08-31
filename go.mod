@@ -6,19 +6,24 @@ require (
 	github.com/a-h/templ v0.3.1020
 	github.com/coder/hnsw v0.6.1
 	github.com/go-chi/chi/v5 v5.2.5
+	github.com/go-pdf/fpdf v0.9.0
 	github.com/google/renameio v1.0.1
 	github.com/google/uuid v1.6.0
 	github.com/starfederation/datastar-go v1.2.2
+	github.com/yuin/goldmark v1.8.2
+	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc
 	modernc.org/sqlite v1.44.3
 )
 
 require (
 	github.com/CAFxX/httpcompression v0.0.9 // indirect
 	github.com/a-h/parse v0.0.0-20250122154542-74294addb73e // indirect
+	github.com/alecthomas/chroma/v2 v2.2.0 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/chewxy/math32 v1.10.1 // indirect
 	github.com/cli/browser v1.3.0 // indirect
+	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
