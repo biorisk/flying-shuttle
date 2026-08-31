@@ -25,7 +25,8 @@ type Deps struct {
 	Stitcher        stitch.Stitcher
 	AfterIngest     func() // nudges the embedding backfiller; must not block
 
-	ProjectName string
+	ProjectName   string
+	OutlineMDPath string
 	// Restart switches to the named project (persists the choice and re-execs
 	// the process). nil disables project switching.
 	Restart func(name string)
@@ -68,6 +69,7 @@ func NewRouter(d Deps) http.Handler {
 		Index:         d.Index,
 		Stitcher:      d.Stitcher,
 		ProjectName:   d.ProjectName,
+		OutlineMDPath: d.OutlineMDPath,
 		ProjectHome:   home,
 		SwitchProject: d.Restart,
 	})

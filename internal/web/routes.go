@@ -27,6 +27,7 @@ type Deps struct {
 	Stitcher   stitch.Stitcher
 
 	ProjectName   string
+	OutlineMDPath string            // ~/.shuttle/<project>/outline.md, for the preview
 	ProjectHome   string            // ~/.shuttle — for listing/creating projects
 	SwitchProject func(name string) // persist choice + re-exec; nil disables the picker
 }
@@ -55,6 +56,7 @@ func Mount(r chi.Router, d Deps) {
 
 	r.Get("/", h.shell)
 	r.Get("/export.md", h.exportMarkdown)
+	h.mountPreview(r)
 	r.Post("/project/switch", h.projectSwitch)
 	r.Post("/project/new", h.projectNew)
 

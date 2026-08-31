@@ -33,8 +33,12 @@ func (h *handlers) exportMarkdown(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
-	w.Header().Set("Content-Disposition", `attachment; filename="`+export.Slugify(title)+`.md"`)
+	if r.URL.Query().Get("inline") != "" {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	} else {
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		w.Header().Set("Content-Disposition", `attachment; filename="`+export.Slugify(title)+`.md"`)
+	}
 	_, _ = w.Write([]byte(res.Content))
 }
 

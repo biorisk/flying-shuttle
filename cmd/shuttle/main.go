@@ -124,6 +124,7 @@ func run() error {
 		Stitcher:        &stitch.StubStitcher{},
 		AfterIngest:     afterIngest,
 		ProjectName:     paths.Name,
+		OutlineMDPath:   paths.OutlineMD,
 		Restart:         func(name string) { trySend(restart, name) },
 	}
 
