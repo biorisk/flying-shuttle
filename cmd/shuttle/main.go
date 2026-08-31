@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -16,39 +17,56 @@ import (
 	"github.com/biorisk/flying-shuttle/internal/api"
 	"github.com/biorisk/flying-shuttle/internal/indexer"
 	"github.com/biorisk/flying-shuttle/internal/ingest"
+	"github.com/biorisk/flying-shuttle/internal/project"
 	"github.com/biorisk/flying-shuttle/internal/search"
 	"github.com/biorisk/flying-shuttle/internal/stitch"
 	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/workingdocs"
 )
 
 func main() {
-	dbPath := env("SHUTTLE_DB", "shuttle.db")
-	addr := env("SHUTTLE_ADDR", ":8080")
-	uploadDir := env("SHUTTLE_UPLOAD_DIR", "uploads")
-	hnswPath := env("SHUTTLE_HNSW_PATH", "shuttle.hnsw")
-	bm25Path := env("SHUTTLE_BM25_PATH", "shuttle.bm25")
+	// A project switch re-execs this binary; loop so the process image is
+	// replaced cleanly rather than nested.
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
 
-	s, err := store.NewSQLiteStore(dbPath)
+func run() error {
+	addr := env("SHUTTLE_ADDR", ":8080")
+
+	paths, err := project.Resolve()
 	if err != nil {
-		log.Fatalf("open database: %v", err)
+		return err
+	}
+	log.Printf("project %q  (%s)", paths.Name, paths.Dir)
+
+	s, err := store.NewSQLiteStore(paths.DB)
+	if err != nil {
+		return err
 	}
 	defer s.Close()
-
 	if err := s.Migrate(); err != nil {
-		log.Fatalf("migrate: %v", err)
+		return err
 	}
 
-	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
-		log.Fatalf("create upload dir: %v", err)
+	// Recovery: a fresh DB but a working-doc state.json present -> re-import it.
+	if empty, _ := storeIsEmpty(s); empty {
+		if st, err := workingdocs.LoadState(paths.StateJSON); err == nil && st.Data != nil {
+			if err := s.ImportState(st.Data); err != nil {
+				log.Printf("recovery: import state.json: %v", err)
+			} else {
+				n, _ := s.ListNodes()
+				log.Printf("recovery: restored %d nodes from %s", len(n), paths.StateJSON)
+			}
+		}
 	}
 
-	// Background workers stop when the process receives SIGINT/SIGTERM.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	restart := make(chan string, 1) // carries the project to switch to
 
-	// Embedding backend: a local Python server that Go spawns and supervises.
-	// Calls made before the model has loaded return ErrEmbedderNotReady, so
-	// ingestion never blocks — embeddings backfill once it's up.
+	// Embedder (optional local Python sidecar).
 	var embedder ingest.Embedder
 	if env("SHUTTLE_EMBED_AUTOSTART", "1") != "0" {
 		script, _ := filepath.Abs(env("SHUTTLE_EMBED_SCRIPT", "python/embed_server.py"))
@@ -64,8 +82,6 @@ func main() {
 		log.Printf("embedder: disabled (SHUTTLE_EMBED_AUTOSTART=0); vector search unavailable")
 	}
 
-	// StubEmbedder backs the cluster-suggestion feature only; it is never
-	// persisted. Real chunk embeddings come from the backfiller.
 	clusterEmbedder := &ingest.StubEmbedder{}
 
 	idx := search.NewHybridIndex(embedder)
@@ -73,63 +89,101 @@ func main() {
 		if k, err := strconv.ParseFloat(v, 64); err == nil && k > 0 {
 			idx.RRFk = k
 			log.Printf("RRF k set to %.1f", k)
-		} else {
-			log.Printf("warning: invalid SHUTTLE_RRF_K %q, using default %.1f", v, idx.RRFk)
 		}
 	}
 
-	// Load on-disk snapshots and reconcile against the store. After a clean
-	// shutdown this is near-instant; on first run it's a full rebuild.
-	if err := indexer.LoadAndReconcile(s, idx, bm25Path, hnswPath); err != nil {
-		log.Fatalf("index reconcile: %v", err)
+	if err := indexer.LoadAndReconcile(s, idx, paths.BM25, paths.HNSW); err != nil {
+		return err
 	}
 	log.Printf("index ready: %d docs (BM25), %d vectors (HNSW)", idx.BM25.Len(), idx.Vector.Len())
 
-	// Persist the index incrementally so subsequent boots stay instant.
-	snap := indexer.NewSnapshotter(idx, bm25Path, hnswPath, 15*time.Second)
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() { defer wg.Done(); snap.Run(ctx) }()
+	spawn := func(fn func(context.Context)) {
+		wg.Add(1)
+		go func() { defer wg.Done(); fn(ctx) }()
+	}
 
-	// Backfill embeddings for any vector-less chunks, now and on every upload.
+	snap := indexer.NewSnapshotter(idx, paths.BM25, paths.HNSW, 15*time.Second)
+	spawn(snap.Run)
+
+	docs := &workingdocs.Flusher{Store: s, Project: paths.Name, OutlineMD: paths.OutlineMD, StateJSON: paths.StateJSON}
+	spawn(docs.Run)
+
 	afterIngest := func() {}
 	if embedder != nil {
 		bf := indexer.NewBackfiller(s, embedder, idx, 16, 30*time.Second)
-		wg.Add(1)
-		go func() { defer wg.Done(); bf.Run(ctx) }()
+		spawn(bf.Run)
 		afterIngest = bf.Trigger
 	}
 
-	stitcher := &stitch.StubStitcher{}
+	deps := api.Deps{
+		Store:           s,
+		UploadDir:       paths.UploadDir,
+		ClusterEmbedder: clusterEmbedder,
+		Index:           idx,
+		Stitcher:        &stitch.StubStitcher{},
+		AfterIngest:     afterIngest,
+		ProjectName:     paths.Name,
+		Restart:         func(name string) { trySend(restart, name) },
+	}
 
-	router := api.NewRouter(s, uploadDir, clusterEmbedder, idx, stitcher, afterIngest)
 	srv := &http.Server{
 		Addr:         addr,
-		Handler:      router,
+		Handler:      api.NewRouter(deps),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
-
 	go func() {
-		log.Printf("shuttle listening on %s (db: %s)", addr, dbPath)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Printf("shuttle listening on %s", addr)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("server: %v", err)
 		}
 	}()
 
-	<-ctx.Done()
+	var switchTo string
+	select {
+	case <-ctx.Done():
+	case switchTo = <-restart:
+	}
 	log.Println("shutting down...")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Printf("shutdown: %v", err)
-	}
-
-	// Wait for background workers (the snapshotter performs a final flush).
+	_ = srv.Shutdown(shutdownCtx)
+	stop() // stop catching signals so workers see ctx.Done via the parent
 	wg.Wait()
+
+	if switchTo != "" {
+		home, _ := project.Home()
+		if err := project.SetCurrent(home, switchTo); err != nil {
+			return err
+		}
+		s.Close()
+		exe, err := os.Executable()
+		if err != nil {
+			return err
+		}
+		log.Printf("switching to project %q — restarting", switchTo)
+		return syscall.Exec(exe, os.Args, os.Environ())
+	}
 	log.Println("done")
+	return nil
+}
+
+func storeIsEmpty(s store.Store) (bool, error) {
+	n, err := s.ListNodes()
+	if err != nil {
+		return false, err
+	}
+	return len(n) == 0, nil
+}
+
+func trySend(ch chan string, v string) {
+	select {
+	case ch <- v:
+	default:
+	}
 }
 
 func env(key, fallback string) string {

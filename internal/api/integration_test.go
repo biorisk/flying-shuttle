@@ -36,7 +36,7 @@ func TestFullLoop(t *testing.T) {
 
 	idx := search.NewHybridIndex(nil) // BM25-only
 	dir := t.TempDir()
-	srv := httptest.NewServer(api.NewRouter(s, dir, nil, idx, &stitch.StubStitcher{}, func() {}))
+	srv := httptest.NewServer(api.NewRouter(api.Deps{Store: s, UploadDir: dir, Index: idx, Stitcher: &stitch.StubStitcher{}, AfterIngest: func() {}}))
 	t.Cleanup(srv.Close)
 
 	get := func(path string) string {
