@@ -21,6 +21,7 @@ import (
 	"github.com/biorisk/flying-shuttle/internal/search"
 	"github.com/biorisk/flying-shuttle/internal/stitch"
 	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/biorisk/flying-shuttle/internal/workingdocs"
 )
 
@@ -106,7 +107,12 @@ func run() error {
 	snap := indexer.NewSnapshotter(idx, paths.BM25, paths.HNSW, 15*time.Second)
 	spawn(snap.Run)
 
-	docs := &workingdocs.Flusher{Store: s, Project: paths.Name, OutlineMD: paths.OutlineMD, StateJSON: paths.StateJSON}
+	previewReload := web.NewBroadcaster()
+	docs := &workingdocs.Flusher{
+		Store: s, Project: paths.Name,
+		OutlineMD: paths.OutlineMD, StateJSON: paths.StateJSON,
+		OnWrite: previewReload.Notify,
+	}
 	spawn(docs.Run)
 
 	afterIngest := func() {}
@@ -125,6 +131,7 @@ func run() error {
 		AfterIngest:     afterIngest,
 		ProjectName:     paths.Name,
 		OutlineMDPath:   paths.OutlineMD,
+		PreviewReload:   previewReload,
 		Restart:         func(name string) { trySend(restart, name) },
 	}
 

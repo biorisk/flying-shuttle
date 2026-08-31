@@ -27,6 +27,7 @@ type Deps struct {
 
 	ProjectName   string
 	OutlineMDPath string
+	PreviewReload *web.Broadcaster
 	// Restart switches to the named project (persists the choice and re-execs
 	// the process). nil disables project switching.
 	Restart func(name string)
@@ -70,6 +71,7 @@ func NewRouter(d Deps) http.Handler {
 		Stitcher:      d.Stitcher,
 		ProjectName:   d.ProjectName,
 		OutlineMDPath: d.OutlineMDPath,
+		PreviewReload: d.PreviewReload,
 		ProjectHome:   home,
 		SwitchProject: d.Restart,
 	})

@@ -28,6 +28,7 @@ type Deps struct {
 
 	ProjectName   string
 	OutlineMDPath string            // ~/.shuttle/<project>/outline.md, for the preview
+	PreviewReload *Broadcaster      // pinged when the working-doc mirror is rewritten
 	ProjectHome   string            // ~/.shuttle — for listing/creating projects
 	SwitchProject func(name string) // persist choice + re-exec; nil disables the picker
 }

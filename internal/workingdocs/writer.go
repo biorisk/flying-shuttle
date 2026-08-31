@@ -70,6 +70,7 @@ type Flusher struct {
 	OutlineMD string
 	StateJSON string
 	Interval  time.Duration // default 3s
+	OnWrite   func()        // called after each successful write (state changed)
 
 	lastHash [32]byte
 }
@@ -114,4 +115,7 @@ func (f *Flusher) flush() {
 		return
 	}
 	f.lastHash = h
+	if f.OnWrite != nil {
+		f.OnWrite()
+	}
 }

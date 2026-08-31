@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/biorisk/flying-shuttle/internal/export"
 	"github.com/biorisk/flying-shuttle/internal/mdrender"
@@ -20,6 +21,7 @@ func (h *handlers) mountPreview(r chi.Router) {
 	r.Get("/outline.pdf", h.previewOutlinePDF)
 	r.Get("/export.html", h.previewManuscriptHTML)
 	r.Get("/export.pdf", h.previewManuscriptPDF)
+	r.Get("/preview.events", h.previewEvents)
 }
 
 // --- outline (the working-doc mirror on disk) ---
@@ -163,4 +165,37 @@ func withParam(qs, k, v string) string {
 		return "?" + k + "=" + v
 	}
 	return qs + "&" + k + "=" + v
+}
+
+// previewEvents is the live-reload stream for the preview pages: it emits a
+// "reload" event each time the working-doc mirror is rewritten (i.e. the
+// project state changed).
+//
+//	GET /preview.events
+func (h *handlers) previewEvents(w http.ResponseWriter, r *http.Request) {
+	if h.d.PreviewReload == nil {
+		http.NotFound(w, r)
+		return
+	}
+	ch, cancel := h.d.PreviewReload.subscribe()
+	defer cancel()
+
+	rc := http.NewResponseController(w)
+	_ = rc.SetWriteDeadline(time.Time{}) // long-lived; opt out of the server WriteTimeout
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-store")
+	_, _ = w.Write([]byte(": connected\n\n"))
+	_ = rc.Flush()
+
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-ch:
+			if _, err := w.Write([]byte("event: reload\ndata: 1\n\n")); err != nil {
+				return
+			}
+			_ = rc.Flush()
+		}
+	}
 }

@@ -1,11 +1,14 @@
 package web_test
 
 import (
+	"context"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/outline"
@@ -101,5 +104,59 @@ func TestPreview_manuscriptHTMLandPDF(t *testing.T) {
 	r.ServeHTTP(rec, httptest.NewRequest("GET", "/export.md?inline=1", nil))
 	if rec.Header().Get("Content-Type") != "text/plain; charset=utf-8" {
 		t.Fatalf("export.md?inline=1 should be text/plain")
+	}
+}
+
+func TestPreviewEvents_reloadOnBroadcast(t *testing.T) {
+	s, _ := store.NewSQLiteStore(":memory:")
+	s.Migrate()
+	t.Cleanup(func() { s.Close() })
+	br := web.NewBroadcaster()
+	r := chi.NewRouter()
+	web.Mount(r, web.Deps{Store: s, PreviewReload: br})
+
+	srv := httptest.NewServer(r)
+	t.Cleanup(srv.Close)
+
+	req, _ := http.NewRequest("GET", srv.URL+"/preview.events", nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if ct := resp.Header.Get("Content-Type"); ct != "text/event-stream" {
+		t.Fatalf("content-type = %q", ct)
+	}
+
+	got := make(chan string, 1)
+	go func() {
+		buf := make([]byte, 256)
+		total := ""
+		for {
+			n, err := resp.Body.Read(buf)
+			total += string(buf[:n])
+			if strings.Contains(total, "event: reload") {
+				got <- total
+				return
+			}
+			if err != nil {
+				got <- total
+				return
+			}
+		}
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+	br.Notify()
+
+	select {
+	case s := <-got:
+		if !strings.Contains(s, "event: reload") {
+			t.Fatalf("no reload event: %q", s)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for reload event")
 	}
 }
