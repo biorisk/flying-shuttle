@@ -25,8 +25,9 @@ make build && ./bin/shuttle
 ```
 
 `make build` runs `templ generate` then compiles `bin/shuttle`. The server
-listens on **http://localhost:8080** — the UI at `/`. On first run it creates
-`shuttle.db` and runs all migrations.
+listens on **http://localhost:8080** — the UI at `/`. All state lives under
+**`~/.shuttle/`** (see *Projects & durability* below); the working directory is
+never written to.
 
 ### Development loop
 
@@ -37,14 +38,13 @@ make dev                    # templ --watch + go run, with live reload proxy
 
 ## Environment Variables
 
-| Variable             | Default      | Description                         |
-|----------------------|--------------|-------------------------------------|
-| `SHUTTLE_DB`         | `shuttle.db` | SQLite database file                |
-| `SHUTTLE_ADDR`       | `:8080`      | Listen address                      |
-| `SHUTTLE_UPLOAD_DIR` | `uploads`    | Directory for uploaded transcripts  |
-| `SHUTTLE_BM25_PATH`  | `shuttle.bm25` | BM25 index snapshot               |
-| `SHUTTLE_HNSW_PATH`  | `shuttle.hnsw` | Vector index snapshot             |
-| `SHUTTLE_EMBED_AUTOSTART` | `1`     | Set `0` to skip the Python embedder |
+| Variable                 | Default     | Description                              |
+|--------------------------|-------------|------------------------------------------|
+| `SHUTTLE_HOME`           | `~/.shuttle`| Root dir for all projects & config       |
+| `SHUTTLE_ADDR`           | `:8080`     | Listen address                           |
+| `SHUTTLE_EMBED_AUTOSTART`| `1`         | Set `0` to skip the Python embedder      |
+| `SHUTTLE_RRF_K`          | (tuned)     | Reciprocal-rank-fusion constant          |
+| `SHUTTLE_EMBED_*`, `SHUTTLE_PYTHON` | — | Python sidecar overrides (`python/README.md`) |
 
 ## Production Build & Deployment
 
@@ -56,6 +56,29 @@ SHUTTLE_ADDR=:8080 ./bin/shuttle
 The binary is self-contained (SQLite via `modernc.org/sqlite`, no CGO; the UI's
 CSS/JS and the Datastar runtime are embedded). Deploy the binary alone — no
 reverse proxy, no static file server, no `web/` directory.
+
+## Projects & durability
+
+Every project is a directory under `~/.shuttle/`:
+
+```
+~/.shuttle/
+  config.json              {"current": "<project>"}
+  <project>/
+    shuttle.db  shuttle.db-wal  shuttle.db-shm
+    shuttle.bm25  shuttle.hnsw
+    uploads/
+    outline.md               human-readable mirror, rewritten on every change
+    state.json               lossless mirror — recovery source
+```
+
+- **Switching projects** — the top-left dropdown in the UI. It persists the
+  choice and restarts the server (a brief reload); "+ new project" creates one.
+- **`outline.md` + `state.json`** are regenerated (atomically) whenever the DAG
+  changes, so your work is readable and recoverable even outside SQLite.
+- **Recovery** — if `shuttle.db` is missing or empty on boot but `state.json`
+  exists, the server imports it automatically and logs `recovery: restored N
+  nodes`.
 
 ## Inputs & Data
 
@@ -70,8 +93,9 @@ reverse proxy, no static file server, no `web/` directory.
 
 ### What the system creates
 
-- **`shuttle.db`** — all project state (nodes, edges, evidence, threads,
-  snapshots, branches). This one file is your project.
+- **`~/.shuttle/<project>/shuttle.db`** — all project state (nodes, edges,
+  evidence, threads, snapshots, branches).
+- **`outline.md` / `state.json`** — human-readable + recovery mirrors.
 - **`uploads/`** — the raw transcript files.
 
 ### Key concepts
@@ -107,10 +131,12 @@ make lint        # go vet
 ## Project Structure
 
 ```
-cmd/shuttle/            entry point
+cmd/shuttle/            entry point (project resolution, workers, re-exec on switch)
 internal/
-  api/                  chi router + JSON handlers
+  api/                  chi router (ingest JSON API + mounts web)
   web/                  server-rendered UI: templ components, Datastar handlers, static assets
+  project/              ~/.shuttle home, per-project paths, config
+  workingdocs/          outline.md + state.json mirror + recovery
   outline/              outline tree + structural ops + diff
   transcript/           scrubbable transcript windows
   pipeline/             transcript ingestion

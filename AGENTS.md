@@ -45,6 +45,9 @@ bd sync               # Sync with git
   fragments); qwen3-embedding (Vectors), BM25 (Lexical). SQLite storage.
 - **UI**: `internal/web` (templ components, Datastar wiring, one small `app.js`).
   No Node build. `make generate` runs `templ generate`. There is no React app.
+- **State**: all under `~/.shuttle/<project>/` (db, indexes, uploads, plus
+  `outline.md` + `state.json` mirrors). Multi-project; the top-bar dropdown
+  switches (server re-execs). `internal/project` + `internal/workingdocs`.
 - **Core Principles**:
   - Immutability: Never alter raw transcript chunks.
   - Synthesis: AI only provides "glue" text between chunks.

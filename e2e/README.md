@@ -16,3 +16,6 @@ The suite is `test.describe.configure({ mode: "serial" })`: one browser session
 walks the whole loop (keyboard outline editing → evidence retrieval →
 highlight-to-excerpt attach → stitch preview). Serial because all tests share
 one server process and one SQLite file.
+
+The webServer points `SHUTTLE_HOME` at `e2e/.tmp/home` (wiped each run), so the
+suite never touches your real `~/.shuttle`.

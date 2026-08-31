@@ -37,5 +37,6 @@ after `make embed-setup` the next `./bin/shuttle` will use it.
 | `SHUTTLE_EMBED_SCRIPT` | `python/embed_server.py` | server entrypoint |
 | `SHUTTLE_EMBED_DIR` | dir of the script | child process working dir (model lives here) |
 | `SHUTTLE_PYTHON` | auto-detected | interpreter to run the server with |
-| `SHUTTLE_BM25_PATH` | `shuttle.bm25` | BM25 index snapshot |
-| `SHUTTLE_HNSW_PATH` | `shuttle.hnsw` | vector index snapshot |
+
+Index snapshots live at `~/.shuttle/<project>/shuttle.{bm25,hnsw}` and are
+managed automatically.
