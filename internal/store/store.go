@@ -78,6 +78,10 @@ type Store interface {
 	CreateTranscriptSegment(seg *model.TranscriptSegment) error
 	ListTranscriptSegments(uploadID string) ([]model.TranscriptSegment, error)
 
+	// Full DAG state (for the working-doc mirror / recovery)
+	ExportState() (*model.SnapshotData, error)
+	ImportState(data *model.SnapshotData) error
+
 	// Snapshots
 	CreateSnapshot(label string) (*model.SnapshotSummary, error)
 	GetSnapshot(id string) (*model.Snapshot, error)

@@ -1015,6 +1015,28 @@ func boolToInt(b bool) int {
 
 // --- DAG state helpers (shared by snapshots and branches) ---
 
+// ExportState returns the full DAG state (nodes, edges, evidence, threads).
+func (s *SQLiteStore) ExportState() (*model.SnapshotData, error) {
+	return s.gatherDAGState()
+}
+
+// ImportState replaces all live DAG tables with data, transactionally. Used
+// for recovery when the database is lost but the working-doc state.json isn't.
+func (s *SQLiteStore) ImportState(data *model.SnapshotData) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := clearDAGTables(tx); err != nil {
+		return err
+	}
+	if err := restoreDAGState(tx, data); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 // gatherDAGState collects the full DAG state from live tables.
 func (s *SQLiteStore) gatherDAGState() (*model.SnapshotData, error) {
 	nodes, err := s.ListNodes()
