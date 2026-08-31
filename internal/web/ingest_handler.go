@@ -1,8 +1,10 @@
 package web
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/web/components"
@@ -90,5 +92,37 @@ func (h *handlers) ingestUpload(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := Patch(w, r, components.Ingest(h.ingestView())); err != nil {
 		log.Printf("ingest upload: patch: %v", err)
+	}
+}
+
+// ingestPath ingests transcript files that already sit on the server's own
+// filesystem — a single file or a whole directory — for the common case where
+// shuttle runs on the same machine as the transcripts.
+//
+//	POST /ingest/path   (form: path)
+func (h *handlers) ingestPath(w http.ResponseWriter, r *http.Request) {
+	_ = r.ParseForm()
+	path := strings.TrimSpace(r.FormValue("path"))
+
+	vm := h.ingestView()
+	switch {
+	case path == "":
+		vm.Notice = "Enter a file or folder path on the server."
+	default:
+		accepted, skipped, err := h.d.Ingester.IngestPath(path)
+		vm = h.ingestView() // re-read: Accept has created rows
+		if err != nil {
+			vm.Notice = "Server ingest failed: " + err.Error()
+			break
+		}
+		msg := fmt.Sprintf("Queued %d transcript(s) from %s", len(accepted), path)
+		if len(skipped) > 0 {
+			msg += fmt.Sprintf("; skipped %d non-transcript file(s)", len(skipped))
+		}
+		vm.Notice = msg
+	}
+
+	if _, err := Patch(w, r, components.Ingest(vm)); err != nil {
+		log.Printf("ingest path: patch: %v", err)
 	}
 }

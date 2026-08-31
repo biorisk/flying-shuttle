@@ -74,6 +74,7 @@ func Mount(r chi.Router, d Deps) {
 		r.Get("/stitch", h.stitchView)
 		r.Get("/ingest", h.ingest)
 		r.Post("/ingest", h.ingestUpload)
+		r.Post("/ingest/path", h.ingestPath)
 		h.mountOutlineEdit(r)
 		h.mountThreads(r)
 		h.mountExits(r)

@@ -137,6 +137,10 @@ button:hover { border-color: var(--accent); }
 .upload-row.status-failed .upload-status { color: #e5484d; }
 .upload-row.status-done .upload-status { color: #46a758; }
 .ingest-empty, .ingest-hint { color: var(--text-dim); font-size: 12px; }
+.ingest-path { border-top: 1px solid var(--edge); padding-top: 10px; }
+.ingest-path-label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-dim); }
+.ingest-path-label input { font: inherit; background: var(--bg); border: 1px solid var(--edge); color: var(--text); border-radius: 4px; padding: 4px 6px; }
+.ingest-notice { font-size: 12px; color: var(--text); background: var(--bg); border: 1px solid var(--edge); border-radius: var(--radius); padding: 6px 8px; margin: 0 0 10px; }
 .bullet-toggle { border: none; background: none; color: var(--text-dim); font-size: 10px; width: 10px; padding: 0; flex: none; cursor: pointer; }
 .bullet-toggle:hover { color: var(--text); }
 
@@ -230,6 +234,8 @@ button:hover { border-color: var(--accent); }
 .project-name { font-weight: 600; }
 .project-switching { color: var(--accent); font-size: 12px; }
 .project-new > summary { cursor: pointer; color: var(--text-dim); padding: 0 4px; }
+.project-new-toggle { font-size: 12px; border: 1px solid var(--edge); border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+.project-new-toggle:hover { color: var(--text); border-color: var(--text-dim); }
 
 /* --- preview links --- */
 .outline-preview-link { color: var(--text-dim); font-size: 12px; text-decoration: none; }

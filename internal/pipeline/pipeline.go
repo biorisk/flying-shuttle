@@ -8,8 +8,10 @@ package pipeline
 import (
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/biorisk/flying-shuttle/internal/ingest"
@@ -70,6 +72,79 @@ func (in *Ingester) Accept(filename string, src io.Reader) (*model.Upload, error
 		return nil, err
 	}
 	return u, nil
+}
+
+// IngestPath ingests transcript files that already live on the machine running
+// shuttle. path may be a single transcript file or a directory (walked
+// recursively); only files with a transcript extension are accepted. Accepted
+// files are copied into UploadDir and processing is started for each. It
+// returns the accepted uploads and the paths that were skipped (wrong
+// extension or unreadable).
+func (in *Ingester) IngestPath(path string) (accepted []*model.Upload, skipped []string, err error) {
+	abs, err := filepath.Abs(expandUser(strings.TrimSpace(path)))
+	if err != nil {
+		return nil, nil, err
+	}
+	info, err := os.Stat(abs)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var files []string
+	if info.IsDir() {
+		walkErr := filepath.WalkDir(abs, func(p string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() {
+				return nil
+			}
+			if ingest.IsTextTranscript(strings.ToLower(filepath.Ext(p))) {
+				files = append(files, p)
+			} else {
+				skipped = append(skipped, p)
+			}
+			return nil
+		})
+		if walkErr != nil {
+			return nil, skipped, walkErr
+		}
+		sort.Strings(files)
+	} else {
+		if !ingest.IsTextTranscript(strings.ToLower(filepath.Ext(abs))) {
+			return nil, []string{abs}, ErrUnsupportedFormat{Ext: filepath.Ext(abs)}
+		}
+		files = []string{abs}
+	}
+
+	for _, p := range files {
+		f, oerr := os.Open(p)
+		if oerr != nil {
+			skipped = append(skipped, p)
+			continue
+		}
+		u, aerr := in.Accept(filepath.Base(p), f)
+		f.Close()
+		if aerr != nil {
+			skipped = append(skipped, p)
+			continue
+		}
+		accepted = append(accepted, u)
+	}
+	for _, u := range accepted {
+		in.Start(u)
+	}
+	return accepted, skipped, nil
+}
+
+// expandUser resolves a leading ~ to the current user's home directory.
+func expandUser(p string) string {
+	if p == "~" || strings.HasPrefix(p, "~/") {
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, strings.TrimPrefix(p, "~"))
+		}
+	}
+	return p
 }
 
 // DiskPath returns the on-disk location of an upload's file.

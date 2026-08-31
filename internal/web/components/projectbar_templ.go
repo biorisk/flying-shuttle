@@ -126,7 +126,7 @@ func ProjectBar(vm viewmodel.ProjectBar) templ.Component {
 					}
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</select> <details class=\"dag-menu project-new\"><summary>+</summary><ul><li><form data-on:submit__prevent=\"@post('/project/new', {contentType:'form'})\"><input name=\"name\" placeholder=\"new project…\" autocomplete=\"off\" pattern=\"[a-z0-9][a-z0-9_-]*\"> <button type=\"submit\">create</button></form></li></ul></details>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</select> <details class=\"dag-menu project-new\"><summary class=\"project-new-toggle\" title=\"Create a new project\">+ New</summary><ul><li><form data-on:submit__prevent=\"@post('/project/new', {contentType:'form'})\"><input name=\"name\" placeholder=\"new-project-name\" autocomplete=\"off\" pattern=\"[a-z0-9][a-z0-9_-]*\" title=\"lowercase letters, digits, - and _\"> <button type=\"submit\">Create &amp; switch</button></form></li></ul></details>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

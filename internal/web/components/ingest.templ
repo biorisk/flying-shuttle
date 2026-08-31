@@ -5,10 +5,11 @@ import (
 	"github.com/biorisk/flying-shuttle/internal/web/viewmodel"
 )
 
-// Ingest is the left-drawer fragment: a transcript upload form, a status
+// Ingest is the left-drawer fragment: a browser upload form, a server-path
+// ingest form (transcripts already on the machine running shuttle), a status
 // summary, and the list of uploaded files. Rendered into #ingest by GET
-// /ingest and re-patched by POST /ingest. While any upload is still processing
-// the fragment polls itself every 2s (data-on-interval — the plugin name is
+// /ingest and re-patched by POST /ingest and POST /ingest/path. While any
+// upload is still processing the fragment polls itself every 2s (data-on-interval — the plugin name is
 // literally "on-interval", so it is NOT data-on:interval).
 templ Ingest(vm viewmodel.IngestDrawer) {
 	<div
@@ -29,6 +30,25 @@ templ Ingest(vm viewmodel.IngestDrawer) {
 			</label>
 			<button type="submit" class="ingest-submit">Upload &amp; process</button>
 		</form>
+		<form
+			class="ingest-form ingest-path"
+			data-on:submit__prevent="@post('/ingest/path', {contentType: 'form'})"
+		>
+			<label class="ingest-path-label">
+				<span>…or a path on the server</span>
+				<input
+					type="text"
+					name="path"
+					placeholder="/transcripts, or one file.txt"
+					autocomplete="off"
+					spellcheck="false"
+				/>
+			</label>
+			<button type="submit" class="ingest-submit">Ingest from server</button>
+		</form>
+		if vm.Notice != "" {
+			<p class="ingest-notice">{ vm.Notice }</p>
+		}
 		if vm.Total > 0 {
 			<div class="ingest-summary">
 				<span>{ fmt.Sprintf("%d file(s)", vm.Total) }</span>

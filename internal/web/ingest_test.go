@@ -5,6 +5,9 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -74,6 +77,57 @@ func TestIngestUpload_txt(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 	}
 	t.Fatal("no chunks produced from upload")
+}
+
+func TestIngestPath_serverDirectory(t *testing.T) {
+	r, s := ingestRouter(t)
+
+	src := t.TempDir()
+	for _, f := range []struct{ name, body string }{
+		{"one.txt", "A paragraph about fear.\n\nAnother about resolve."},
+		{"two.md", "# Title\n\nA markdown transcript paragraph."},
+	} {
+		if err := os.WriteFile(filepath.Join(src, f.name), []byte(f.body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(src, "skip.pdf"), []byte("%PDF"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	form := url.Values{"path": {src}}
+	req := httptest.NewRequest(http.MethodPost, "/ingest/path", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != 200 {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if body := rec.Body.String(); !strings.Contains(body, "Queued 2 transcript(s)") || !strings.Contains(body, "skipped 1") {
+		t.Fatalf("notice missing from patch:\n%s", body)
+	}
+
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		if cs, _ := s.ListChunks(); len(cs) >= 2 {
+			return
+		}
+		time.Sleep(30 * time.Millisecond)
+	}
+	t.Fatal("server-path ingest produced no chunks")
+}
+
+func TestIngestPath_badPath(t *testing.T) {
+	r, _ := ingestRouter(t)
+	form := url.Values{"path": {"/no/such/dir/here"}}
+	req := httptest.NewRequest(http.MethodPost, "/ingest/path", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), "Server ingest failed") {
+		t.Fatalf("want a failure notice, got %d: %s", rec.Code, rec.Body.String())
+	}
 }
 
 func TestIngestUpload_rejectsNonText(t *testing.T) {

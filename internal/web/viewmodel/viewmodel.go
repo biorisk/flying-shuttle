@@ -171,4 +171,7 @@ type IngestDrawer struct {
 	// Active is true while any upload is still pending/processing, so the
 	// fragment can poll itself for status updates.
 	Active bool
+	// Notice is a one-shot status line shown after a server-side path ingest
+	// (e.g. "Queued 3 transcript(s)…" or an error). Empty most of the time.
+	Notice string
 }
