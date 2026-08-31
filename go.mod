@@ -6,6 +6,7 @@ require (
 	github.com/a-h/templ v0.3.1020
 	github.com/coder/hnsw v0.6.1
 	github.com/go-chi/chi/v5 v5.2.5
+	github.com/google/renameio v1.0.1
 	github.com/google/uuid v1.6.0
 	github.com/starfederation/datastar-go v1.2.2
 	modernc.org/sqlite v1.44.3
@@ -21,7 +22,6 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
-	github.com/google/renameio v1.0.1 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
