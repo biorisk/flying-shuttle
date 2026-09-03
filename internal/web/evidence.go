@@ -69,8 +69,17 @@ func (f *EvidenceFinder) Find(ctx context.Context, query string, limit int) ([]v
 		if loc.Found {
 			cand.Snippet, cand.Segments = buildSnippet(c.Content, loc.Window, loc.Hits)
 			cand.FocusStart, cand.FocusEnd = loc.Window.Start, loc.Window.End
-			if loc.Window.Start > 0 || loc.Window.End < len([]rune(c.Content)) {
-				full := []rune(c.Content)
+			full := []rune(c.Content)
+			clipped := loc.Window.Start > 0 || loc.Window.End < len(full)
+			if clipped && len(loc.Sentences) > 0 {
+				// Expanded view: whole chunk, one shaded run per sentence.
+				for _, sc := range loc.Sentences {
+					cand.FullSentences = append(cand.FullSentences, viewmodel.ShadedSentence{
+						Segments: segmentize(full, sc.Span, loc.Hits),
+						Score:    sc.Score,
+					})
+				}
+			} else if clipped {
 				_, cand.Full = buildSnippet(c.Content, search.Span{Start: 0, End: len(full)}, loc.Hits)
 			}
 		} else {
@@ -81,11 +90,9 @@ func (f *EvidenceFinder) Find(ctx context.Context, query string, limit int) ([]v
 	return out, nil
 }
 
-// buildSnippet renders the located window of content as display text plus a
-// segment list with query-term hits marked. Offsets are rune-based. A window
-// that does not reach a chunk edge gets an ellipsis on that side.
-func buildSnippet(content string, win search.Span, hits []search.Span) (string, []viewmodel.SnippetSeg) {
-	runes := []rune(content)
+// segmentize splits runes[win] into verbatim and hit-marked (<mark>) segments.
+// Offsets are rune-based; hits outside the window are ignored.
+func segmentize(runes []rune, win search.Span, hits []search.Span) []viewmodel.SnippetSeg {
 	if win.Start < 0 {
 		win.Start = 0
 	}
@@ -93,7 +100,6 @@ func buildSnippet(content string, win search.Span, hits []search.Span) (string, 
 		win.End = len(runes)
 	}
 
-	// Clip hits to the window and sort by start.
 	type span struct{ s, e int }
 	marks := make([]span, 0, len(hits))
 	for _, h := range hits {
@@ -110,9 +116,6 @@ func buildSnippet(content string, win search.Span, hits []search.Span) (string, 
 			segs = append(segs, viewmodel.SnippetSeg{Text: string(runes[s:e]), Mark: mark})
 		}
 	}
-	if win.Start > 0 {
-		segs = append(segs, viewmodel.SnippetSeg{Text: "…"})
-	}
 	pos := win.Start
 	for _, mk := range marks {
 		if mk.s < pos { // overlaps the previous mark — extend, don't nest
@@ -127,6 +130,24 @@ func buildSnippet(content string, win search.Span, hits []search.Span) (string, 
 		pos = mk.e
 	}
 	add(pos, win.End, false)
+	return segs
+}
+
+// buildSnippet renders the located window of content as display text plus a
+// segment list with query-term hits marked. A window that does not reach a
+// chunk edge gets an ellipsis on that side.
+func buildSnippet(content string, win search.Span, hits []search.Span) (string, []viewmodel.SnippetSeg) {
+	runes := []rune(content)
+	if win.Start < 0 {
+		win.Start = 0
+	}
+	if win.End > len(runes) {
+		win.End = len(runes)
+	}
+	segs := segmentize(runes, win, hits)
+	if win.Start > 0 {
+		segs = append([]viewmodel.SnippetSeg{{Text: "…"}}, segs...)
+	}
 	if win.End < len(runes) {
 		segs = append(segs, viewmodel.SnippetSeg{Text: "…"})
 	}

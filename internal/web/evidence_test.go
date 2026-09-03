@@ -2,6 +2,7 @@ package web_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/biorisk/flying-shuttle/internal/model"
@@ -105,15 +106,29 @@ func TestEvidenceFinder_marksHitsAndCentersSnippet(t *testing.T) {
 	if len(marked) != 2 {
 		t.Fatalf("expected budget + shortfall marked, got %v (segments %+v)", marked, cand.Segments)
 	}
-	// The clipped snippet offers an expand-to-full-chunk view.
+	// The clipped snippet offers an expand-to-full-chunk view, shaded per
+	// sentence.
 	if !cand.HasMore() {
 		t.Errorf("expected HasMore for a clipped snippet")
 	}
-	var full string
-	for _, seg := range cand.Full {
-		full += seg.Text
+	if len(cand.FullSentences) < 3 {
+		t.Fatalf("expected per-sentence expanded view, got %d sentences", len(cand.FullSentences))
 	}
-	if full != c.Content {
-		t.Errorf("Full segments should reconstruct the whole chunk:\n got %q\nwant %q", full, c.Content)
+	var full string
+	var topScore float64
+	for _, snt := range cand.FullSentences {
+		for _, seg := range snt.Segments {
+			full += seg.Text
+		}
+		full += " "
+		if snt.Score > topScore {
+			topScore = snt.Score
+		}
+	}
+	if !strings.Contains(strings.Join(strings.Fields(full), " "), "budget shortfall came up and dominated the rest") {
+		t.Errorf("expanded sentences should cover the whole chunk, got %q", full)
+	}
+	if topScore != 1.0 {
+		t.Errorf("expected a top-scored sentence at 1.0, got %v", topScore)
 	}
 }

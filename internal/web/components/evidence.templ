@@ -42,9 +42,18 @@ templ Evidence(vm viewmodel.EvidencePane) {
 							if c.HasMore() {
 								<details class="candidate-more">
 									<summary>Show full passage</summary>
-									<p class="candidate-full">
-										@markSegs(c.Full, "")
-									</p>
+									if len(c.FullSentences) > 0 {
+										<p class="candidate-full">
+											for _, snt := range c.FullSentences {
+												<span class="cand-sent" style={ sentShade(snt.Score) }>@markSegs(snt.Segments, "")</span>
+												{ " " }
+											}
+										</p>
+									} else {
+										<p class="candidate-full">
+											@markSegs(c.Full, "")
+										</p>
+									}
 								</details>
 							}
 						</li>

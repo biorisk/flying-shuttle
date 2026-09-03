@@ -132,6 +132,8 @@ button:hover { border-color: var(--accent); }
 .candidate-more > summary::-webkit-details-marker { display: none; }
 .candidate-more[open] > summary { margin-bottom: 4px; }
 .candidate-full { margin: 0; font-size: 13px; color: var(--text-dim); }
+.cand-sent { border-radius: 3px; padding: 0 1px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.cand-sent mark { background: var(--accent); color: var(--bg); border-radius: 2px; padding: 0 1px; }
 
 /* --- ingest drawer --- */
 .ingest-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }

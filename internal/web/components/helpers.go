@@ -84,6 +84,16 @@ func exitGlyph(t string) string {
 	}
 }
 
+// sentShade maps a 0..1 sentence relevance score to a background style,
+// light → dark in the accent hue. Below a small floor it stays transparent.
+func sentShade(score float64) string {
+	if score < 0.05 {
+		return "background:transparent"
+	}
+	a := 0.08 + 0.30*score // 0.08 .. 0.38
+	return "background:rgba(100,108,255," + strconv.FormatFloat(a, 'f', 2, 64) + ")"
+}
+
 // boolAttr renders a boolean as "1"/"" for a data- attribute.
 func boolAttr(b bool) string {
 	if b {

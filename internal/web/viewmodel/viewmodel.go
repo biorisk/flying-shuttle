@@ -16,8 +16,13 @@ type Candidate struct {
 	// Empty when there is nothing to highlight — render Snippet directly.
 	Segments []SnippetSeg
 	// Full is the whole chunk split into verbatim and <mark> runs, shown when
-	// the card is expanded. Nil when the snippet already covers the chunk.
+	// the card is expanded. Nil when the snippet already covers the chunk or
+	// when FullSentences is used instead.
 	Full []SnippetSeg
+	// FullSentences is the expanded view broken into sentences, each carrying
+	// a 0..1 relevance score for light→dark shading. Preferred over Full when
+	// the passage locator produced per-sentence scores.
+	FullSentences []ShadedSentence
 	// FocusStart/FocusEnd are the rune offsets of the located window within
 	// the full chunk (both 0 when nothing was located). Later steps thread
 	// these into the transcript reader and excerpt form.
@@ -27,13 +32,20 @@ type Candidate struct {
 }
 
 // HasMore reports whether an expand-in-place toggle should be offered.
-func (c Candidate) HasMore() bool { return len(c.Full) > 0 }
+func (c Candidate) HasMore() bool { return len(c.Full) > 0 || len(c.FullSentences) > 0 }
 
 // SnippetSeg is one run of a candidate snippet. Mark=true means it matched a
 // query term and should be visually highlighted.
 type SnippetSeg struct {
 	Text string
 	Mark bool
+}
+
+// ShadedSentence is one sentence of an expanded candidate, with a normalized
+// relevance score (0..1) driving its background shade.
+type ShadedSentence struct {
+	Segments []SnippetSeg
+	Score    float64
 }
 
 // EvidencePane is the render model for the #evidence fragment.

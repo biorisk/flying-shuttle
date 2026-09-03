@@ -50,6 +50,7 @@ func (s *evidenceStability) stabilize(node string, fresh []viewmodel.Candidate) 
 				c.Snippet = old.Snippet
 				c.Segments = old.Segments
 				c.Full = old.Full
+				c.FullSentences = old.FullSentences
 				c.FocusStart = old.FocusStart
 				c.FocusEnd = old.FocusEnd
 			}
