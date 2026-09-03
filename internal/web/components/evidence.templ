@@ -94,16 +94,21 @@ templ TranscriptReader(vm viewmodel.TranscriptReader) {
 			<form
 				id="excerpt-form"
 				class="excerpt-form"
+				data-prefilled={ boolAttr(vm.HasExcerpt()) }
 				data-on:submit__prevent="@post('/outline/nodes/' + ($focusId||'') + '/evidence', {contentType:'form'})"
 			>
 				<input type="hidden" name="chunk_id" value={ vm.FocusChunk }/>
-				<input type="hidden" name="char_start"/>
-				<input type="hidden" name="char_end"/>
-				<input type="hidden" name="text"/>
+				<input type="hidden" name="char_start" value={ excerptOffset(vm.ExcerptStart, vm.HasExcerpt()) }/>
+				<input type="hidden" name="char_end" value={ excerptOffset(vm.ExcerptEnd, vm.HasExcerpt()) }/>
+				<input type="hidden" name="text" value={ vm.ExcerptText }/>
 				<button type="submit" class="excerpt-add" data-attr:disabled="!$focusId">
 					Add as evidence
 				</button>
-				<span class="excerpt-hint">Select text above to attach just that span.</span>
+				if vm.HasExcerpt() {
+					<span class="excerpt-hint">The located passage is preselected — or select text above to narrow it.</span>
+				} else {
+					<span class="excerpt-hint">Select text above to attach just that span.</span>
+				}
 			</form>
 		}
 	</div>

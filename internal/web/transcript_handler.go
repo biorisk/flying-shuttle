@@ -46,7 +46,19 @@ func (h *handlers) transcriptReader(w http.ResponseWriter, r *http.Request) {
 			CharStart: s.CharStart,
 		}
 		if s.Focus && fe > fs {
-			seg.FocusStart, seg.FocusEnd = fs, fe
+			r := []rune(s.Text)
+			a, b := fs, fe
+			if a < 0 {
+				a = 0
+			}
+			if b > len(r) {
+				b = len(r)
+			}
+			if a < b {
+				seg.FocusStart, seg.FocusEnd = a, b
+				vm.ExcerptStart, vm.ExcerptEnd = a, b
+				vm.ExcerptText = string(r[a:b])
+			}
 		}
 		vm.Segments = append(vm.Segments, seg)
 	}

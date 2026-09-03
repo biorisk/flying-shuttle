@@ -50,8 +50,11 @@
     if (!form) return;
     const reader = form.closest(".transcript-reader");
 
-    // No / collapsed selection: whole focus chunk.
+    // No / collapsed selection. Keep the server-side prefill (the located
+    // span) until the user makes a real selection; otherwise attach the whole
+    // focus chunk.
     if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+      if (form.dataset.prefilled === "1") return;
       const focusSeg = reader &&
         (reader.querySelector(".reader-seg.focus") || reader.querySelector(".reader-seg"));
       if (focusSeg) setField(form, "chunk_id", focusSeg.dataset.chunk);
@@ -81,6 +84,7 @@
     setField(form, "char_end", String(end));
     setField(form, "text", text);
     form.dataset.hasSelection = "1";
+    form.dataset.prefilled = ""; // user has taken over from the located span
   }
 
   // ---- outline drag-and-drop reorder -------------------------------------

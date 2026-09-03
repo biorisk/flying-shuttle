@@ -84,10 +84,19 @@ type TranscriptReader struct {
 	HasNext    bool
 	PrevChunk  string
 	NextChunk  string
+	// ExcerptStart/ExcerptEnd/ExcerptText prefill the #excerpt-form with the
+	// located span (focus-chunk-relative rune offsets) so "Add as evidence"
+	// attaches the relevant passage by default. ExcerptText == "" means none.
+	ExcerptStart int
+	ExcerptEnd   int
+	ExcerptText  string
 }
 
 // Empty reports whether the reader has nothing to show (closed state).
 func (r TranscriptReader) Empty() bool { return r.FocusChunk == "" }
+
+// HasExcerpt reports whether the excerpt form has a located span to prefill.
+func (r TranscriptReader) HasExcerpt() bool { return r.ExcerptText != "" }
 
 // OutlineNode is one bullet in the rendered outline tree. Prev/Next are the
 // flattened-order neighbour ids for keyboard navigation.

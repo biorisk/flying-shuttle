@@ -84,6 +84,23 @@ func exitGlyph(t string) string {
 	}
 }
 
+// boolAttr renders a boolean as "1"/"" for a data- attribute.
+func boolAttr(b bool) string {
+	if b {
+		return "1"
+	}
+	return ""
+}
+
+// excerptOffset renders a rune offset for the excerpt form, or "" when there
+// is no preselected span (so the handler falls back to the whole chunk).
+func excerptOffset(n int, has bool) string {
+	if !has {
+		return ""
+	}
+	return strconv.Itoa(n)
+}
+
 func orEmpty(s string) string {
 	if s == "" {
 		return "(untitled)"

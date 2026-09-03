@@ -83,6 +83,36 @@ func TestTranscriptReader_highlightsLocatedSpan(t *testing.T) {
 	}
 }
 
+func TestTranscriptReader_prefillsExcerptFormWithLocatedSpan(t *testing.T) {
+	s, _ := store.NewSQLiteStore(":memory:")
+	s.Migrate()
+	t.Cleanup(func() { s.Close() })
+	s.CreateChunk(&model.Chunk{ID: "c1", SourceFile: "a.txt", Content: "alpha beta gamma delta", StartOffset: 0, EndOffset: 22})
+	r := chi.NewRouter()
+	web.Mount(r, web.Deps{Store: s})
+
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/evidence/transcript?chunk=c1&node=n1&fs=6&fe=16", nil))
+	body := rec.Body.String()
+	for _, want := range []string{
+		`data-prefilled="1"`,
+		`name="char_start" value="6"`,
+		`name="char_end" value="16"`,
+		`name="text" value="beta gamma"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("excerpt prefill missing %q\n%s", want, body)
+		}
+	}
+
+	// Without fs/fe the hidden offsets stay empty (whole-chunk attach).
+	rec2 := httptest.NewRecorder()
+	r.ServeHTTP(rec2, httptest.NewRequest(http.MethodGet, "/evidence/transcript?chunk=c1&node=n1", nil))
+	if b := rec2.Body.String(); strings.Contains(b, `data-prefilled="1"`) || strings.Contains(b, `name="char_start" value="0"`) {
+		t.Fatalf("unexpected prefill without fs/fe:\n%s", b)
+	}
+}
+
 func TestTranscriptReader_hasExcerptForm(t *testing.T) {
 	s, _ := store.NewSQLiteStore(":memory:")
 	s.Migrate()
