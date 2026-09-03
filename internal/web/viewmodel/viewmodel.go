@@ -15,6 +15,9 @@ type Candidate struct {
 	// Segments is Snippet split into verbatim and highlighted (<mark>) runs.
 	// Empty when there is nothing to highlight — render Snippet directly.
 	Segments []SnippetSeg
+	// Full is the whole chunk split into verbatim and <mark> runs, shown when
+	// the card is expanded. Nil when the snippet already covers the chunk.
+	Full []SnippetSeg
 	// FocusStart/FocusEnd are the rune offsets of the located window within
 	// the full chunk (both 0 when nothing was located). Later steps thread
 	// these into the transcript reader and excerpt form.
@@ -22,6 +25,9 @@ type Candidate struct {
 	FocusEnd   int
 	Score      float64
 }
+
+// HasMore reports whether an expand-in-place toggle should be offered.
+func (c Candidate) HasMore() bool { return len(c.Full) > 0 }
 
 // SnippetSeg is one run of a candidate snippet. Mark=true means it matched a
 // query term and should be visually highlighted.

@@ -105,4 +105,15 @@ func TestEvidenceFinder_marksHitsAndCentersSnippet(t *testing.T) {
 	if len(marked) != 2 {
 		t.Fatalf("expected budget + shortfall marked, got %v (segments %+v)", marked, cand.Segments)
 	}
+	// The clipped snippet offers an expand-to-full-chunk view.
+	if !cand.HasMore() {
+		t.Errorf("expected HasMore for a clipped snippet")
+	}
+	var full string
+	for _, seg := range cand.Full {
+		full += seg.Text
+	}
+	if full != c.Content {
+		t.Errorf("Full segments should reconstruct the whole chunk:\n got %q\nwant %q", full, c.Content)
+	}
 }

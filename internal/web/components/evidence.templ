@@ -37,18 +37,16 @@ templ Evidence(vm viewmodel.EvidencePane) {
 								>Read in transcript →</button>
 							</div>
 							<p class="candidate-text">
-								if len(c.Segments) > 0 {
-									for _, s := range c.Segments {
-										if s.Mark {
-											<mark>{ s.Text }</mark>
-										} else {
-											{ s.Text }
-										}
-									}
-								} else {
-									{ c.Snippet }
-								}
+								@markSegs(c.Segments, c.Snippet)
 							</p>
+							if c.HasMore() {
+								<details class="candidate-more">
+									<summary>Show full passage</summary>
+									<p class="candidate-full">
+										@markSegs(c.Full, "")
+									</p>
+								</details>
+							}
 						</li>
 					}
 				</ul>
@@ -56,6 +54,22 @@ templ Evidence(vm viewmodel.EvidencePane) {
 		</div>
 		@TranscriptReader(viewmodel.TranscriptReader{})
 	</div>
+}
+
+// markSegs renders a snippet's segment list, wrapping matched runs in <mark>.
+// When segs is empty it falls back to plain text.
+templ markSegs(segs []viewmodel.SnippetSeg, fallback string) {
+	if len(segs) > 0 {
+		for _, s := range segs {
+			if s.Mark {
+				<mark>{ s.Text }</mark>
+			} else {
+				{ s.Text }
+			}
+		}
+	} else {
+		{ fallback }
+	}
 }
 
 // TranscriptReader renders the #transcript-reader region: a continuous slice of

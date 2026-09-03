@@ -126,7 +126,12 @@ button:hover { border-color: var(--accent); }
 .candidate { border: 1px solid var(--edge); border-radius: var(--radius); padding: 8px; }
 .candidate-meta { display: flex; gap: 8px; font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
 .candidate-text { margin: 0; font-size: 13px; }
-.candidate-text mark { background: var(--accent); color: var(--bg); border-radius: 2px; padding: 0 1px; }
+.candidate-text mark, .candidate-full mark { background: var(--accent); color: var(--bg); border-radius: 2px; padding: 0 1px; }
+.candidate-more { margin-top: 4px; }
+.candidate-more > summary { cursor: pointer; font-size: 11px; color: var(--text-dim); list-style: none; }
+.candidate-more > summary::-webkit-details-marker { display: none; }
+.candidate-more[open] > summary { margin-bottom: 4px; }
+.candidate-full { margin: 0; font-size: 13px; color: var(--text-dim); }
 
 /* --- ingest drawer --- */
 .ingest-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }

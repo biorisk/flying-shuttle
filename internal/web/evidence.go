@@ -59,6 +59,10 @@ func (f *EvidenceFinder) Find(ctx context.Context, query string, limit int) ([]v
 		if loc.Found {
 			cand.Snippet, cand.Segments = buildSnippet(c.Content, loc.Window, loc.Hits)
 			cand.FocusStart, cand.FocusEnd = loc.Window.Start, loc.Window.End
+			if loc.Window.Start > 0 || loc.Window.End < len([]rune(c.Content)) {
+				full := []rune(c.Content)
+				_, cand.Full = buildSnippet(c.Content, search.Span{Start: 0, End: len(full)}, loc.Hits)
+			}
 		} else {
 			cand.Snippet = trimRunes(c.Content, snippetRunes)
 		}

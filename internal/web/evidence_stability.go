@@ -49,6 +49,7 @@ func (s *evidenceStability) stabilize(node string, fresh []viewmodel.Candidate) 
 			if old, ok := prevByChunk[c.ChunkID]; ok {
 				c.Snippet = old.Snippet
 				c.Segments = old.Segments
+				c.Full = old.Full
 				c.FocusStart = old.FocusStart
 				c.FocusEnd = old.FocusEnd
 			}
