@@ -34,7 +34,11 @@ func (f *EvidenceFinder) Find(ctx context.Context, query string, limit int) ([]v
 		limit = DefaultCandidateLimit
 	}
 
-	results, err := f.Index.Search(ctx, query, limit)
+	// A draft bullet is prose, not a query — strip stop words and filler so
+	// both retrieval and the locator work from the salient terms.
+	q := search.CleanQuery(query)
+
+	results, err := f.Index.Search(ctx, q, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +59,7 @@ func (f *EvidenceFinder) Find(ctx context.Context, query string, limit int) ([]v
 			Speaker:    speaker,
 			Score:      r.Score,
 		}
-		loc := search.Locate(c.Content, query, f.Index.BM25.IDF, search.LocateOptions{MaxWindowRunes: snippetRunes})
+		loc := search.Locate(c.Content, q, f.Index.BM25.IDF, search.LocateOptions{MaxWindowRunes: snippetRunes})
 		if loc.Found {
 			cand.Snippet, cand.Segments = buildSnippet(c.Content, loc.Window, loc.Hits)
 			cand.FocusStart, cand.FocusEnd = loc.Window.Start, loc.Window.End

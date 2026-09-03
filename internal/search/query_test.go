@@ -209,3 +209,17 @@ func TestExpandQueries(t *testing.T) {
 		t.Fatalf("expected 0 queries for empty title, got %d", len(queries))
 	}
 }
+
+func TestCleanQuery(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"I really think the budget shortfall was the main thing", "budget shortfall main"},
+		{"the effect of climate change on coastal cities", "effect climate change coastal cities"},
+		{"just kind of a lot of stuff", "just kind of a lot of stuff"}, // all filler → original
+		{"revenue revenue growth", "revenue growth"},                   // dedup
+	}
+	for _, c := range cases {
+		if got := CleanQuery(c.in); got != c.want {
+			t.Errorf("CleanQuery(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}

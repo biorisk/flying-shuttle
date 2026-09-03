@@ -179,3 +179,38 @@ func extractKeywords(text string) string {
 	}
 	return strings.Join(keywords, " ")
 }
+
+// fillerWords are high-frequency discourse/hedge words that carry no retrieval
+// signal in draft prose. Stripped in addition to stopWords by CleanQuery.
+var fillerWords = map[string]bool{
+	"really": true, "very": true, "just": true, "actually": true, "basically": true,
+	"maybe": true, "perhaps": true, "think": true, "know": true, "like": true,
+	"want": true, "wanted": true, "going": true, "get": true, "getting": true,
+	"got": true, "thing": true, "things": true, "kind": true, "sort": true,
+	"lot": true, "stuff": true, "way": true, "make": true, "makes": true,
+	"made": true, "said": true, "say": true, "says": true, "also": true,
+	"much": true, "many": true, "more": true, "most": true, "some": true,
+	"then": true, "than": true, "when": true, "where": true, "what": true,
+	"which": true, "who": true, "why": true, "how": true, "there": true,
+	"here": true, "now": true, "well": true, "one": true, "even": true,
+}
+
+// CleanQuery reduces a noisy draft bullet to its salient content terms: it
+// drops stop words and discourse filler, lowercases, and de-duplicates while
+// preserving order. If nothing salient remains (the bullet was all filler) the
+// trimmed original is returned so retrieval still has something to work with.
+func CleanQuery(raw string) string {
+	seen := make(map[string]bool)
+	var kept []string
+	for _, t := range tokenize(raw) {
+		if len(t) < 2 || stopWords[t] || fillerWords[t] || seen[t] {
+			continue
+		}
+		seen[t] = true
+		kept = append(kept, t)
+	}
+	if len(kept) == 0 {
+		return strings.TrimSpace(raw)
+	}
+	return strings.Join(kept, " ")
+}
