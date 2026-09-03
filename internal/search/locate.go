@@ -63,6 +63,12 @@ func (idx *BM25Index) IDF(term string) float64 {
 	return math.Log((n-df+0.5)/(df+0.5) + 1.0)
 }
 
+// ScoredSpan is a text span with a relevance score normalized to [0,1].
+type ScoredSpan struct {
+	Span
+	Score float64
+}
+
 // LocateResult reports the most query-relevant span within a chunk.
 type LocateResult struct {
 	// Window is the rune span of the best-scoring passage, snapped to token
@@ -72,10 +78,139 @@ type LocateResult struct {
 	// Hits are the rune spans of every query-term occurrence in the whole
 	// chunk, in document order — for highlighting individual matches.
 	Hits []Span
+	// Sentences carries every sentence span of the chunk with its normalized
+	// query relevance (max sentence = 1.0). Filled by LocatePassage; nil from
+	// Locate.
+	Sentences []ScoredSpan
 	// Score is the summed IDF of the hits that fall inside Window.
 	Score float64
 	// Found is true when at least one query term occurs in the chunk.
 	Found bool
+}
+
+// queryWeights tokenizes query and maps each distinct term to its IDF weight
+// (>= 0). A nil idf weights every term at 1.
+func queryWeights(query string, idf func(string) float64) map[string]float64 {
+	weights := make(map[string]float64)
+	for _, t := range tokenizeWithPositions(query) {
+		if _, seen := weights[t.Term]; seen {
+			continue
+		}
+		w := 1.0
+		if idf != nil {
+			w = idf(t.Term)
+		}
+		if w < 0 {
+			w = 0
+		}
+		weights[t.Term] = w
+	}
+	return weights
+}
+
+// sentenceSpans splits text into rune-offset spans on sentence-ending
+// punctuation followed by whitespace — the same rule as ingest.ParseTranscript.
+// Leading whitespace is trimmed from each span.
+func sentenceSpans(text string) []Span {
+	runes := []rune(text)
+	var spans []Span
+	start := 0
+	skipLeadingWS := func(i int) int {
+		for i < len(runes) && unicode.IsSpace(runes[i]) {
+			i++
+		}
+		return i
+	}
+	start = skipLeadingWS(0)
+	for i := 0; i < len(runes); i++ {
+		r := runes[i]
+		if (r == '.' || r == '!' || r == '?') && i+1 < len(runes) {
+			if n := runes[i+1]; n == ' ' || n == '\n' || n == '\t' {
+				end := i + 1
+				if start < end && strings.TrimSpace(string(runes[start:end])) != "" {
+					spans = append(spans, Span{start, end})
+				}
+				start = skipLeadingWS(end)
+			}
+		}
+	}
+	if start < len(runes) && strings.TrimSpace(string(runes[start:])) != "" {
+		spans = append(spans, Span{start, len(runes)})
+	}
+	return spans
+}
+
+// LocatePassage is the sentence-granular locator: it splits the chunk into
+// sentences, scores each by the summed IDF weight of the query-term hits it
+// contains, and returns the best sentence expanded by up to one sentence of
+// context on each side (bounded by opts.MaxWindowRunes). It also returns every
+// sentence's normalized score in Sentences. Falls back to a zero result when no
+// query term appears — the caller can then try Locate.
+func LocatePassage(chunk, query string, idf func(string) float64, opts LocateOptions) LocateResult {
+	weights := queryWeights(query, idf)
+	if len(weights) == 0 {
+		return LocateResult{}
+	}
+	sents := sentenceSpans(chunk)
+	if len(sents) == 0 {
+		return LocateResult{}
+	}
+	toks := tokenizeWithPositions(chunk)
+
+	raw := make([]float64, len(sents))
+	var hits []Span
+	maxRaw := 0.0
+	for _, t := range toks {
+		w, ok := weights[t.Term]
+		if !ok {
+			continue
+		}
+		hits = append(hits, Span{t.Start, t.End})
+		for k := range sents {
+			if t.Start >= sents[k].Start && t.Start < sents[k].End {
+				raw[k] += w
+				if raw[k] > maxRaw {
+					maxRaw = raw[k]
+				}
+				break
+			}
+		}
+	}
+	if len(hits) == 0 || maxRaw == 0 {
+		return LocateResult{}
+	}
+
+	best := 0
+	for k := range raw {
+		if raw[k] > raw[best] {
+			best = k
+		}
+	}
+
+	maxW := opts.maxWindow()
+	// A single relevant sentence wider than the window (run-on text, missing
+	// punctuation) can't be localized here — defer to the term-window locator.
+	if sents[best].End-sents[best].Start > maxW {
+		return LocateResult{}
+	}
+	lo, hi := best, best
+	winLen := sents[best].End - sents[best].Start
+	if hi+1 < len(sents) && winLen+(sents[hi+1].End-sents[hi].End) <= maxW {
+		winLen += sents[hi+1].End - sents[hi].End
+		hi++
+	}
+	if lo-1 >= 0 && winLen+(sents[lo].Start-sents[lo-1].Start) <= maxW {
+		lo--
+	}
+
+	out := LocateResult{Found: true, Score: raw[best]}
+	out.Window = Span{sents[lo].Start, sents[hi].End}
+	out.Hits = hits
+	out.Sentences = make([]ScoredSpan, len(sents))
+	for k, s := range sents {
+		out.Sentences[k] = ScoredSpan{Span: s, Score: raw[k] / maxRaw}
+	}
+	return out
 }
 
 // LocateOptions tunes Locate.
@@ -101,20 +236,7 @@ func (o LocateOptions) maxWindow() int {
 // to token boundaries; Hits covers the whole chunk regardless of Window so the
 // UI can bold every match it chooses to show.
 func Locate(chunk, query string, idf func(string) float64, opts LocateOptions) LocateResult {
-	weights := make(map[string]float64)
-	for _, t := range tokenizeWithPositions(query) {
-		if _, seen := weights[t.Term]; seen {
-			continue
-		}
-		w := 1.0
-		if idf != nil {
-			w = idf(t.Term)
-		}
-		if w < 0 {
-			w = 0
-		}
-		weights[t.Term] = w
-	}
+	weights := queryWeights(query, idf)
 	if len(weights) == 0 {
 		return LocateResult{}
 	}

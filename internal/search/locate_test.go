@@ -96,6 +96,49 @@ func TestLocateHitOffsets(t *testing.T) {
 	}
 }
 
+func TestLocatePassagePicksBestSentenceWithContext(t *testing.T) {
+	chunk := "We opened with introductions. " +
+		"The room was cold that morning. " +
+		"Then the budget shortfall forced the layoffs. " +
+		"Afterward we broke for coffee. " +
+		"Nobody mentioned it again."
+	res := LocatePassage(chunk, "budget shortfall layoffs", nil, LocateOptions{MaxWindowRunes: 240})
+	if !res.Found {
+		t.Fatal("expected Found")
+	}
+	got := runeSlice(chunk, res.Window)
+	if !strings.Contains(got, "budget shortfall forced the layoffs") {
+		t.Errorf("window missing the key sentence: %q", got)
+	}
+	// ±1 sentence of context.
+	if !strings.Contains(got, "cold that morning") && !strings.Contains(got, "broke for coffee") {
+		t.Errorf("window has no context sentence: %q", got)
+	}
+	if len(res.Sentences) != 5 {
+		t.Fatalf("expected 5 sentence scores, got %d", len(res.Sentences))
+	}
+	// The key sentence should score highest and be normalized to 1.
+	var top float64
+	var topIdx int
+	for i, s := range res.Sentences {
+		if s.Score > top {
+			top, topIdx = s.Score, i
+		}
+	}
+	if top != 1.0 || topIdx != 2 {
+		t.Errorf("expected sentence 2 to top out at 1.0, got idx %d score %v", topIdx, top)
+	}
+}
+
+func TestLocatePassageFallsBackForRunOnText(t *testing.T) {
+	// No sentence punctuation and longer than the window → not localizable here.
+	chunk := strings.Repeat("filler words here ", 30) + "budget shortfall " + strings.Repeat("more filler ", 30)
+	res := LocatePassage(chunk, "budget shortfall", nil, LocateOptions{MaxWindowRunes: 120})
+	if res.Found {
+		t.Errorf("expected LocatePassage to defer (not Found), got %+v", res.Window)
+	}
+}
+
 func TestLocateIDFWeightingPicksRarerCluster(t *testing.T) {
 	idx := NewBM25Index()
 	// "the" is everywhere, "quantum" is rare.

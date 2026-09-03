@@ -76,11 +76,11 @@ func TestEvidenceFinder_marksHitsAndCentersSnippet(t *testing.T) {
 	t.Cleanup(func() { s.Close() })
 
 	idx := search.NewHybridIndex(nil)
-	lead := "we spent the first hour on scheduling and room bookings and other logistics "
+	lead := "We spent the first hour on scheduling and room bookings and other logistics. "
 	c := model.Chunk{
 		ID:         "c1",
 		SourceFile: "iv.txt",
-		Content:    lead + lead + "then the budget shortfall came up and dominated the rest " + lead,
+		Content:    lead + lead + "Then the budget shortfall came up and dominated the rest. " + lead + lead,
 	}
 	if err := s.CreateChunk(&c); err != nil {
 		t.Fatal(err)

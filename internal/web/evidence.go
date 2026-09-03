@@ -59,7 +59,13 @@ func (f *EvidenceFinder) Find(ctx context.Context, query string, limit int) ([]v
 			Speaker:    speaker,
 			Score:      r.Score,
 		}
-		loc := search.Locate(c.Content, q, f.Index.BM25.IDF, search.LocateOptions{MaxWindowRunes: snippetRunes})
+		// Sentence-granular passage scoring first; fall back to the raw
+		// term-window locator for hits that don't land in any sentence.
+		opts := search.LocateOptions{MaxWindowRunes: snippetRunes}
+		loc := search.LocatePassage(c.Content, q, f.Index.BM25.IDF, opts)
+		if !loc.Found {
+			loc = search.Locate(c.Content, q, f.Index.BM25.IDF, opts)
+		}
 		if loc.Found {
 			cand.Snippet, cand.Segments = buildSnippet(c.Content, loc.Window, loc.Hits)
 			cand.FocusStart, cand.FocusEnd = loc.Window.Start, loc.Window.End
