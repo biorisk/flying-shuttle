@@ -135,6 +135,7 @@
   });
 
   let markIdx = -1; // cursor into the highlighted spans for n / N cycling
+  let lastReaderVisible = null; // gate docked-bar refresh to reader open/close
 
   // When the transcript reader patches in with a located span, scroll it into
   // view once. The reader body is replaced on every open / scrub, so a fresh
@@ -146,7 +147,15 @@
       el.scrollIntoView({ block: "center", behavior: "smooth" });
     }
     markIdx = -1; // evidence fragment changed — restart span cycling
-    updateEvidenceActions();
+
+    // Refresh the docked bar only when the reader actually opened or closed —
+    // not on every mutation (updateEvidenceActions writes text, which would
+    // otherwise re-trigger this observer in a loop).
+    const rv = !!(readerEl() && readerEl().offsetParent !== null);
+    if (rv !== lastReaderVisible) {
+      lastReaderVisible = rv;
+      updateEvidenceActions();
+    }
   }).observe(document.body, { childList: true, subtree: true });
 
   // ---- keyboard span cycling (n / N) -----------------------------------
@@ -221,6 +230,16 @@
     return null;
   }
 
+  function readerEl() {
+    return document.getElementById("transcript-reader");
+  }
+
+  // Write text only when it changes — the MutationObserver watches the whole
+  // body subtree, so a needless textContent write would loop back into here.
+  function setText(el, s) {
+    if (el.textContent !== s) el.textContent = s;
+  }
+
   function updateEvidenceActions() {
     const bar = document.getElementById("evidence-actions");
     if (!bar) return;
@@ -239,20 +258,19 @@
         attachForm.elements["chunk_id"].value = chunkId;
         attachForm.elements["text"].value = text;
         bar.dataset.mode = "selection";
-        preview.textContent = "“" + (text.length > 90 ? text.slice(0, 90) + "…" : text) + "”";
-        btn.textContent = "Add selection";
+        setText(preview, "“" + (text.length > 90 ? text.slice(0, 90) + "…" : text) + "”");
+        setText(btn, "Add selection");
         bar.hidden = false;
         return;
       }
     }
 
-    const reader = document.getElementById("transcript-reader");
+    const reader = readerEl();
     if (reader && reader.offsetParent !== null) {
       const ef = document.getElementById("excerpt-form");
       bar.dataset.mode = "passage";
-      preview.textContent = ef && ef.dataset.prefilled === "1"
-        ? "The located passage" : "This whole passage";
-      btn.textContent = "Add passage";
+      setText(preview, ef && ef.dataset.prefilled === "1" ? "The located passage" : "This whole passage");
+      setText(btn, "Add passage");
       bar.hidden = false;
       return;
     }
