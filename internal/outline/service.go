@@ -2,6 +2,7 @@ package outline
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/store"
@@ -242,7 +243,6 @@ func (s *Service) AttachEvidence(parentID, chunkID string, charStart, charEnd in
 		Type:   model.NodeTypeChunkRef,
 		Title:  previewText(text, 80),
 		Body:   text,
-		Locked: true,
 		Labels: map[string]string{"source_file": chunk.SourceFile},
 	}
 	if err := s.Store.CreateNode(node); err != nil {
@@ -264,6 +264,89 @@ func (s *Service) AttachEvidence(parentID, chunkID string, charStart, charEnd in
 		return nil, err
 	}
 	return node, nil
+}
+
+// QuoteOp names an in-place edit to a quote's text.
+type QuoteOp string
+
+const (
+	// QuoteTrim keeps only the selected range of the quote.
+	QuoteTrim QuoteOp = "trim"
+	// QuoteSplice removes the selected range from the quote.
+	QuoteSplice QuoteOp = "splice"
+)
+
+// EditQuote narrows an evidence (chunk_ref) bullet's text using rune offsets
+// into its *current* text: QuoteTrim keeps [start,end); QuoteSplice drops it.
+// Both the evidence row (text + char offsets) and the node's Body/Title are
+// updated. Returns ErrNoop when the edit would change nothing or leave the
+// quote empty.
+func (s *Service) EditQuote(nodeID string, op QuoteOp, start, end int) (*model.Node, error) {
+	n, err := s.Store.GetNode(nodeID)
+	if err != nil {
+		return nil, err
+	}
+	if n.Type != model.NodeTypeChunkRef {
+		return nil, ErrNoop
+	}
+	evs, err := s.Store.ListNodeEvidence(nodeID)
+	if err != nil {
+		return nil, err
+	}
+	if len(evs) == 0 {
+		return nil, store.ErrNotFound
+	}
+	ev := evs[0]
+
+	runes := []rune(ev.Text)
+	if start < 0 {
+		start = 0
+	}
+	if end > len(runes) {
+		end = len(runes)
+	}
+	if start >= end {
+		return nil, ErrNoop
+	}
+
+	var newText string
+	newStart, newEnd := ev.CharStart, ev.CharEnd
+	switch op {
+	case QuoteTrim:
+		newText = string(runes[start:end])
+		// Offsets shift by the trimmed-off prefix; valid for a fresh quote
+		// (text == chunk[CharStart:CharEnd]) and a harmless approximation once
+		// a quote has already been spliced.
+		newStart = ev.CharStart + start
+		newEnd = newStart + len([]rune(newText))
+	case QuoteSplice:
+		newText = string(runes[:start]) + string(runes[end:])
+		switch {
+		case start == 0: // removed a prefix
+			newStart = ev.CharStart + end
+		case end == len(runes): // removed a suffix
+			newEnd = ev.CharStart + start
+		}
+		// interior removal: keep the bounding offsets, text is authoritative
+	default:
+		return nil, ErrNoop
+	}
+
+	if strings.TrimSpace(newText) == "" || newText == ev.Text {
+		return nil, ErrNoop
+	}
+
+	ev.Text, ev.CharStart, ev.CharEnd = newText, newStart, newEnd
+	if err := s.Store.UpdateEvidence(&ev); err != nil {
+		return nil, err
+	}
+
+	n.Body = newText
+	n.Title = previewText(newText, 80)
+	if err := s.Store.UpdateNode(n); err != nil {
+		return nil, err
+	}
+	return n, nil
 }
 
 // SetLocked toggles a bullet's locked flag.

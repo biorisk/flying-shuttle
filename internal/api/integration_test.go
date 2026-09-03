@@ -134,8 +134,8 @@ func TestFullLoop(t *testing.T) {
 		t.Fatalf("want 1 evidence sub-bullet, got %d", len(kids))
 	}
 	n, _ := s.GetNode(kids[0])
-	if !n.Locked || n.Type != model.NodeTypeChunkRef {
-		t.Fatalf("evidence bullet should be a locked chunk_ref: %+v", n)
+	if n.Type != model.NodeTypeChunkRef {
+		t.Fatalf("evidence bullet should be a chunk_ref: %+v", n)
 	}
 
 	// 7. preview stitches the attached passage

@@ -18,6 +18,7 @@ import (
 func (h *handlers) mountOutlineEdit(r chi.Router) {
 	r.Post("/outline/roots", h.outlineAddRoot)
 	r.Post("/outline/move", h.outlineMove)
+	r.Post("/outline/quote-edit", h.outlineQuoteEdit)
 	r.Route("/outline/nodes/{id}", func(r chi.Router) {
 		r.Patch("/", h.outlineSetTitle)
 		r.Delete("/", h.outlineDelete)
@@ -123,6 +124,32 @@ func (h *handlers) outlineDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.patchOutline(w, r, focus)
+}
+
+// outlineQuoteEdit trims a quote to, or splices a range out of, an evidence
+// bullet from a text selection in the outline.
+//
+//	POST /outline/quote-edit   form: node_id, op (trim|splice), start, end
+func (h *handlers) outlineQuoteEdit(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	nodeID := r.FormValue("node_id")
+	op := outline.QuoteOp(r.FormValue("op"))
+	start, _ := strconv.Atoi(r.FormValue("start"))
+	end, _ := strconv.Atoi(r.FormValue("end"))
+	if nodeID == "" || (op != outline.QuoteTrim && op != outline.QuoteSplice) {
+		http.Error(w, "node_id and op required", http.StatusBadRequest)
+		return
+	}
+
+	if _, err := h.d.Outline.EditQuote(nodeID, op, start, end); err != nil &&
+		!errors.Is(err, outline.ErrNoop) {
+		h.editError(w, r, err)
+		return
+	}
+	h.patchOutline(w, r, "")
 }
 
 // outlineMove reparents/reorders a bullet from a drag-and-drop gesture.

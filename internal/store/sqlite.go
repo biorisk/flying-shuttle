@@ -488,6 +488,19 @@ func (s *SQLiteStore) CreateEvidence(e *model.Evidence) error {
 	return err
 }
 
+func (s *SQLiteStore) UpdateEvidence(e *model.Evidence) error {
+	res, err := s.db.Exec(
+		`UPDATE evidence SET char_start = ?, char_end = ?, text = ? WHERE id = ?`,
+		e.CharStart, e.CharEnd, e.Text, e.ID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (s *SQLiteStore) ListNodeEvidence(nodeID string) ([]model.Evidence, error) {
 	rows, err := s.db.Query(
 		`SELECT `+evidenceCols+` FROM evidence WHERE node_id = ? ORDER BY position, created_at`, nodeID)

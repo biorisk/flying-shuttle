@@ -45,8 +45,8 @@ func TestAttachEvidence_wholeChunkAndExcerpt(t *testing.T) {
 		t.Fatalf("evidence bullet not attached: %+v", forest[0])
 	}
 	ev := forest[0].Children[0]
-	if ev.Node.Type != model.NodeTypeChunkRef || !ev.Node.Locked {
-		t.Fatalf("evidence bullet should be a locked chunk_ref: %+v", ev.Node)
+	if ev.Node.Type != model.NodeTypeChunkRef {
+		t.Fatalf("evidence bullet should be a chunk_ref: %+v", ev.Node)
 	}
 	if ev.Node.Body != full {
 		t.Fatalf("whole-chunk body wrong: %q", ev.Node.Body)
@@ -73,6 +73,69 @@ func TestAttachEvidence_wholeChunkAndExcerpt(t *testing.T) {
 	evs, _ := s.ListNodeEvidence(forest[0].Children[1].Node.ID)
 	if len(evs) != 1 || evs[0].Text != "the words I chose" || evs[0].CharStart != start {
 		t.Fatalf("excerpt evidence row wrong: %+v", evs)
+	}
+}
+
+func TestQuoteEditAndDelete(t *testing.T) {
+	s, _ := store.NewSQLiteStore(":memory:")
+	if err := s.Migrate(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { s.Close() })
+	svc := &outline.Service{Store: s}
+
+	bullet, _ := svc.AddRoot("claim")
+	full := "LEAD the decisive testimony came late TAIL"
+	if err := s.CreateChunk(&model.Chunk{ID: "c1", SourceFile: "iv.txt", Content: full, EndOffset: len(full)}); err != nil {
+		t.Fatal(err)
+	}
+	quote := "the decisive testimony came late"
+	ev, err := svc.AttachEvidence(bullet.ID, "c1", len("LEAD "), len("LEAD ")+len(quote), quote)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := chi.NewRouter()
+	web.Mount(r, web.Deps{Store: s, Outline: svc})
+
+	// trim "the " off the front and " came late" off the back -> "decisive testimony"
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req(t, "POST", "/outline/quote-edit", url.Values{
+		"node_id": {ev.ID}, "op": {"trim"},
+		"start": {"4"}, "end": {strconv.Itoa(len("the decisive testimony"))},
+	}))
+	if rec.Code != 200 {
+		t.Fatalf("quote-edit trim: %d %s", rec.Code, rec.Body.String())
+	}
+	evs, _ := s.ListNodeEvidence(ev.ID)
+	if len(evs) != 1 || evs[0].Text != "decisive testimony" {
+		t.Fatalf("after trim: %+v", evs)
+	}
+
+	// splice "decisive " out -> "testimony"
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req(t, "POST", "/outline/quote-edit", url.Values{
+		"node_id": {ev.ID}, "op": {"splice"}, "start": {"0"}, "end": {"9"},
+	}))
+	if rec.Code != 200 {
+		t.Fatalf("quote-edit splice: %d", rec.Code)
+	}
+	if n, _ := s.GetNode(ev.ID); n.Body != "testimony" {
+		t.Fatalf("after splice, node body = %q", n.Body)
+	}
+
+	// delete the quote via the X button's endpoint
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req(t, "DELETE", "/outline/nodes/"+ev.ID, nil))
+	if rec.Code != 200 {
+		t.Fatalf("delete quote: %d", rec.Code)
+	}
+	forest, _ := svc.Tree()
+	if len(forest[0].Children) != 0 {
+		t.Fatalf("quote not deleted: %+v", forest[0].Children)
+	}
+	if evs, _ := s.ListNodeEvidence(ev.ID); len(evs) != 0 {
+		t.Fatalf("evidence row not cascaded: %+v", evs)
 	}
 }
 

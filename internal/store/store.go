@@ -38,6 +38,7 @@ type Store interface {
 
 	// Evidence: supporting text spans attached to a node (supersedes node_chunks)
 	CreateEvidence(e *model.Evidence) error
+	UpdateEvidence(e *model.Evidence) error // updates char_start, char_end, text
 	ListNodeEvidence(nodeID string) ([]model.Evidence, error)
 	ListAllEvidence() ([]model.Evidence, error)
 	DeleteEvidence(id string) error

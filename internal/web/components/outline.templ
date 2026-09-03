@@ -24,6 +24,18 @@ templ Outline(vm viewmodel.Outline) {
 			<input type="hidden" name="parent_id"/>
 			<input type="hidden" name="position"/>
 		</form>
+		// Floating actions for a text selection inside a quote. app.js positions
+		// and toggles it; the buttons fill and submit #quote-edit-form.
+		<div id="quote-tools" class="quote-tools" hidden>
+			<button type="button" data-qt="trim" title="Trim quote to selection">Trim to selection</button>
+			<button type="button" data-qt="splice" title="Remove selection from quote">Remove selection</button>
+			<form id="quote-edit-form" hidden data-on:submit__prevent="@post('/outline/quote-edit', {contentType:'form'})">
+				<input type="hidden" name="node_id"/>
+				<input type="hidden" name="op"/>
+				<input type="hidden" name="start"/>
+				<input type="hidden" name="end"/>
+			</form>
+		</div>
 		if vm.Empty() {
 			<div class="outline-empty">
 				<p>No outline yet.</p>
@@ -84,9 +96,13 @@ templ bullet(n viewmodel.OutlineNode) {
 			}
 			if n.Evidence {
 				<blockquote class="bullet-evidence">{ evidenceText(n) }</blockquote>
-				if n.Locked {
-					<span class="bullet-lock" title="Locked">&#128274;</span>
-				}
+				<button
+					type="button"
+					class="evidence-del"
+					tabindex="-1"
+					title="Remove quote"
+					data-on:click={ "@delete('/outline/nodes/" + n.ID + "')" }
+				>&times;</button>
 			} else {
 				<form class="bullet-form" data-on:submit__prevent={ "@post('/outline/nodes/" + n.ID + "/sibling', {contentType:'form'})" }>
 					<input type="hidden" name="version" value={ intString(n.Version) }/>

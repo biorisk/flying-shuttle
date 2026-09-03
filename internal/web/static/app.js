@@ -236,4 +236,77 @@
         (anchor.nodeType === 1 && anchor.closest && anchor.closest(".reader-body")));
     fillExcerptForm(inReader ? sel : null);
   });
+
+  // ---- quote trim / splice from an outline text selection --------------
+  //
+  // Selecting text inside a .bullet-evidence blockquote pops a small toolbar:
+  // "Trim to selection" keeps only that range, "Remove selection" splices it
+  // out. Both fill and submit #quote-edit-form (rune offsets into the quote).
+
+  function evidenceOf(node) {
+    while (node) {
+      if (node.nodeType === 1 && node.classList && node.classList.contains("bullet-evidence")) {
+        return node;
+      }
+      node = node.parentNode;
+    }
+    return null;
+  }
+
+  function hideQuoteTools() {
+    const t = document.getElementById("quote-tools");
+    if (t) t.hidden = true;
+  }
+
+  function showQuoteTools(bq, range) {
+    const t = document.getElementById("quote-tools");
+    const li = bq.closest("[data-node-id]");
+    const form = document.getElementById("quote-edit-form");
+    if (!t || !li || !form) return;
+
+    const start = offsetInSeg(bq, range.startContainer, range.startOffset);
+    const end = offsetInSeg(bq, range.endContainer, range.endOffset);
+    if (end - start < 1) { hideQuoteTools(); return; }
+
+    form.elements["node_id"].value = li.dataset.nodeId;
+    form.elements["start"].value = String(start);
+    form.elements["end"].value = String(end);
+
+    const r = range.getBoundingClientRect();
+    t.hidden = false;
+    const tw = t.offsetWidth || 220;
+    let left = r.left + r.width / 2 - tw / 2;
+    left = Math.max(6, Math.min(left, window.innerWidth - tw - 6));
+    let top = r.top - t.offsetHeight - 6;
+    if (top < 6) top = r.bottom + 6;
+    t.style.left = left + "px";
+    t.style.top = top + "px";
+  }
+
+  document.addEventListener("selectionchange", function () {
+    const sel = document.getSelection();
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0) { hideQuoteTools(); return; }
+    const range = sel.getRangeAt(0);
+    const startBq = evidenceOf(range.startContainer);
+    if (!startBq || startBq !== evidenceOf(range.endContainer)) { hideQuoteTools(); return; }
+    showQuoteTools(startBq, range);
+  });
+
+  // Don't drop the selection when reaching for a tool button.
+  document.addEventListener("mousedown", function (e) {
+    const t = document.getElementById("quote-tools");
+    if (t && !t.hidden && t.contains(e.target)) e.preventDefault();
+  });
+
+  document.addEventListener("click", function (e) {
+    const btn = e.target.closest && e.target.closest("#quote-tools button[data-qt]");
+    if (!btn) return;
+    const form = document.getElementById("quote-edit-form");
+    if (!form || !form.elements["node_id"].value) return;
+    form.elements["op"].value = btn.dataset.qt;
+    hideQuoteTools();
+    const s = document.getSelection();
+    if (s) s.removeAllRanges();
+    form.requestSubmit();
+  });
 })();
