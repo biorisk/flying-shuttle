@@ -79,7 +79,8 @@ test("typing a bullet surfaces evidence, and a highlighted span attaches as a lo
     sel.addRange(r);
     document.dispatchEvent(new Event("selectionchange"));
   });
-  await reader.getByRole("button", { name: "Add as evidence" }).click();
+  // The "add evidence" control is docked at the bottom of the right pane.
+  await page.locator("#ea-add").click();
 
   const evidence = page.locator(".bullet.evidence .bullet-evidence");
   await expect(evidence).toBeVisible({ timeout: 5000 });

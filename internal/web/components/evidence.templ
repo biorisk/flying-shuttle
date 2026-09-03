@@ -12,6 +12,7 @@ import (
 // $readerChunk (page signal) toggles between them.
 templ Evidence(vm viewmodel.EvidencePane) {
 	<div id="evidence" class="evidence-pane" aria-label="Evidence">
+		<div class="evidence-scroll">
 		<div id="evidence-candidates" data-show="!$readerChunk">
 			if vm.Query == "" {
 				<p class="evidence-empty">Start typing a bullet — supporting passages appear here.</p>
@@ -69,13 +70,17 @@ templ Evidence(vm viewmodel.EvidencePane) {
 				</ul>
 			}
 		</div>
-		// Floating "Add as evidence" for a text selection inside a candidate
-		// card — attach without opening the transcript reader. app.js positions
-		// it and fills the form; the server locates the text in the chunk.
-		<div id="candidate-attach" class="float-tools" hidden>
-			<button type="button" data-ca="add" title="Attach the selected text as evidence">Add as evidence</button>
+		@TranscriptReader(viewmodel.TranscriptReader{})
+		</div>
+		// Docked action bar, pinned to the bottom of the pane so it's always
+		// reachable. app.js sets its mode from the current selection: attach the
+		// selected text (candidate card or reader), or the located passage when
+		// the reader is open with nothing selected.
+		<div id="evidence-actions" class="evidence-actions" hidden>
+			<span class="ea-preview" data-ea-preview></span>
+			<button type="button" id="ea-add" class="ea-add" data-attr:disabled="!$focusId">Add as evidence</button>
 			<form
-				id="candidate-attach-form"
+				id="evidence-attach-form"
 				hidden
 				data-on:submit__prevent="@post('/outline/nodes/' + ($focusId||'') + '/evidence', {contentType:'form'})"
 			>
@@ -83,7 +88,6 @@ templ Evidence(vm viewmodel.EvidencePane) {
 				<input type="hidden" name="text"/>
 			</form>
 		</div>
-		@TranscriptReader(viewmodel.TranscriptReader{})
 	</div>
 }
 
@@ -136,9 +140,11 @@ templ TranscriptReader(vm viewmodel.TranscriptReader) {
 					</span>
 				}
 			</div>
+			// Hidden: drives the "add located passage" default. The visible
+			// control lives in #evidence-actions at the bottom of the pane.
 			<form
 				id="excerpt-form"
-				class="excerpt-form"
+				hidden
 				data-prefilled={ boolAttr(vm.HasExcerpt()) }
 				data-on:submit__prevent="@post('/outline/nodes/' + ($focusId||'') + '/evidence', {contentType:'form'})"
 			>
@@ -146,14 +152,6 @@ templ TranscriptReader(vm viewmodel.TranscriptReader) {
 				<input type="hidden" name="char_start" value={ excerptOffset(vm.ExcerptStart, vm.HasExcerpt()) }/>
 				<input type="hidden" name="char_end" value={ excerptOffset(vm.ExcerptEnd, vm.HasExcerpt()) }/>
 				<input type="hidden" name="text" value={ vm.ExcerptText }/>
-				<button type="submit" class="excerpt-add" data-attr:disabled="!$focusId">
-					Add as evidence
-				</button>
-				if vm.HasExcerpt() {
-					<span class="excerpt-hint">The located passage is preselected — or select text above to narrow it.</span>
-				} else {
-					<span class="excerpt-hint">Select text above to attach just that span.</span>
-				}
 			</form>
 		}
 	</div>

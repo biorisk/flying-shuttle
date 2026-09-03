@@ -41,3 +41,23 @@ func TestShadedSentenceStyleSurvivesSanitizer(t *testing.T) {
 		t.Errorf("score bar width dropped by sanitizer:\n%s", out)
 	}
 }
+
+// The docked "add evidence" bar and its scroll wrapper always render.
+func TestEvidenceDockedActionBar(t *testing.T) {
+	var b bytes.Buffer
+	if err := components.Evidence(viewmodel.EvidencePane{Query: "q"}).Render(context.Background(), &b); err != nil {
+		t.Fatal(err)
+	}
+	out := b.String()
+	for _, want := range []string{
+		`class="evidence-scroll"`,
+		`id="evidence-actions"`,
+		`id="ea-add"`,
+		`id="evidence-attach-form"`,
+		`/outline/nodes/`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("evidence pane missing %q\n%s", want, out)
+		}
+	}
+}

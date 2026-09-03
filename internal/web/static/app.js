@@ -40,58 +40,6 @@
     return total;
   }
 
-  function setField(form, name, val) {
-    const el = form.elements[name];
-    if (el) el.value = val;
-  }
-
-  function fillExcerptForm(sel) {
-    const form = document.getElementById("excerpt-form");
-    if (!form) return;
-    const reader = form.closest(".transcript-reader");
-
-    // No / collapsed selection. Keep the server-side prefill (the located
-    // span) until the user makes a real selection; otherwise attach the whole
-    // focus chunk.
-    if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
-      if (form.dataset.prefilled === "1") return;
-      const focusSeg = reader &&
-        (reader.querySelector(".reader-seg.focus") || reader.querySelector(".reader-seg"));
-      if (focusSeg) setField(form, "chunk_id", focusSeg.dataset.chunk);
-      setField(form, "char_start", "");
-      setField(form, "char_end", "");
-      setField(form, "text", "");
-      form.dataset.hasSelection = "";
-      return;
-    }
-
-    const range = sel.getRangeAt(0);
-    const startSeg = segOf(range.startContainer);
-    if (!startSeg) return;
-
-    let start = offsetInSeg(startSeg, range.startContainer, range.startOffset);
-    let end = segOf(range.endContainer) === startSeg
-      ? offsetInSeg(startSeg, range.endContainer, range.endOffset)
-      : startSeg.textContent.length; // clamp to end of the start chunk
-    if (end <= start) return;
-
-    // Shrink the range to the trimmed text so the offsets and text agree —
-    // the segment renders a synthetic trailing space, and word selections
-    // pick up surrounding whitespace.
-    const raw = startSeg.textContent.slice(start, end);
-    const text = raw.trim();
-    if (!text) return;
-    start += raw.length - raw.replace(/^\s+/, "").length;
-    end = start + text.length;
-
-    setField(form, "chunk_id", startSeg.dataset.chunk);
-    setField(form, "char_start", String(start));
-    setField(form, "char_end", String(end));
-    setField(form, "text", text);
-    form.dataset.hasSelection = "1";
-    form.dataset.prefilled = ""; // user has taken over from the located span
-  }
-
   // ---- outline drag-and-drop reorder -------------------------------------
   //
   // Drag a bullet's handle; the drop zone (before / after / child) is chosen
@@ -198,6 +146,7 @@
       el.scrollIntoView({ block: "center", behavior: "smooth" });
     }
     markIdx = -1; // evidence fragment changed — restart span cycling
+    updateEvidenceActions();
   }).observe(document.body, { childList: true, subtree: true });
 
   // ---- keyboard span cycling (n / N) -----------------------------------
@@ -233,13 +182,100 @@
     cycleMark(e.key === "N" ? -1 : 1);
   });
 
-  document.addEventListener("selectionchange", function () {
+  // ---- docked "Add as evidence" bar (bottom of the right pane) ---------
+  //
+  // Always reachable — no scrolling to a button. Its mode follows the current
+  // selection: attach the selected text (candidate card OR transcript reader),
+  // or, with the reader open and nothing selected, attach the located passage.
+
+  function cleanSelText(s) {
+    s = s.replace(/\r?\n/g, " ");
+    if (s.indexOf("…") >= 0) {
+      s = s.split("…").sort((a, b) => b.length - a.length)[0] || ""; // longest contiguous piece
+    }
+    return s.replace(/\s+/g, " ").trim();
+  }
+
+  function candidateTextOf(node) {
+    while (node) {
+      if (node.nodeType === 1 && node.classList &&
+        (node.classList.contains("candidate-text") || node.classList.contains("candidate-full"))) {
+        return node;
+      }
+      node = node.parentNode;
+    }
+    return null;
+  }
+
+  // chunk id for the current selection, if it sits in one candidate card or in
+  // the reader body; null otherwise.
+  function selectionChunkId(range) {
+    const ctStart = candidateTextOf(range.startContainer);
+    const card = ctStart && ctStart.closest(".candidate");
+    if (card) {
+      const ctEnd = candidateTextOf(range.endContainer);
+      if (ctEnd && ctEnd.closest(".candidate") === card) return card.dataset.chunk;
+    }
+    const seg = segOf(range.startContainer);
+    if (seg && seg.closest(".reader-body")) return seg.dataset.chunk;
+    return null;
+  }
+
+  function updateEvidenceActions() {
+    const bar = document.getElementById("evidence-actions");
+    if (!bar) return;
+    const preview = bar.querySelector("[data-ea-preview]");
+    const btn = document.getElementById("ea-add");
+    const attachForm = document.getElementById("evidence-attach-form");
+    if (!preview || !btn || !attachForm) return;
+
     const sel = document.getSelection();
-    const anchor = sel && sel.anchorNode;
-    const inReader = anchor &&
-      ((anchor.parentElement && anchor.parentElement.closest(".reader-body")) ||
-        (anchor.nodeType === 1 && anchor.closest && anchor.closest(".reader-body")));
-    fillExcerptForm(inReader ? sel : null);
+    const range = sel && !sel.isCollapsed && sel.rangeCount ? sel.getRangeAt(0) : null;
+
+    if (range) {
+      const chunkId = selectionChunkId(range);
+      const text = chunkId ? cleanSelText(sel.toString()) : "";
+      if (chunkId && text.length >= 2) {
+        attachForm.elements["chunk_id"].value = chunkId;
+        attachForm.elements["text"].value = text;
+        bar.dataset.mode = "selection";
+        preview.textContent = "“" + (text.length > 90 ? text.slice(0, 90) + "…" : text) + "”";
+        btn.textContent = "Add selection";
+        bar.hidden = false;
+        return;
+      }
+    }
+
+    const reader = document.getElementById("transcript-reader");
+    if (reader && reader.offsetParent !== null) {
+      const ef = document.getElementById("excerpt-form");
+      bar.dataset.mode = "passage";
+      preview.textContent = ef && ef.dataset.prefilled === "1"
+        ? "The located passage" : "This whole passage";
+      btn.textContent = "Add passage";
+      bar.hidden = false;
+      return;
+    }
+
+    bar.hidden = true;
+  }
+
+  document.addEventListener("selectionchange", updateEvidenceActions);
+
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest || !e.target.closest("#ea-add")) return;
+    const bar = document.getElementById("evidence-actions");
+    const s = document.getSelection();
+    if (bar && bar.dataset.mode === "selection") {
+      const f = document.getElementById("evidence-attach-form");
+      if (!f || !f.elements["chunk_id"].value || !f.elements["text"].value) return;
+      if (s) s.removeAllRanges();
+      bar.hidden = true;
+      f.requestSubmit();
+    } else {
+      const f = document.getElementById("excerpt-form");
+      if (f) f.requestSubmit();
+    }
   });
 
   // ---- quote trim / splice from an outline text selection --------------
@@ -294,63 +330,15 @@
     positionFloat(t, range);
   }
 
-  // -- add-as-evidence (selection inside a .candidate-text / .candidate-full) --
-
-  function candidateTextOf(node) {
-    while (node) {
-      if (node.nodeType === 1 && node.classList &&
-        (node.classList.contains("candidate-text") || node.classList.contains("candidate-full"))) {
-        return node;
-      }
-      node = node.parentNode;
-    }
-    return null;
-  }
-
-  function cleanSelText(s) {
-    s = s.replace(/\r?\n/g, " ");
-    if (s.indexOf("…") >= 0) {
-      // A multi-span snippet: keep the longest contiguous piece.
-      s = s.split("…").sort((a, b) => b.length - a.length)[0] || "";
-    }
-    return s.replace(/\s+/g, " ").trim();
-  }
-
-  function showCandidateAttach(el, range, sel) {
-    const t = document.getElementById("candidate-attach");
-    const card = el.closest(".candidate");
-    const form = document.getElementById("candidate-attach-form");
-    if (!t || !card || !form) return;
-    const text = cleanSelText(sel.toString());
-    if (text.length < 2) { hideFloat("candidate-attach"); return; }
-    form.elements["chunk_id"].value = card.dataset.chunk;
-    form.elements["text"].value = text;
-    positionFloat(t, range);
-  }
-
   document.addEventListener("selectionchange", function () {
     const sel = document.getSelection();
-    if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
-      hideFloat("quote-tools");
-      hideFloat("candidate-attach");
-      return;
-    }
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0) { hideFloat("quote-tools"); return; }
     const range = sel.getRangeAt(0);
-
     const bq = evidenceOf(range.startContainer);
     if (bq && bq === evidenceOf(range.endContainer)) {
       showQuoteTools(bq, range);
     } else {
       hideFloat("quote-tools");
-    }
-
-    const ctStart = candidateTextOf(range.startContainer);
-    const ctEnd = candidateTextOf(range.endContainer);
-    const card = ctStart && ctStart.closest(".candidate");
-    if (card && ctEnd && ctEnd.closest(".candidate") === card) {
-      showCandidateAttach(ctStart, range, sel);
-    } else {
-      hideFloat("candidate-attach");
     }
   });
 
@@ -361,30 +349,15 @@
   });
 
   document.addEventListener("click", function (e) {
-    if (!e.target.closest) return;
-
-    const qt = e.target.closest("#quote-tools button[data-qt]");
-    if (qt) {
-      const form = document.getElementById("quote-edit-form");
-      if (form && form.elements["node_id"].value) {
-        form.elements["op"].value = qt.dataset.qt;
-        hideFloat("quote-tools");
-        const s = document.getSelection();
-        if (s) s.removeAllRanges();
-        form.requestSubmit();
-      }
-      return;
-    }
-
-    const ca = e.target.closest("#candidate-attach button[data-ca]");
-    if (ca) {
-      const form = document.getElementById("candidate-attach-form");
-      if (form && form.elements["chunk_id"].value && form.elements["text"].value) {
-        hideFloat("candidate-attach");
-        const s = document.getSelection();
-        if (s) s.removeAllRanges();
-        form.requestSubmit();
-      }
+    const qt = e.target.closest && e.target.closest("#quote-tools button[data-qt]");
+    if (!qt) return;
+    const form = document.getElementById("quote-edit-form");
+    if (form && form.elements["node_id"].value) {
+      form.elements["op"].value = qt.dataset.qt;
+      hideFloat("quote-tools");
+      const s = document.getSelection();
+      if (s) s.removeAllRanges();
+      form.requestSubmit();
     }
   });
 })();
