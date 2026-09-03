@@ -25,6 +25,8 @@ func (h *handlers) evidence(w http.ResponseWriter, r *http.Request) {
 		log.Printf("evidence: find %q: %v", q, err)
 	}
 
+	cands = h.evStab.stabilize(node, cands)
+
 	vm := viewmodel.EvidencePane{Query: q, NodeID: node, Candidates: cands}
 	if _, err := Patch(w, r, components.Evidence(vm)); err != nil {
 		log.Printf("evidence: patch: %v", err)

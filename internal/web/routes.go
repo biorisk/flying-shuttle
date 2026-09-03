@@ -51,7 +51,7 @@ func Mount(r chi.Router, d Deps) {
 	if d.Stitcher == nil {
 		d.Stitcher = &stitch.StubStitcher{}
 	}
-	h := &handlers{d: d}
+	h := &handlers{d: d, evStab: newEvidenceStability()}
 
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(StaticFS()))))
 
@@ -93,7 +93,8 @@ func Mount(r chi.Router, d Deps) {
 }
 
 type handlers struct {
-	d Deps
+	d      Deps
+	evStab evidenceStability
 }
 
 func (h *handlers) evidenceFinder() *EvidenceFinder {
