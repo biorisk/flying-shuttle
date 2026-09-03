@@ -20,6 +20,10 @@ import (
 //	form: chunk_id, char_start?, char_end?, text?
 func (h *handlers) outlineAttachEvidence(w http.ResponseWriter, r *http.Request) {
 	parentID := chi.URLParam(r, "id")
+	if parentID == "" {
+		http.Error(w, "no bullet in focus", http.StatusBadRequest)
+		return
+	}
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad form", http.StatusBadRequest)
 		return

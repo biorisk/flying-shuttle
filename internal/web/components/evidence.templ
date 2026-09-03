@@ -69,6 +69,20 @@ templ Evidence(vm viewmodel.EvidencePane) {
 				</ul>
 			}
 		</div>
+		// Floating "Add as evidence" for a text selection inside a candidate
+		// card — attach without opening the transcript reader. app.js positions
+		// it and fills the form; the server locates the text in the chunk.
+		<div id="candidate-attach" class="float-tools" hidden>
+			<button type="button" data-ca="add" title="Attach the selected text as evidence">Add as evidence</button>
+			<form
+				id="candidate-attach-form"
+				hidden
+				data-on:submit__prevent="@post('/outline/nodes/' + ($focusId||'') + '/evidence', {contentType:'form'})"
+			>
+				<input type="hidden" name="chunk_id"/>
+				<input type="hidden" name="text"/>
+			</form>
+		</div>
 		@TranscriptReader(viewmodel.TranscriptReader{})
 	</div>
 }

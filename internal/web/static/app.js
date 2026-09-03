@@ -69,15 +69,20 @@
     const startSeg = segOf(range.startContainer);
     if (!startSeg) return;
 
-    const start = offsetInSeg(startSeg, range.startContainer, range.startOffset);
-    const endSeg = segOf(range.endContainer);
-    const end = endSeg === startSeg
+    let start = offsetInSeg(startSeg, range.startContainer, range.startOffset);
+    let end = segOf(range.endContainer) === startSeg
       ? offsetInSeg(startSeg, range.endContainer, range.endOffset)
       : startSeg.textContent.length; // clamp to end of the start chunk
     if (end <= start) return;
 
-    const text = startSeg.textContent.slice(start, end).trim();
+    // Shrink the range to the trimmed text so the offsets and text agree —
+    // the segment renders a synthetic trailing space, and word selections
+    // pick up surrounding whitespace.
+    const raw = startSeg.textContent.slice(start, end);
+    const text = raw.trim();
     if (!text) return;
+    start += raw.length - raw.replace(/^\s+/, "").length;
+    end = start + text.length;
 
     setField(form, "chunk_id", startSeg.dataset.chunk);
     setField(form, "char_start", String(start));
@@ -253,25 +258,8 @@
     return null;
   }
 
-  function hideQuoteTools() {
-    const t = document.getElementById("quote-tools");
-    if (t) t.hidden = true;
-  }
-
-  function showQuoteTools(bq, range) {
-    const t = document.getElementById("quote-tools");
-    const li = bq.closest("[data-node-id]");
-    const form = document.getElementById("quote-edit-form");
-    if (!t || !li || !form) return;
-
-    const start = offsetInSeg(bq, range.startContainer, range.startOffset);
-    const end = offsetInSeg(bq, range.endContainer, range.endOffset);
-    if (end - start < 1) { hideQuoteTools(); return; }
-
-    form.elements["node_id"].value = li.dataset.nodeId;
-    form.elements["start"].value = String(start);
-    form.elements["end"].value = String(end);
-
+  // Position a .float-tools element above (or below, if clipped) a range.
+  function positionFloat(t, range) {
     const r = range.getBoundingClientRect();
     t.hidden = false;
     const tw = t.offsetWidth || 220;
@@ -283,30 +271,120 @@
     t.style.top = top + "px";
   }
 
+  function hideFloat(id) {
+    const t = document.getElementById(id);
+    if (t) t.hidden = true;
+  }
+
+  // -- quote trim / splice (selection inside .bullet-evidence) --
+
+  function showQuoteTools(bq, range) {
+    const t = document.getElementById("quote-tools");
+    const li = bq.closest("[data-node-id]");
+    const form = document.getElementById("quote-edit-form");
+    if (!t || !li || !form) return;
+
+    const start = offsetInSeg(bq, range.startContainer, range.startOffset);
+    const end = offsetInSeg(bq, range.endContainer, range.endOffset);
+    if (end - start < 1) { hideFloat("quote-tools"); return; }
+
+    form.elements["node_id"].value = li.dataset.nodeId;
+    form.elements["start"].value = String(start);
+    form.elements["end"].value = String(end);
+    positionFloat(t, range);
+  }
+
+  // -- add-as-evidence (selection inside a .candidate-text / .candidate-full) --
+
+  function candidateTextOf(node) {
+    while (node) {
+      if (node.nodeType === 1 && node.classList &&
+        (node.classList.contains("candidate-text") || node.classList.contains("candidate-full"))) {
+        return node;
+      }
+      node = node.parentNode;
+    }
+    return null;
+  }
+
+  function cleanSelText(s) {
+    s = s.replace(/\r?\n/g, " ");
+    if (s.indexOf("…") >= 0) {
+      // A multi-span snippet: keep the longest contiguous piece.
+      s = s.split("…").sort((a, b) => b.length - a.length)[0] || "";
+    }
+    return s.replace(/\s+/g, " ").trim();
+  }
+
+  function showCandidateAttach(el, range, sel) {
+    const t = document.getElementById("candidate-attach");
+    const card = el.closest(".candidate");
+    const form = document.getElementById("candidate-attach-form");
+    if (!t || !card || !form) return;
+    const text = cleanSelText(sel.toString());
+    if (text.length < 2) { hideFloat("candidate-attach"); return; }
+    form.elements["chunk_id"].value = card.dataset.chunk;
+    form.elements["text"].value = text;
+    positionFloat(t, range);
+  }
+
   document.addEventListener("selectionchange", function () {
     const sel = document.getSelection();
-    if (!sel || sel.isCollapsed || sel.rangeCount === 0) { hideQuoteTools(); return; }
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+      hideFloat("quote-tools");
+      hideFloat("candidate-attach");
+      return;
+    }
     const range = sel.getRangeAt(0);
-    const startBq = evidenceOf(range.startContainer);
-    if (!startBq || startBq !== evidenceOf(range.endContainer)) { hideQuoteTools(); return; }
-    showQuoteTools(startBq, range);
+
+    const bq = evidenceOf(range.startContainer);
+    if (bq && bq === evidenceOf(range.endContainer)) {
+      showQuoteTools(bq, range);
+    } else {
+      hideFloat("quote-tools");
+    }
+
+    const ctStart = candidateTextOf(range.startContainer);
+    const ctEnd = candidateTextOf(range.endContainer);
+    const card = ctStart && ctStart.closest(".candidate");
+    if (card && ctEnd && ctEnd.closest(".candidate") === card) {
+      showCandidateAttach(ctStart, range, sel);
+    } else {
+      hideFloat("candidate-attach");
+    }
   });
 
-  // Don't drop the selection when reaching for a tool button.
+  // Don't drop the selection when reaching for a floating tool button.
   document.addEventListener("mousedown", function (e) {
-    const t = document.getElementById("quote-tools");
-    if (t && !t.hidden && t.contains(e.target)) e.preventDefault();
+    const t = e.target.closest && e.target.closest(".float-tools");
+    if (t && !t.hidden) e.preventDefault();
   });
 
   document.addEventListener("click", function (e) {
-    const btn = e.target.closest && e.target.closest("#quote-tools button[data-qt]");
-    if (!btn) return;
-    const form = document.getElementById("quote-edit-form");
-    if (!form || !form.elements["node_id"].value) return;
-    form.elements["op"].value = btn.dataset.qt;
-    hideQuoteTools();
-    const s = document.getSelection();
-    if (s) s.removeAllRanges();
-    form.requestSubmit();
+    if (!e.target.closest) return;
+
+    const qt = e.target.closest("#quote-tools button[data-qt]");
+    if (qt) {
+      const form = document.getElementById("quote-edit-form");
+      if (form && form.elements["node_id"].value) {
+        form.elements["op"].value = qt.dataset.qt;
+        hideFloat("quote-tools");
+        const s = document.getSelection();
+        if (s) s.removeAllRanges();
+        form.requestSubmit();
+      }
+      return;
+    }
+
+    const ca = e.target.closest("#candidate-attach button[data-ca]");
+    if (ca) {
+      const form = document.getElementById("candidate-attach-form");
+      if (form && form.elements["chunk_id"].value && form.elements["text"].value) {
+        hideFloat("candidate-attach");
+        const s = document.getSelection();
+        if (s) s.removeAllRanges();
+        form.requestSubmit();
+      }
+    }
   });
 })();

@@ -26,7 +26,7 @@ templ Outline(vm viewmodel.Outline) {
 		</form>
 		// Floating actions for a text selection inside a quote. app.js positions
 		// and toggles it; the buttons fill and submit #quote-edit-form.
-		<div id="quote-tools" class="quote-tools" hidden>
+		<div id="quote-tools" class="float-tools" hidden>
 			<button type="button" data-qt="trim" title="Trim quote to selection">Trim to selection</button>
 			<button type="button" data-qt="splice" title="Remove selection from quote">Remove selection</button>
 			<form id="quote-edit-form" hidden data-on:submit__prevent="@post('/outline/quote-edit', {contentType:'form'})">

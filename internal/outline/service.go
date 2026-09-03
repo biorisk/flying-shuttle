@@ -3,6 +3,8 @@ package outline
 import (
 	"errors"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/store"
@@ -229,6 +231,15 @@ func (s *Service) AttachEvidence(parentID, chunkID string, charStart, charEnd in
 		return nil, err
 	}
 	runes := []rune(chunk.Content)
+	// Prefer locating the selected text in the chunk — the client's offsets
+	// drift (trimmed text, a synthetic trailing space in the reader) but the
+	// text itself is reliable. Canonicalize to the exact chunk substring so
+	// the stored excerpt and its offsets always agree.
+	if strings.TrimSpace(text) != "" {
+		if s, e, ok := locateSelection(chunk.Content, text); ok {
+			charStart, charEnd, text = s, e, string(runes[s:e])
+		}
+	}
 	if text == "" || charEnd <= charStart || charStart < 0 || charEnd > len(runes) {
 		charStart, charEnd, text = 0, len(runes), chunk.Content
 	}
@@ -360,6 +371,53 @@ func (s *Service) SetLocked(id string, locked bool) (*model.Node, error) {
 		return nil, err
 	}
 	return n, nil
+}
+
+// locateSelection finds sel within content and returns its [start,end) rune
+// offsets. It first tries an exact match, then a whitespace-normalized match
+// (a DOM selection may carry newlines or doubled spaces where the source has a
+// single space). ok is false when sel cannot be found at all.
+func locateSelection(content, sel string) (start, end int, ok bool) {
+	sel = strings.TrimSpace(sel)
+	if sel == "" {
+		return 0, 0, false
+	}
+	if i := strings.Index(content, sel); i >= 0 {
+		s := utf8.RuneCountInString(content[:i])
+		return s, s + utf8.RuneCountInString(sel), true
+	}
+
+	// Normalized pass: collapse every whitespace run in content to one space,
+	// remembering which source rune each normalized rune came from.
+	cr := []rune(content)
+	norm := make([]rune, 0, len(cr))
+	src := make([]int, 0, len(cr)) // norm[k] originates at cr[src[k]]
+	inWS := false
+	for i, r := range cr {
+		if unicode.IsSpace(r) {
+			if inWS {
+				continue
+			}
+			inWS = true
+			norm = append(norm, ' ')
+		} else {
+			inWS = false
+			norm = append(norm, r)
+		}
+		src = append(src, i)
+	}
+
+	needle := strings.Join(strings.Fields(sel), " ")
+	byteIdx := strings.Index(string(norm), needle)
+	if byteIdx < 0 {
+		return 0, 0, false
+	}
+	sr := utf8.RuneCountInString(string(norm)[:byteIdx])
+	er := sr + utf8.RuneCountInString(needle)
+	if sr >= len(src) || er == 0 || er-1 >= len(src) {
+		return 0, 0, false
+	}
+	return src[sr], src[er-1] + 1, true
 }
 
 func previewText(s string, max int) string {

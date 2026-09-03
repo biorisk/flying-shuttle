@@ -48,6 +48,63 @@ func quoteText(t *testing.T, svc *Service, nodeID string) (string, model.Evidenc
 	return evs[0].Text, evs[0]
 }
 
+func TestLocateSelection(t *testing.T) {
+	content := "The auditor said the numbers   were\nwrong from the start."
+	cr := []rune(content)
+	cases := []struct {
+		sel  string
+		want string // expected content[s:e] (rune slice), "" = not found
+	}{
+		{"the numbers   were", "the numbers   were"},                                  // exact
+		{"  the numbers   were  ", "the numbers   were"},                              // outer whitespace trimmed
+		{"numbers were wrong from the start", "numbers   were\nwrong from the start"}, // normalized: newline + doubled spaces
+		{"not present anywhere", ""},
+	}
+	for _, c := range cases {
+		s, e, ok := locateSelection(content, c.sel)
+		if c.want == "" {
+			if ok {
+				t.Errorf("locateSelection(%q) unexpectedly matched", c.sel)
+			}
+			continue
+		}
+		if !ok || string(cr[s:e]) != c.want {
+			t.Errorf("locateSelection(%q) = %d,%d,%v slice=%q want %q",
+				c.sel, s, e, ok, func() string {
+					if ok {
+						return string(cr[s:e])
+					}
+					return ""
+				}(), c.want)
+		}
+	}
+}
+
+func TestAttachEvidence_realignsFromText(t *testing.T) {
+	svc := newSvc(t)
+	root, _ := svc.AddRoot("point")
+	full := "PREFIX the chosen words END"
+	if err := svc.Store.CreateChunk(&model.Chunk{ID: "c1", SourceFile: "f.txt", Content: full}); err != nil {
+		t.Fatal(err)
+	}
+	// Client sent trimmed text but stale/too-long offsets (the classic bug).
+	ev, err := svc.AttachEvidence(root.ID, "c1", 0, 999, "the chosen words")
+	if err != nil {
+		t.Fatal(err)
+	}
+	evs, _ := svc.Store.ListNodeEvidence(ev.ID)
+	if len(evs) != 1 {
+		t.Fatalf("evidence rows: %d", len(evs))
+	}
+	got := evs[0]
+	if got.Text != "the chosen words" || got.CharStart != 7 || got.CharEnd != 23 {
+		t.Fatalf("attach did not realign: %+v", got)
+	}
+	if string([]rune(full)[got.CharStart:got.CharEnd]) != got.Text {
+		t.Fatalf("stored offsets and text disagree")
+	}
+}
+
 func TestEditQuote_trimToSelection(t *testing.T) {
 	svc, id := attachQuote(t)
 	// current text: "the quick brown fox jumps"; keep "quick brown fox"

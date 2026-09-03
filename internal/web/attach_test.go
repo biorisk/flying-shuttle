@@ -76,6 +76,41 @@ func TestAttachEvidence_wholeChunkAndExcerpt(t *testing.T) {
 	}
 }
 
+func TestAttachEvidence_fromCandidateSelection(t *testing.T) {
+	s, _ := store.NewSQLiteStore(":memory:")
+	if err := s.Migrate(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { s.Close() })
+	svc := &outline.Service{Store: s}
+	bullet, _ := svc.AddRoot("claim")
+	full := "Opening remarks. The witness confirmed the payment was authorized. Closing."
+	if err := s.CreateChunk(&model.Chunk{ID: "c1", SourceFile: "iv.txt", Content: full, EndOffset: len(full)}); err != nil {
+		t.Fatal(err)
+	}
+
+	r := chi.NewRouter()
+	web.Mount(r, web.Deps{Store: s, Outline: svc})
+
+	// The candidate-card path posts only chunk_id + text (no offsets).
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req(t, "POST", "/outline/nodes/"+bullet.ID+"/evidence", url.Values{
+		"chunk_id": {"c1"},
+		"text":     {"the payment was authorized"},
+	}))
+	if rec.Code != 200 {
+		t.Fatalf("attach from text: %d %s", rec.Code, rec.Body.String())
+	}
+	forest, _ := svc.Tree()
+	evs, _ := s.ListNodeEvidence(forest[0].Children[0].Node.ID)
+	if len(evs) != 1 || evs[0].Text != "the payment was authorized" {
+		t.Fatalf("evidence not attached from text: %+v", evs)
+	}
+	if string([]rune(full)[evs[0].CharStart:evs[0].CharEnd]) != evs[0].Text {
+		t.Fatalf("offsets do not match text: %+v", evs[0])
+	}
+}
+
 func TestQuoteEditAndDelete(t *testing.T) {
 	s, _ := store.NewSQLiteStore(":memory:")
 	if err := s.Migrate(); err != nil {

@@ -125,18 +125,18 @@ button:hover { border-color: var(--accent); }
 .evidence-del:focus-visible { opacity: .7; }
 .evidence-del:hover { opacity: 1; color: #e5484d; }
 
-.quote-tools {
+.float-tools {
 	position: fixed; z-index: 50; display: flex; gap: 4px;
 	padding: 4px; border-radius: 6px;
 	background: var(--panel-2, var(--panel)); border: 1px solid var(--edge);
 	box-shadow: 0 4px 16px rgba(0, 0, 0, .4);
 }
-.quote-tools button {
+.float-tools button {
 	border: 1px solid var(--edge); background: var(--panel); color: var(--text);
 	font-size: 11px; padding: 3px 8px; border-radius: 4px; cursor: pointer;
 	white-space: nowrap;
 }
-.quote-tools button:hover { border-color: var(--accent); color: var(--accent); }
+.float-tools button:hover { border-color: var(--accent); color: var(--accent); }
 .outline-empty { color: var(--text-dim); }
 .outline-empty .add-first { margin-top: 8px; }
 
