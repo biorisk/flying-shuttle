@@ -56,6 +56,33 @@ func TestTranscriptReader_windowAndScrub(t *testing.T) {
 	}
 }
 
+func TestTranscriptReader_highlightsLocatedSpan(t *testing.T) {
+	s, _ := store.NewSQLiteStore(":memory:")
+	s.Migrate()
+	t.Cleanup(func() { s.Close() })
+	s.CreateChunk(&model.Chunk{ID: "c1", SourceFile: "a.txt", Content: "alpha beta gamma delta", StartOffset: 0, EndOffset: 22})
+	r := chi.NewRouter()
+	web.Mount(r, web.Deps{Store: s})
+
+	rec := httptest.NewRecorder()
+	// fs/fe select "beta gamma" (runes 6..16).
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/evidence/transcript?chunk=c1&node=n1&fs=6&fe=16", nil))
+	body := rec.Body.String()
+	if !strings.Contains(body, `<mark id=\"reader-focus\"`) && !strings.Contains(body, `<mark id="reader-focus"`) {
+		t.Fatalf("reader missing focus mark:\n%s", body)
+	}
+	if !strings.Contains(body, "beta gamma") {
+		t.Fatalf("focus text not rendered:\n%s", body)
+	}
+
+	// No fs/fe → no focus mark.
+	rec2 := httptest.NewRecorder()
+	r.ServeHTTP(rec2, httptest.NewRequest(http.MethodGet, "/evidence/transcript?chunk=c1&node=n1", nil))
+	if strings.Contains(rec2.Body.String(), "reader-focus") {
+		t.Fatalf("unexpected focus mark without fs/fe")
+	}
+}
+
 func TestTranscriptReader_hasExcerptForm(t *testing.T) {
 	s, _ := store.NewSQLiteStore(":memory:")
 	s.Migrate()

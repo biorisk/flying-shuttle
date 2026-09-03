@@ -3,6 +3,7 @@ package web
 import (
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/biorisk/flying-shuttle/internal/web/components"
 	"github.com/biorisk/flying-shuttle/internal/web/viewmodel"
@@ -16,6 +17,10 @@ import (
 func (h *handlers) transcriptReader(w http.ResponseWriter, r *http.Request) {
 	chunkID := r.URL.Query().Get("chunk")
 	node := r.URL.Query().Get("node")
+	// fs/fe: rune offsets of the located span within the focus chunk, passed
+	// from the evidence card so the reader can highlight and scroll to it.
+	fs, _ := strconv.Atoi(r.URL.Query().Get("fs"))
+	fe, _ := strconv.Atoi(r.URL.Query().Get("fe"))
 
 	win, err := h.d.Transcript.WindowAround(chunkID, 0)
 	if err != nil {
@@ -34,12 +39,16 @@ func (h *handlers) transcriptReader(w http.ResponseWriter, r *http.Request) {
 		NextChunk:  win.NextChunk,
 	}
 	for _, s := range win.Segments {
-		vm.Segments = append(vm.Segments, viewmodel.ReaderSegment{
+		seg := viewmodel.ReaderSegment{
 			ChunkID:   s.ChunkID,
 			Text:      s.Text,
 			Focus:     s.Focus,
 			CharStart: s.CharStart,
-		})
+		}
+		if s.Focus && fe > fs {
+			seg.FocusStart, seg.FocusEnd = fs, fe
+		}
+		vm.Segments = append(vm.Segments, seg)
 	}
 
 	sse := datastar.NewSSE(w, r)

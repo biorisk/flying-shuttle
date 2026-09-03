@@ -177,6 +177,17 @@
     dragId = null;
   });
 
+  // When the transcript reader patches in with a located span, scroll it into
+  // view once. The reader body is replaced on every open / scrub, so a fresh
+  // #reader-focus (without our marker) means a new span to reveal.
+  new MutationObserver(function () {
+    const el = document.getElementById("reader-focus");
+    if (el && !el.dataset.scrolled) {
+      el.dataset.scrolled = "1";
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }).observe(document.body, { childList: true, subtree: true });
+
   document.addEventListener("selectionchange", function () {
     const sel = document.getSelection();
     const anchor = sel && sel.anchorNode;

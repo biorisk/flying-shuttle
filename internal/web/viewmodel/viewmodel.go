@@ -43,6 +43,35 @@ type ReaderSegment struct {
 	Text      string
 	Focus     bool
 	CharStart int // absolute rune offset of this segment within the source file
+	// FocusStart/FocusEnd are rune offsets within Text of the located span
+	// carried over from the evidence card. FocusEnd <= FocusStart means none.
+	FocusStart int
+	FocusEnd   int
+}
+
+// FocusSplit is Text cut into the run before, inside, and after the located span.
+type FocusSplit struct{ Pre, Mid, Post string }
+
+// HasFocus reports whether a located span should be highlighted in this segment.
+func (s ReaderSegment) HasFocus() bool { return s.FocusEnd > s.FocusStart }
+
+// FocusParts splits Text around the located span (rune offsets, clamped).
+func (s ReaderSegment) FocusParts() FocusSplit {
+	r := []rune(s.Text)
+	clamp := func(v int) int {
+		if v < 0 {
+			return 0
+		}
+		if v > len(r) {
+			return len(r)
+		}
+		return v
+	}
+	a, b := clamp(s.FocusStart), clamp(s.FocusEnd)
+	if a > b {
+		a = b
+	}
+	return FocusSplit{Pre: string(r[:a]), Mid: string(r[a:b]), Post: string(r[b:])}
 }
 
 // TranscriptReader is the render model for the #transcript-reader fragment.

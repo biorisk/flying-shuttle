@@ -33,7 +33,7 @@ templ Evidence(vm viewmodel.EvidencePane) {
 								<button
 									type="button"
 									class="candidate-open"
-									data-on:click={ "@get('/evidence/transcript?node=' + ($focusId||'') + '&chunk=" + c.ChunkID + "')" }
+									data-on:click={ "@get('/evidence/transcript?node=' + ($focusId||'') + '&chunk=" + c.ChunkID + "&fs=" + intString(c.FocusStart) + "&fe=" + intString(c.FocusEnd) + "')" }
 								>Read in transcript →</button>
 							</div>
 							<p class="candidate-text">
@@ -82,7 +82,13 @@ templ TranscriptReader(vm viewmodel.TranscriptReader) {
 						class={ "reader-seg", templ.KV("focus", seg.Focus) }
 						data-chunk={ seg.ChunkID }
 						data-char-start={ intString(seg.CharStart) }
-					>{ seg.Text + " " }</span>
+					>
+						if seg.HasFocus() {
+							{ seg.FocusParts().Pre }<mark id="reader-focus" class="reader-focus">{ seg.FocusParts().Mid }</mark>{ seg.FocusParts().Post + " " }
+						} else {
+							{ seg.Text + " " }
+						}
+					</span>
 				}
 			</div>
 			<form
