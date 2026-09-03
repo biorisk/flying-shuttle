@@ -64,3 +64,45 @@ func TestEvidenceFinder_ranksAndResolves(t *testing.T) {
 		t.Fatalf("blank query should yield nil, got %v", got)
 	}
 }
+
+func TestEvidenceFinder_marksHitsAndCentersSnippet(t *testing.T) {
+	s, err := store.NewSQLiteStore(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Migrate(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { s.Close() })
+
+	idx := search.NewHybridIndex(nil)
+	lead := "we spent the first hour on scheduling and room bookings and other logistics "
+	c := model.Chunk{
+		ID:         "c1",
+		SourceFile: "iv.txt",
+		Content:    lead + lead + "then the budget shortfall came up and dominated the rest " + lead,
+	}
+	if err := s.CreateChunk(&c); err != nil {
+		t.Fatal(err)
+	}
+	idx.IndexChunk(&c)
+
+	f := &web.EvidenceFinder{Index: idx, Store: s}
+	got, err := f.Find(context.Background(), "budget shortfall", 5)
+	if err != nil || len(got) != 1 {
+		t.Fatalf("Find: %v / %d results", err, len(got))
+	}
+	cand := got[0]
+	if cand.FocusStart == 0 {
+		t.Errorf("snippet still anchored at chunk start: %+v", cand)
+	}
+	var marked []string
+	for _, seg := range cand.Segments {
+		if seg.Mark {
+			marked = append(marked, seg.Text)
+		}
+	}
+	if len(marked) != 2 {
+		t.Fatalf("expected budget + shortfall marked, got %v (segments %+v)", marked, cand.Segments)
+	}
+}

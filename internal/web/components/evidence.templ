@@ -36,7 +36,19 @@ templ Evidence(vm viewmodel.EvidencePane) {
 									data-on:click={ "@get('/evidence/transcript?node=' + ($focusId||'') + '&chunk=" + c.ChunkID + "')" }
 								>Read in transcript →</button>
 							</div>
-							<p class="candidate-text">{ c.Snippet }</p>
+							<p class="candidate-text">
+								if len(c.Segments) > 0 {
+									for _, s := range c.Segments {
+										if s.Mark {
+											<mark>{ s.Text }</mark>
+										} else {
+											{ s.Text }
+										}
+									}
+								} else {
+									{ c.Snippet }
+								}
+							</p>
 						</li>
 					}
 				</ul>

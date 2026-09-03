@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"sort"
 	"strings"
 
 	"github.com/biorisk/flying-shuttle/internal/search"
@@ -48,15 +49,79 @@ func (f *EvidenceFinder) Find(ctx context.Context, query string, limit int) ([]v
 		if c.Speaker != nil {
 			speaker = *c.Speaker
 		}
-		out = append(out, viewmodel.Candidate{
+		cand := viewmodel.Candidate{
 			ChunkID:    c.ID,
 			SourceFile: c.SourceFile,
 			Speaker:    speaker,
-			Snippet:    trimRunes(c.Content, snippetRunes),
 			Score:      r.Score,
-		})
+		}
+		loc := search.Locate(c.Content, query, f.Index.BM25.IDF, search.LocateOptions{MaxWindowRunes: snippetRunes})
+		if loc.Found {
+			cand.Snippet, cand.Segments = buildSnippet(c.Content, loc.Window, loc.Hits)
+			cand.FocusStart, cand.FocusEnd = loc.Window.Start, loc.Window.End
+		} else {
+			cand.Snippet = trimRunes(c.Content, snippetRunes)
+		}
+		out = append(out, cand)
 	}
 	return out, nil
+}
+
+// buildSnippet renders the located window of content as display text plus a
+// segment list with query-term hits marked. Offsets are rune-based. A window
+// that does not reach a chunk edge gets an ellipsis on that side.
+func buildSnippet(content string, win search.Span, hits []search.Span) (string, []viewmodel.SnippetSeg) {
+	runes := []rune(content)
+	if win.Start < 0 {
+		win.Start = 0
+	}
+	if win.End > len(runes) {
+		win.End = len(runes)
+	}
+
+	// Clip hits to the window and sort by start.
+	type span struct{ s, e int }
+	marks := make([]span, 0, len(hits))
+	for _, h := range hits {
+		s, e := max(h.Start, win.Start), min(h.End, win.End)
+		if s < e {
+			marks = append(marks, span{s, e})
+		}
+	}
+	sort.Slice(marks, func(i, j int) bool { return marks[i].s < marks[j].s })
+
+	var segs []viewmodel.SnippetSeg
+	add := func(s, e int, mark bool) {
+		if s < e {
+			segs = append(segs, viewmodel.SnippetSeg{Text: string(runes[s:e]), Mark: mark})
+		}
+	}
+	if win.Start > 0 {
+		segs = append(segs, viewmodel.SnippetSeg{Text: "…"})
+	}
+	pos := win.Start
+	for _, mk := range marks {
+		if mk.s < pos { // overlaps the previous mark — extend, don't nest
+			if mk.e > pos {
+				add(pos, mk.e, true)
+				pos = mk.e
+			}
+			continue
+		}
+		add(pos, mk.s, false)
+		add(mk.s, mk.e, true)
+		pos = mk.e
+	}
+	add(pos, win.End, false)
+	if win.End < len(runes) {
+		segs = append(segs, viewmodel.SnippetSeg{Text: "…"})
+	}
+
+	var b strings.Builder
+	for _, s := range segs {
+		b.WriteString(s.Text)
+	}
+	return b.String(), segs
 }
 
 func trimRunes(s string, n int) string {

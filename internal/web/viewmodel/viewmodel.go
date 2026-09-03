@@ -8,8 +8,26 @@ type Candidate struct {
 	ChunkID    string
 	SourceFile string
 	Speaker    string
-	Snippet    string
+	// Snippet is the plain-text display passage: the located window (with
+	// leading/trailing "…" when clipped) or, when no query term was located,
+	// the chunk head.
+	Snippet string
+	// Segments is Snippet split into verbatim and highlighted (<mark>) runs.
+	// Empty when there is nothing to highlight — render Snippet directly.
+	Segments []SnippetSeg
+	// FocusStart/FocusEnd are the rune offsets of the located window within
+	// the full chunk (both 0 when nothing was located). Later steps thread
+	// these into the transcript reader and excerpt form.
+	FocusStart int
+	FocusEnd   int
 	Score      float64
+}
+
+// SnippetSeg is one run of a candidate snippet. Mark=true means it matched a
+// query term and should be visually highlighted.
+type SnippetSeg struct {
+	Text string
+	Mark bool
 }
 
 // EvidencePane is the render model for the #evidence fragment.
