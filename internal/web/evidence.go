@@ -79,6 +79,12 @@ func (f *EvidenceFinder) Find(ctx context.Context, query string, limit int) ([]v
 						Score:    sc.Score,
 					})
 				}
+				// When hits cluster in 2–3 separated sentences, show them as
+				// "… A … B …" rather than one contiguous window.
+				if plain, segs, focus, ok := multiSpanSnippet(full, loc.Sentences, loc.Hits, snippetRunes); ok {
+					cand.Snippet, cand.Segments = plain, segs
+					cand.FocusStart, cand.FocusEnd = focus.Start, focus.End
+				}
 			} else if clipped {
 				_, cand.Full = buildSnippet(c.Content, search.Span{Start: 0, End: len(full)}, loc.Hits)
 			}
@@ -157,6 +163,92 @@ func buildSnippet(content string, win search.Span, hits []search.Span) (string, 
 		b.WriteString(s.Text)
 	}
 	return b.String(), segs
+}
+
+// multiSpanSnippet builds a "… A … B …" snippet from the 2–3 highest-scoring,
+// non-adjacent sentences of a chunk. Returns ok=false when the hits don't
+// actually spread out (one dominant region), so the caller keeps its single
+// contiguous window. focus is the span of the top-scoring group, for the
+// transcript reader.
+func multiSpanSnippet(runes []rune, sents []search.ScoredSpan, hits []search.Span, budget int) (plain string, segs []viewmodel.SnippetSeg, focus search.Span, ok bool) {
+	const minScore = 0.5
+
+	// Selected sentence indices, in document order.
+	var sel []int
+	for i, s := range sents {
+		if s.Score >= minScore {
+			sel = append(sel, i)
+		}
+	}
+	if len(sel) < 2 {
+		return "", nil, search.Span{}, false
+	}
+
+	// Group runs of consecutive selected sentences.
+	type group struct {
+		span   search.Span
+		score  float64
+		endIdx int
+	}
+	var groups []group
+	for _, i := range sel {
+		if n := len(groups); n > 0 && i == groups[n-1].endIdx+1 {
+			groups[n-1].span.End = sents[i].End
+			if sents[i].Score > groups[n-1].score {
+				groups[n-1].score = sents[i].Score
+			}
+			groups[n-1].endIdx = i
+			continue
+		}
+		groups = append(groups, group{span: sents[i].Span, score: sents[i].Score, endIdx: i})
+	}
+	if len(groups) < 2 {
+		return "", nil, search.Span{}, false // one contiguous region
+	}
+
+	// Keep at most 3 groups, highest score first, then restore document order.
+	sort.SliceStable(groups, func(a, b int) bool { return groups[a].score > groups[b].score })
+	if len(groups) > 3 {
+		groups = groups[:3]
+	}
+	// Drop lowest-scoring groups until the total width fits the budget (keep ≥2).
+	width := func(gs []group) int {
+		w := 0
+		for _, g := range gs {
+			w += g.span.End - g.span.Start
+		}
+		return w + 3*len(gs) // rough separator/ellipsis allowance
+	}
+	for len(groups) > 2 && width(groups) > budget {
+		groups = groups[:len(groups)-1]
+	}
+	sort.SliceStable(groups, func(a, b int) bool { return groups[a].span.Start < groups[b].span.Start })
+	if width(groups) > budget {
+		return "", nil, search.Span{}, false
+	}
+
+	segs = append(segs, viewmodel.SnippetSeg{Text: "…"})
+	for gi, g := range groups {
+		if gi > 0 {
+			segs = append(segs, viewmodel.SnippetSeg{Text: " … "})
+		}
+		segs = append(segs, segmentize(runes, g.span, hits)...)
+	}
+	segs = append(segs, viewmodel.SnippetSeg{Text: "…"})
+
+	var b strings.Builder
+	for _, s := range segs {
+		b.WriteString(s.Text)
+	}
+	// focus = the highest-scoring group's span.
+	focus = groups[0].span
+	best := groups[0].score
+	for _, g := range groups {
+		if g.score > best {
+			best, focus = g.score, g.span
+		}
+	}
+	return b.String(), segs, focus, true
 }
 
 func trimRunes(s string, n int) string {

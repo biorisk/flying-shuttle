@@ -66,6 +66,44 @@ func TestEvidenceFinder_ranksAndResolves(t *testing.T) {
 	}
 }
 
+func TestEvidenceFinder_multiSpanSnippet(t *testing.T) {
+	s, _ := store.NewSQLiteStore(":memory:")
+	s.Migrate()
+	t.Cleanup(func() { s.Close() })
+
+	idx := search.NewHybridIndex(nil)
+	gap := "We then discussed the venue and catering and parking arrangements for a while. "
+	c := model.Chunk{
+		ID:         "c1",
+		SourceFile: "iv.txt",
+		Content: "The quarterly budget was the first real fight. " +
+			gap + gap + gap +
+			"Eventually the budget dispute went to the board. " +
+			gap + gap,
+	}
+	s.CreateChunk(&c)
+	idx.IndexChunk(&c)
+
+	f := &web.EvidenceFinder{Index: idx, Store: s}
+	got, err := f.Find(context.Background(), "budget", 5)
+	if err != nil || len(got) != 1 {
+		t.Fatalf("Find: %v / %d", err, len(got))
+	}
+	var plain string
+	for _, seg := range got[0].Segments {
+		plain += seg.Text
+	}
+	if strings.Count(plain, "…") < 3 { // leading + middle + trailing
+		t.Errorf("expected a multi-span snippet with separators, got %q", plain)
+	}
+	if !strings.Contains(plain, "first real fight") || !strings.Contains(plain, "went to the board") {
+		t.Errorf("both budget sentences should appear: %q", plain)
+	}
+	if strings.Contains(plain, "catering and parking") {
+		t.Errorf("filler between spans should be elided: %q", plain)
+	}
+}
+
 func TestEvidenceFinder_marksHitsAndCentersSnippet(t *testing.T) {
 	s, err := store.NewSQLiteStore(":memory:")
 	if err != nil {
