@@ -85,5 +85,16 @@ func LoadAndReconcile(s store.Store, idx *search.HybridIndex, bm25Path, hnswPath
 		log.Printf("indexer: restored %d embedding(s) into the vector index", len(vecMissing))
 	}
 
+	// The passage sub-index is not snapshotted — rebuild it from every stored
+	// chunk on each boot.
+	if len(ids) > 0 {
+		allChunks, err := s.GetChunksByIDs(ids)
+		if err != nil {
+			return err
+		}
+		idx.RebuildPassages(allChunks)
+		log.Printf("indexer: built passage sub-index (%d passages from %d chunks)", idx.Passages.Len(), len(allChunks))
+	}
+
 	return nil
 }

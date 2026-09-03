@@ -22,6 +22,10 @@ type Result struct {
 	// Both zero for results that didn't pass through hybrid fusion.
 	BM25   float64 `json:"bm25"`
 	Vector float64 `json:"vector"`
+	// Passage is the rune span of the best-matching sub-chunk retrieval unit
+	// within the chunk, when the passage arm contributed this hit. Zero span
+	// otherwise. The evidence pane seeds its located window from it.
+	Passage Span `json:"passage,omitempty"`
 }
 
 // MatchKind labels why a result matched, from its fusion provenance:
@@ -46,6 +50,7 @@ func (r Result) MatchKind() string {
 type HybridIndex struct {
 	BM25     *BM25Index
 	Vector   *VectorIndex
+	Passages *BM25Index      // sub-chunk retrieval units; not snapshotted
 	Embedder ingest.Embedder // optional; nil → BM25-only mode
 
 	// RRFk is the RRF constant (default 60). Higher values give more
@@ -73,6 +78,7 @@ func NewHybridIndex(embedder ingest.Embedder) *HybridIndex {
 	return &HybridIndex{
 		BM25:     NewBM25Index(),
 		Vector:   NewVectorIndex(),
+		Passages: NewBM25Index(),
 		Embedder: embedder,
 		RRFk:     60,
 	}
@@ -85,14 +91,36 @@ func (h *HybridIndex) IndexChunks(chunks []model.Chunk) {
 	}
 }
 
-// IndexChunk adds a single chunk to both indexes.
+// IndexChunk adds a single chunk to the keyword, passage, and vector indexes.
 func (h *HybridIndex) IndexChunk(c *model.Chunk) {
 	h.BM25.Add(c.ID, c.Content)
+	h.indexPassages(c.ID, c.Content)
 	if len(c.EmbeddingVec) > 0 {
 		vec := ingest.BytesToFloat32s(c.EmbeddingVec)
 		h.Vector.Add(c.ID, vec)
 	}
 	h.dirty.Store(true)
+}
+
+func (h *HybridIndex) indexPassages(chunkID, content string) {
+	if h.Passages == nil {
+		return
+	}
+	for _, p := range chunkPassages(content) {
+		h.Passages.Add(PassageID(chunkID, p.Span), p.Text)
+	}
+}
+
+// RebuildPassages repopulates the passage sub-index from scratch. The passage
+// index is not snapshotted, so startup reconciliation calls this with every
+// stored chunk.
+func (h *HybridIndex) RebuildPassages(chunks []model.Chunk) {
+	if h.Passages == nil {
+		h.Passages = NewBM25Index()
+	}
+	for i := range chunks {
+		h.indexPassages(chunks[i].ID, chunks[i].Content)
+	}
 }
 
 // SetChunkVector adds or replaces a chunk's embedding in the vector index.
@@ -114,21 +142,40 @@ func (h *HybridIndex) Search(ctx context.Context, query string, limit int) ([]Re
 
 	bm25Results := h.BM25.Search(query, candidateLimit)
 
+	// Passage arm: match small retrieval units, then roll each chunk's best
+	// passage up into a chunk-level result carrying that passage's span.
+	var passageResults []Result
+	if h.Passages != nil && h.Passages.Len() > 0 {
+		seen := make(map[string]bool)
+		for _, pr := range h.Passages.Search(query, candidateLimit*3) {
+			cid, span, ok := SplitPassageID(pr.ChunkID)
+			if !ok || seen[cid] {
+				continue
+			}
+			seen[cid] = true
+			passageResults = append(passageResults, Result{ChunkID: cid, Score: pr.Score, Passage: span})
+			if len(passageResults) >= candidateLimit {
+				break
+			}
+		}
+	}
+
 	var vecResults []Result
 	if h.Embedder != nil && h.Vector.Len() > 0 {
 		qVec, err := h.Embedder.Embed(ctx, query)
 		if err != nil {
 			// Embedder unavailable (e.g. still warming up) — degrade to
-			// BM25-only rather than failing the whole query.
-			if limit > 0 && len(bm25Results) > limit {
-				bm25Results = bm25Results[:limit]
+			// keyword + passage rather than failing the whole query.
+			fused := fuseArms(h.rrfk(), bm25Results, passageResults, nil)
+			if limit > 0 && len(fused) > limit {
+				fused = fused[:limit]
 			}
-			return withKeywordProvenance(bm25Results), nil
+			return fused, nil
 		}
 		vecResults = h.Vector.Search(qVec, candidateLimit)
 	}
 
-	fused := fuseArms(h.rrfk(), bm25Results, vecResults)
+	fused := fuseArms(h.rrfk(), bm25Results, passageResults, vecResults)
 
 	if limit > 0 && len(fused) > limit {
 		fused = fused[:limit]
@@ -215,11 +262,15 @@ func (h *HybridIndex) rrfk() float64 {
 	return 60
 }
 
-// fuseArms runs Reciprocal Rank Fusion over the keyword (bm25) and semantic
-// (vec) result lists, recording each arm's contribution on the fused Result so
-// the UI can explain why a chunk matched.
-func fuseArms(k float64, bm25, vec []Result) []Result {
-	type acc struct{ bm, vc float64 }
+// fuseArms runs Reciprocal Rank Fusion over the keyword (bm25), passage, and
+// semantic (vec) result lists. The passage arm counts toward keyword
+// provenance and contributes its span; each arm's contribution is recorded on
+// the fused Result so the UI can explain why a chunk matched.
+func fuseArms(k float64, bm25, passage, vec []Result) []Result {
+	type acc struct {
+		bm, vc  float64
+		passage Span
+	}
 	scores := make(map[string]*acc)
 	get := func(id string) *acc {
 		a := scores[id]
@@ -232,26 +283,24 @@ func fuseArms(k float64, bm25, vec []Result) []Result {
 	for rank, r := range bm25 {
 		get(r.ChunkID).bm += 1.0 / (k + float64(rank+1))
 	}
+	for rank, r := range passage {
+		a := get(r.ChunkID)
+		a.bm += 1.0 / (k + float64(rank+1))
+		a.passage = r.Passage
+	}
 	for rank, r := range vec {
 		get(r.ChunkID).vc += 1.0 / (k + float64(rank+1))
 	}
 
 	results := make([]Result, 0, len(scores))
 	for id, a := range scores {
-		results = append(results, Result{ChunkID: id, Score: a.bm + a.vc, BM25: a.bm, Vector: a.vc})
+		results = append(results, Result{
+			ChunkID: id, Score: a.bm + a.vc,
+			BM25: a.bm, Vector: a.vc, Passage: a.passage,
+		})
 	}
 	sort.Slice(results, func(i, j int) bool { return results[i].Score > results[j].Score })
 	return results
-}
-
-// withKeywordProvenance stamps BM25-only results (the degraded path) with
-// keyword provenance so MatchKind still reports something sensible.
-func withKeywordProvenance(rs []Result) []Result {
-	for i := range rs {
-		rs[i].BM25 = rs[i].Score
-		rs[i].Vector = 0
-	}
-	return rs
 }
 
 // reciprocalRankFusionK combines ranked result lists using RRF.

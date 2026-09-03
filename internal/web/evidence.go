@@ -80,6 +80,11 @@ func (f *EvidenceFinder) Find(ctx context.Context, query string, limit int) ([]v
 			// chunk's sentences against the query embedding instead.
 			loc = search.SemanticLocate(ctx, f.Index.Embedder, c.Content, query, opts)
 		}
+		if !loc.Found && r.Passage.End > r.Passage.Start {
+			// Nothing localized, but the passage arm matched a sub-chunk unit —
+			// use its span as the focus.
+			loc = search.LocateResult{Found: true, Window: r.Passage, Score: r.Score}
+		}
 		if loc.Found {
 			cand.Snippet, cand.Segments = buildSnippet(c.Content, loc.Window, loc.Hits)
 			cand.FocusStart, cand.FocusEnd = loc.Window.Start, loc.Window.End

@@ -253,7 +253,7 @@ func TestTokenize(t *testing.T) {
 func TestFuseArmsRecordsProvenance(t *testing.T) {
 	bm25 := []Result{{ChunkID: "a", Score: 5}, {ChunkID: "b", Score: 3}}
 	vec := []Result{{ChunkID: "b", Score: 0.9}, {ChunkID: "c", Score: 0.8}}
-	got := fuseArms(60, bm25, vec)
+	got := fuseArms(60, bm25, nil, vec)
 
 	by := map[string]Result{}
 	for _, r := range got {
