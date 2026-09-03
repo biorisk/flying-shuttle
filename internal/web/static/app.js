@@ -181,6 +181,8 @@
     dragId = null;
   });
 
+  let markIdx = -1; // cursor into the highlighted spans for n / N cycling
+
   // When the transcript reader patches in with a located span, scroll it into
   // view once. The reader body is replaced on every open / scrub, so a fresh
   // #reader-focus (without our marker) means a new span to reveal.
@@ -190,7 +192,41 @@
       el.dataset.scrolled = "1";
       el.scrollIntoView({ block: "center", behavior: "smooth" });
     }
+    markIdx = -1; // evidence fragment changed — restart span cycling
   }).observe(document.body, { childList: true, subtree: true });
+
+  // ---- keyboard span cycling (n / N) -----------------------------------
+  //
+  // n / N steps forward / back through the highlighted spans — the reader's
+  // marks when it's open, otherwise every candidate card's marks — scrolling
+  // each into view. Keyboard-first, like the outline editor.
+
+  function cyclableMarks() {
+    const reader = document.getElementById("transcript-reader");
+    if (reader && reader.offsetParent !== null) {
+      return Array.from(reader.querySelectorAll("mark"));
+    }
+    return Array.from(document.querySelectorAll("#evidence-candidates mark"));
+  }
+
+  function cycleMark(dir) {
+    const marks = cyclableMarks();
+    document.querySelectorAll("mark.mark-active")
+      .forEach((m) => m.classList.remove("mark-active"));
+    if (!marks.length) return;
+    markIdx = (markIdx + dir + marks.length) % marks.length;
+    const m = marks[markIdx];
+    m.classList.add("mark-active");
+    m.scrollIntoView({ block: "center", behavior: "smooth" });
+  }
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "n" && e.key !== "N") return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.target.closest('input, textarea, [contenteditable="true"]')) return;
+    e.preventDefault();
+    cycleMark(e.key === "N" ? -1 : 1);
+  });
 
   document.addEventListener("selectionchange", function () {
     const sel = document.getSelection();
