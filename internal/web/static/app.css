@@ -124,7 +124,12 @@ button:hover { border-color: var(--accent); }
 .evidence-head { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text-dim); margin-bottom: 8px; }
 .candidate-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .candidate { border: 1px solid var(--edge); border-radius: var(--radius); padding: 8px; }
-.candidate-meta { display: flex; gap: 8px; font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
+.candidate-meta { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
+.candidate-badge { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; padding: 1px 4px; border-radius: 3px; border: 1px solid var(--edge); color: var(--text-dim); }
+.badge-semantic { border-color: var(--accent); color: var(--accent); }
+.badge-hybrid { border-color: var(--accent); }
+.candidate-scorebar { display: inline-block; width: 32px; height: 4px; border-radius: 2px; background: var(--edge); overflow: hidden; }
+.candidate-scorebar > i { display: block; height: 100%; background: var(--accent); }
 .candidate-text { margin: 0; font-size: 13px; }
 .candidate-text mark, .candidate-full mark { background: var(--accent); color: var(--bg); border-radius: 2px; padding: 0 1px; }
 .candidate-more { margin-top: 4px; }

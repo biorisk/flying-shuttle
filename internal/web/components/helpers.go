@@ -84,6 +84,18 @@ func exitGlyph(t string) string {
 	}
 }
 
+// scorePct renders a 0..1 score as a clamped integer percentage like "72%".
+func scorePct(v float64) string {
+	p := int(v*100 + 0.5)
+	if p < 0 {
+		p = 0
+	}
+	if p > 100 {
+		p = 100
+	}
+	return strconv.Itoa(p) + "%"
+}
+
 // sentShade maps a 0..1 sentence relevance score to a background style,
 // light → dark in the accent hue. Below a small floor it stays transparent.
 func sentShade(score float64) string {

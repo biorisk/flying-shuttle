@@ -15,7 +15,7 @@ func TestShadedSentenceStyleSurvivesSanitizer(t *testing.T) {
 	vm := viewmodel.EvidencePane{
 		Query: "budget", NodeID: "n1",
 		Candidates: []viewmodel.Candidate{{
-			ChunkID: "c1", SourceFile: "f.txt", Snippet: "…budget…",
+			ChunkID: "c1", SourceFile: "f.txt", Snippet: "…budget…", Match: "semantic", ScoreNorm: 0.72,
 			Segments: []viewmodel.SnippetSeg{{Text: "budget", Mark: true}},
 			FullSentences: []viewmodel.ShadedSentence{
 				{Segments: []viewmodel.SnippetSeg{{Text: "The budget mattered.", Mark: false}}, Score: 1.0},
@@ -33,5 +33,11 @@ func TestShadedSentenceStyleSurvivesSanitizer(t *testing.T) {
 	}
 	if !strings.Contains(out, "cand-sent") {
 		t.Errorf("shaded sentence not rendered")
+	}
+	if !strings.Contains(out, "badge-semantic") || !strings.Contains(out, ">semantic<") {
+		t.Errorf("match badge not rendered:\n%s", out)
+	}
+	if !strings.Contains(out, "width:72%") {
+		t.Errorf("score bar width dropped by sanitizer:\n%s", out)
 	}
 }

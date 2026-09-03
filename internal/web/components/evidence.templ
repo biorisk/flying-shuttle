@@ -30,6 +30,14 @@ templ Evidence(vm viewmodel.EvidencePane) {
 								if c.Speaker != "" {
 									<span class="candidate-speaker">{ c.Speaker }</span>
 								}
+								if c.Match != "" {
+									<span class={ "candidate-badge", "badge-" + c.Match } title="how this passage matched">{ c.Match }</span>
+								}
+								if c.ScoreNorm > 0 {
+									<span class="candidate-scorebar" title={ "relevance " + scorePct(c.ScoreNorm) }>
+										<i style={ "width:" + scorePct(c.ScoreNorm) }></i>
+									</span>
+								}
 								<button
 									type="button"
 									class="candidate-open"
