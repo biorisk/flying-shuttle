@@ -218,6 +218,9 @@ type LocateOptions struct {
 	// MaxWindowRunes caps the width of the located window. Defaults to 240,
 	// roughly a sentence or two of transcript prose.
 	MaxWindowRunes int
+	// MinSimilarity is the cosine floor for SemanticLocate to report a hit.
+	// Defaults to 0.2.
+	MinSimilarity float64
 }
 
 func (o LocateOptions) maxWindow() int {

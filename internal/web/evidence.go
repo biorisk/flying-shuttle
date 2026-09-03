@@ -75,6 +75,11 @@ func (f *EvidenceFinder) Find(ctx context.Context, query string, limit int) ([]v
 		if !loc.Found {
 			loc = search.Locate(c.Content, q, f.Index.BM25.IDF, opts)
 		}
+		if !loc.Found && f.Index.Embedder != nil {
+			// Vector-only hit with no lexical term to highlight — score the
+			// chunk's sentences against the query embedding instead.
+			loc = search.SemanticLocate(ctx, f.Index.Embedder, c.Content, query, opts)
+		}
 		if loc.Found {
 			cand.Snippet, cand.Segments = buildSnippet(c.Content, loc.Window, loc.Hits)
 			cand.FocusStart, cand.FocusEnd = loc.Window.Start, loc.Window.End
