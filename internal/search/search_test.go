@@ -249,3 +249,26 @@ func TestTokenize(t *testing.T) {
 		}
 	}
 }
+
+func TestFuseArmsRecordsProvenance(t *testing.T) {
+	bm25 := []Result{{ChunkID: "a", Score: 5}, {ChunkID: "b", Score: 3}}
+	vec := []Result{{ChunkID: "b", Score: 0.9}, {ChunkID: "c", Score: 0.8}}
+	got := fuseArms(60, bm25, vec)
+
+	by := map[string]Result{}
+	for _, r := range got {
+		by[r.ChunkID] = r
+	}
+	if by["a"].MatchKind() != "keyword" {
+		t.Errorf("a should be keyword-only, got %s (%+v)", by["a"].MatchKind(), by["a"])
+	}
+	if by["c"].MatchKind() != "semantic" {
+		t.Errorf("c should be semantic-only, got %s", by["c"].MatchKind())
+	}
+	if by["b"].MatchKind() != "hybrid" {
+		t.Errorf("b should be hybrid, got %s", by["b"].MatchKind())
+	}
+	if d := by["b"].Score - (by["b"].BM25 + by["b"].Vector); d > 1e-9 || d < -1e-9 {
+		t.Errorf("b Score should equal BM25+Vector, delta %v", d)
+	}
+}

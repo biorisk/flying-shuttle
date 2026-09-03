@@ -29,6 +29,10 @@ type Candidate struct {
 	FocusStart int
 	FocusEnd   int
 	Score      float64
+	// Match is why this passage matched: "keyword", "semantic", or "hybrid".
+	Match string
+	// ScoreNorm is Score scaled to 0..1 against the top result of this render.
+	ScoreNorm float64
 }
 
 // HasMore reports whether an expand-in-place toggle should be offered.

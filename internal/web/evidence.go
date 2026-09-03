@@ -43,6 +43,11 @@ func (f *EvidenceFinder) Find(ctx context.Context, query string, limit int) ([]v
 		return nil, err
 	}
 
+	topScore := 0.0
+	if len(results) > 0 {
+		topScore = results[0].Score
+	}
+
 	out := make([]viewmodel.Candidate, 0, len(results))
 	for _, r := range results {
 		c, err := f.Store.GetChunk(r.ChunkID)
@@ -58,6 +63,10 @@ func (f *EvidenceFinder) Find(ctx context.Context, query string, limit int) ([]v
 			SourceFile: c.SourceFile,
 			Speaker:    speaker,
 			Score:      r.Score,
+			Match:      r.MatchKind(),
+		}
+		if topScore > 0 {
+			cand.ScoreNorm = r.Score / topScore
 		}
 		// Sentence-granular passage scoring first; fall back to the raw
 		// term-window locator for hits that don't land in any sentence.

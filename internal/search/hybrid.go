@@ -17,6 +17,24 @@ import (
 type Result struct {
 	ChunkID string  `json:"chunk_id"`
 	Score   float64 `json:"score"`
+	// BM25 and Vector are this hit's Reciprocal Rank Fusion contributions from
+	// the keyword and semantic arms respectively; together they make up Score.
+	// Both zero for results that didn't pass through hybrid fusion.
+	BM25   float64 `json:"bm25"`
+	Vector float64 `json:"vector"`
+}
+
+// MatchKind labels why a result matched, from its fusion provenance:
+// "keyword" (BM25 only), "semantic" (vector only), or "hybrid" (both).
+func (r Result) MatchKind() string {
+	switch {
+	case r.BM25 > 0 && r.Vector > 0:
+		return "hybrid"
+	case r.Vector > 0:
+		return "semantic"
+	default:
+		return "keyword"
+	}
 }
 
 // HybridIndex combines BM25 keyword search with vector semantic search
@@ -103,14 +121,14 @@ func (h *HybridIndex) Search(ctx context.Context, query string, limit int) ([]Re
 			// Embedder unavailable (e.g. still warming up) — degrade to
 			// BM25-only rather than failing the whole query.
 			if limit > 0 && len(bm25Results) > limit {
-				return bm25Results[:limit], nil
+				bm25Results = bm25Results[:limit]
 			}
-			return bm25Results, nil
+			return withKeywordProvenance(bm25Results), nil
 		}
 		vecResults = h.Vector.Search(qVec, candidateLimit)
 	}
 
-	fused := reciprocalRankFusionK(h.rrfk(), bm25Results, vecResults)
+	fused := fuseArms(h.rrfk(), bm25Results, vecResults)
 
 	if limit > 0 && len(fused) > limit {
 		fused = fused[:limit]
@@ -195,6 +213,45 @@ func (h *HybridIndex) rrfk() float64 {
 		return h.RRFk
 	}
 	return 60
+}
+
+// fuseArms runs Reciprocal Rank Fusion over the keyword (bm25) and semantic
+// (vec) result lists, recording each arm's contribution on the fused Result so
+// the UI can explain why a chunk matched.
+func fuseArms(k float64, bm25, vec []Result) []Result {
+	type acc struct{ bm, vc float64 }
+	scores := make(map[string]*acc)
+	get := func(id string) *acc {
+		a := scores[id]
+		if a == nil {
+			a = &acc{}
+			scores[id] = a
+		}
+		return a
+	}
+	for rank, r := range bm25 {
+		get(r.ChunkID).bm += 1.0 / (k + float64(rank+1))
+	}
+	for rank, r := range vec {
+		get(r.ChunkID).vc += 1.0 / (k + float64(rank+1))
+	}
+
+	results := make([]Result, 0, len(scores))
+	for id, a := range scores {
+		results = append(results, Result{ChunkID: id, Score: a.bm + a.vc, BM25: a.bm, Vector: a.vc})
+	}
+	sort.Slice(results, func(i, j int) bool { return results[i].Score > results[j].Score })
+	return results
+}
+
+// withKeywordProvenance stamps BM25-only results (the degraded path) with
+// keyword provenance so MatchKind still reports something sensible.
+func withKeywordProvenance(rs []Result) []Result {
+	for i := range rs {
+		rs[i].BM25 = rs[i].Score
+		rs[i].Vector = 0
+	}
+	return rs
 }
 
 // reciprocalRankFusionK combines ranked result lists using RRF.
