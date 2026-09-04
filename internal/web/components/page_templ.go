@@ -25,6 +25,9 @@ import templruntime "github.com/a-h/templ/runtime"
 //	threadId      — selected audience thread ("" = all)
 //	evidenceWidth — right pane width in px
 //	collapsed     — { [nodeId]: true } map of collapsed outline subtrees
+//	searchMode    — evidence pane retrieval mode: "hybrid" | "keyword" | "semantic"
+//	evidenceQuery — last bullet text sent to /evidence, kept so the mode
+//	                toggle can re-fetch without a fresh keystroke
 //
 // PageContent bundles the fragment components the shell renders on first load.
 // Any nil field falls back to an empty placeholder element carrying the right
@@ -74,7 +77,7 @@ func Page(c PageContent) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"shell\" class=\"shell\" data-signals=\"{ focusId: '', drawerOpen: false, centerView: 'outline', threadId: '', evidenceWidth: 420, collapsed: {}, readerChunk: '', glue: 50, brushMode: false, exits: {}, diffAgainst: '', atlasOpen: false, atlasRegionId: '', atlasBuilding: false, atlasRegions: 0, atlasChunkCount: 0, atlasError: '', atlasQuery: '', atlasView: 'list' }\" data-class=\"{ 'drawer-open': $drawerOpen }\" data-style:grid-template-columns=\"($drawerOpen ? '300px ' : '0 ') + '1fr ' + $evidenceWidth + 'px'\"><aside id=\"ingest-drawer\" class=\"drawer\" aria-label=\"Transcript ingest\"><header class=\"drawer-head\"><span>Transcripts</span> <button type=\"button\" class=\"icon-btn\" data-on:click=\"$drawerOpen = false\" title=\"Close\">&times;</button></header>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"shell\" class=\"shell\" data-signals=\"{ focusId: '', drawerOpen: false, centerView: 'outline', threadId: '', evidenceWidth: 420, collapsed: {}, readerChunk: '', glue: 50, brushMode: false, exits: {}, diffAgainst: '', atlasOpen: false, atlasRegionId: '', atlasBuilding: false, atlasRegions: 0, atlasChunkCount: 0, atlasError: '', atlasQuery: '', atlasView: 'list', searchMode: 'hybrid', evidenceQuery: '' }\" data-class=\"{ 'drawer-open': $drawerOpen }\" data-style:grid-template-columns=\"($drawerOpen ? '300px ' : '0 ') + '1fr ' + $evidenceWidth + 'px'\"><aside id=\"ingest-drawer\" class=\"drawer\" aria-label=\"Transcript ingest\"><header class=\"drawer-head\"><span>Transcripts</span> <button type=\"button\" class=\"icon-btn\" data-on:click=\"$drawerOpen = false\" title=\"Close\">&times;</button></header>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

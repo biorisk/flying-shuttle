@@ -57,6 +57,15 @@ type EvidencePane struct {
 	Query      string
 	NodeID     string
 	Candidates []Candidate
+	// Mode is the retrieval mode this render was fetched with — "hybrid"
+	// (default), "keyword", or "semantic". Drives the toggle's active state
+	// on first paint / a full page reload; the client-side $searchMode
+	// signal takes over after that.
+	Mode string
+	// SemanticUnavailable is true when Mode is "semantic" but no embedder is
+	// configured, so Candidates is empty for that reason rather than a
+	// genuine no-match.
+	SemanticUnavailable bool
 }
 
 // ReaderSegment is one chunk's text within the transcript reader window.

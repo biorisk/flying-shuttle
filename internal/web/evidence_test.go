@@ -36,7 +36,7 @@ func TestEvidenceFinder_ranksAndResolves(t *testing.T) {
 
 	f := &web.EvidenceFinder{Index: idx, Store: s}
 
-	got, err := f.Find(context.Background(), "fear", 5)
+	got, err := f.Find(context.Background(), "fear", 5, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestEvidenceFinder_ranksAndResolves(t *testing.T) {
 	}
 
 	// Blank query -> nil.
-	if got, _ := f.Find(context.Background(), "   ", 5); got != nil {
+	if got, _ := f.Find(context.Background(), "   ", 5, ""); got != nil {
 		t.Fatalf("blank query should yield nil, got %v", got)
 	}
 }
@@ -85,7 +85,7 @@ func TestEvidenceFinder_multiSpanSnippet(t *testing.T) {
 	idx.IndexChunk(&c)
 
 	f := &web.EvidenceFinder{Index: idx, Store: s}
-	got, err := f.Find(context.Background(), "budget", 5)
+	got, err := f.Find(context.Background(), "budget", 5, "")
 	if err != nil || len(got) != 1 {
 		t.Fatalf("Find: %v / %d", err, len(got))
 	}
@@ -127,7 +127,7 @@ func TestEvidenceFinder_marksHitsAndCentersSnippet(t *testing.T) {
 	idx.IndexChunk(&c)
 
 	f := &web.EvidenceFinder{Index: idx, Store: s}
-	got, err := f.Find(context.Background(), "budget shortfall", 5)
+	got, err := f.Find(context.Background(), "budget shortfall", 5, "")
 	if err != nil || len(got) != 1 {
 		t.Fatalf("Find: %v / %d results", err, len(got))
 	}

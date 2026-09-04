@@ -129,10 +129,44 @@ func (h *HybridIndex) SetChunkVector(id string, vec []float32) {
 	h.dirty.Store(true)
 }
 
+// Mode selects which retrieval arm(s) HybridIndex.SearchMode draws from.
+type Mode string
+
+const (
+	// ModeHybrid fuses BM25 keyword, passage, and vector semantic results via
+	// RRF — the default, and the only mode Search (below) ever runs.
+	ModeHybrid Mode = "hybrid"
+	// ModeKeyword restricts retrieval to the BM25 keyword and passage arms;
+	// no embedder call is made.
+	ModeKeyword Mode = "keyword"
+	// ModeSemantic restricts retrieval to the vector arm. Empty (not an
+	// error) when no Embedder is configured or nothing has been embedded yet.
+	ModeSemantic Mode = "semantic"
+)
+
+// normalize maps an unrecognized or empty Mode to ModeHybrid, so callers that
+// pass through an untrusted string (e.g. a query param) degrade safely.
+func (m Mode) normalize() Mode {
+	switch m {
+	case ModeKeyword, ModeSemantic:
+		return m
+	default:
+		return ModeHybrid
+	}
+}
+
 // Search performs hybrid retrieval: BM25 keyword search fused with vector
 // semantic search via Reciprocal Rank Fusion. When no Embedder is configured,
-// only BM25 results are returned. Returns up to limit results.
+// only BM25 results are returned. Returns up to limit results. Equivalent to
+// SearchMode(ctx, query, limit, ModeHybrid).
 func (h *HybridIndex) Search(ctx context.Context, query string, limit int) ([]Result, error) {
+	return h.SearchMode(ctx, query, limit, ModeHybrid)
+}
+
+// SearchMode is Search with an explicit retrieval mode: ModeHybrid (default),
+// ModeKeyword (BM25 + passage only, no embedder call), or ModeSemantic
+// (vector only). An unrecognized mode is treated as ModeHybrid.
+func (h *HybridIndex) SearchMode(ctx context.Context, query string, limit int, mode Mode) ([]Result, error) {
 	// Get candidates from both sources. Fetch more than limit so RRF
 	// has enough candidates to work with.
 	candidateLimit := limit * 3
@@ -140,32 +174,38 @@ func (h *HybridIndex) Search(ctx context.Context, query string, limit int) ([]Re
 		candidateLimit = 20
 	}
 
-	bm25Results := h.BM25.Search(query, candidateLimit)
+	mode = mode.normalize()
 
-	// Passage arm: match small retrieval units, then roll each chunk's best
-	// passage up into a chunk-level result carrying that passage's span.
-	var passageResults []Result
-	if h.Passages != nil && h.Passages.Len() > 0 {
-		seen := make(map[string]bool)
-		for _, pr := range h.Passages.Search(query, candidateLimit*3) {
-			cid, span, ok := SplitPassageID(pr.ChunkID)
-			if !ok || seen[cid] {
-				continue
-			}
-			seen[cid] = true
-			passageResults = append(passageResults, Result{ChunkID: cid, Score: pr.Score, Passage: span})
-			if len(passageResults) >= candidateLimit {
-				break
+	var bm25Results, passageResults []Result
+	if mode != ModeSemantic {
+		bm25Results = h.BM25.Search(query, candidateLimit)
+
+		// Passage arm: match small retrieval units, then roll each chunk's best
+		// passage up into a chunk-level result carrying that passage's span.
+		if h.Passages != nil && h.Passages.Len() > 0 {
+			seen := make(map[string]bool)
+			for _, pr := range h.Passages.Search(query, candidateLimit*3) {
+				cid, span, ok := SplitPassageID(pr.ChunkID)
+				if !ok || seen[cid] {
+					continue
+				}
+				seen[cid] = true
+				passageResults = append(passageResults, Result{ChunkID: cid, Score: pr.Score, Passage: span})
+				if len(passageResults) >= candidateLimit {
+					break
+				}
 			}
 		}
 	}
 
 	var vecResults []Result
-	if h.Embedder != nil && h.Vector.Len() > 0 {
+	if mode != ModeKeyword && h.Embedder != nil && h.Vector.Len() > 0 {
 		qVec, err := ingest.EmbedQueryOr(ctx, h.Embedder, query)
 		if err != nil {
 			// Embedder unavailable (e.g. still warming up) — degrade to
-			// keyword + passage rather than failing the whole query.
+			// whatever keyword/passage results we already have rather than
+			// failing the whole query. In ModeSemantic that's none, so the
+			// caller correctly sees an empty result set.
 			fused := fuseArms(h.rrfk(), bm25Results, passageResults, nil)
 			if limit > 0 && len(fused) > limit {
 				fused = fused[:limit]

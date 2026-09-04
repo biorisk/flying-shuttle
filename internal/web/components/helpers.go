@@ -34,9 +34,21 @@ func activeBranchName(vm viewmodel.BranchBar) string {
 
 // evidenceExpr fetches the evidence pane for the current bullet text. Datastar
 // auto-cancels the previous in-flight request for the same element, so rapid
-// typing collapses to the latest query.
+// typing collapses to the latest query. $evidenceQuery is kept in step with
+// the bullet text so the mode toggle (evidenceModeExpr) can re-fetch it
+// without needing a fresh keystroke.
 func evidenceExpr(id string) string {
-	return "@get('/evidence?node=" + id + "&q=' + encodeURIComponent(evt.target.value))"
+	return "$evidenceQuery = evt.target.value; " +
+		"@get('/evidence?node=" + id + "&q=' + encodeURIComponent($evidenceQuery) + '&mode=' + $searchMode)"
+}
+
+// evidenceModeExpr switches the evidence pane's retrieval mode and re-issues
+// the last query under it. A no-op fetch (blank $evidenceQuery) still lands —
+// the handler just re-renders the idle placeholder — which is fine since the
+// button is rarely reachable before a first query anyway.
+func evidenceModeExpr(mode string) string {
+	return "$searchMode = '" + mode + "'; " +
+		"@get('/evidence?node=' + ($focusId||'') + '&q=' + encodeURIComponent($evidenceQuery) + '&mode=' + $searchMode)"
 }
 
 // threadToggleExpr toggles a bullet's thread membership, or in Brush mode

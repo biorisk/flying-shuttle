@@ -24,8 +24,10 @@ const DefaultCandidateLimit = 12
 const snippetRunes = 320
 
 // Find runs the hybrid index over query and resolves the hits to candidates.
-// A blank query returns nil (the pane shows its idle prompt).
-func (f *EvidenceFinder) Find(ctx context.Context, query string, limit int) ([]viewmodel.Candidate, error) {
+// A blank query returns nil (the pane shows its idle prompt). mode selects
+// the retrieval arm(s) — see search.Mode; an empty/unrecognized mode is
+// hybrid.
+func (f *EvidenceFinder) Find(ctx context.Context, query string, limit int, mode search.Mode) ([]viewmodel.Candidate, error) {
 	query = strings.TrimSpace(query)
 	if query == "" || f.Index == nil {
 		return nil, nil
@@ -38,7 +40,7 @@ func (f *EvidenceFinder) Find(ctx context.Context, query string, limit int) ([]v
 	// both retrieval and the locator work from the salient terms.
 	q := search.CleanQuery(query)
 
-	results, err := f.Index.Search(ctx, q, limit)
+	results, err := f.Index.SearchMode(ctx, q, limit, mode)
 	if err != nil {
 		return nil, err
 	}

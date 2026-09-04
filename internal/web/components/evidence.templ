@@ -12,10 +12,17 @@ import (
 // $readerChunk (page signal) toggles between them.
 templ Evidence(vm viewmodel.EvidencePane) {
 	<div id="evidence" class="evidence-pane" aria-label="Evidence">
+		<div class="evidence-mode-toggle" role="group" aria-label="Search mode" data-show="!$readerChunk">
+			<button type="button" data-class="{ active: $searchMode === 'keyword' }" data-on:click={ evidenceModeExpr("keyword") } title="Keyword: BM25 term match only">Keyword</button>
+			<button type="button" data-class="{ active: $searchMode === 'hybrid' }" data-on:click={ evidenceModeExpr("hybrid") } title="Hybrid: keyword + semantic, fused">Hybrid</button>
+			<button type="button" data-class="{ active: $searchMode === 'semantic' }" data-on:click={ evidenceModeExpr("semantic") } title="Semantic: vector similarity only">Semantic</button>
+		</div>
 		<div class="evidence-scroll">
 		<div id="evidence-candidates" data-show="!$readerChunk">
 			if vm.Query == "" {
 				<p class="evidence-empty">Start typing a bullet — supporting passages appear here.</p>
+			} else if vm.SemanticUnavailable {
+				<p class="evidence-empty">Semantic search is unavailable — the embedder isn't running. Try Hybrid or Keyword.</p>
 			} else if len(vm.Candidates) == 0 {
 				<p class="evidence-empty">No passages found for “{ vm.Query }”.</p>
 			} else {
