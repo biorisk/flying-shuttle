@@ -2,6 +2,7 @@ package web_test
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -139,5 +140,72 @@ func TestAtlasSearch_RanksRegions(t *testing.T) {
 	r.ServeHTTP(rec, httptest.NewRequest("GET", "/atlas/search?q=", nil))
 	if rec.Code != 200 || strings.Contains(rec.Body.String(), "atlas-hop") {
 		t.Fatalf("empty query should yield an empty fragment: %s", rec.Body.String())
+	}
+}
+
+func TestAtlasGraphJSON(t *testing.T) {
+	_, svc, r := atlasTestServer(t)
+	if err := svc.Rebuild(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	build, _ := svc.Current()
+
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest("GET", "/atlas/graph.json", nil))
+	if rec.Code != 200 || rec.Header().Get("Content-Type") != "application/json" {
+		t.Fatalf("graph.json: %d %s", rec.Code, rec.Header().Get("Content-Type"))
+	}
+	var g struct {
+		Regions []struct {
+			ID       string   `json:"id"`
+			Keywords []string `json:"keywords"`
+			Chunks   int      `json:"chunks"`
+		} `json:"regions"`
+		Links []struct{ A, B string } `json:"links"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &g); err != nil {
+		t.Fatalf("decode: %v — %s", err, rec.Body.String())
+	}
+	if len(g.Regions) != len(build.Regions) {
+		t.Fatalf("want %d regions, got %d", len(build.Regions), len(g.Regions))
+	}
+
+	// Region drill-down: member chunks + intra-region edges.
+	rid := build.Regions[0].ID
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest("GET", "/atlas/graph.json?region="+rid, nil))
+	var rg struct {
+		Region map[string]string `json:"region"`
+		Chunks []struct{ ID, Label string } `json:"chunks"`
+		Edges  []struct {
+			A, B string
+			W    float64
+		} `json:"edges"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &rg); err != nil {
+		t.Fatalf("region graph decode: %v — %s", err, rec.Body.String())
+	}
+	if rg.Region["id"] != rid || len(rg.Chunks) != build.Regions[0].ChunkCount {
+		t.Fatalf("region graph: %+v", rg)
+	}
+	// The blob members are near-identical, so every pair should be linked.
+	if len(rg.Edges) == 0 {
+		t.Fatalf("expected intra-region edges for a tight blob")
+	}
+}
+
+func TestAtlasChunkDetail(t *testing.T) {
+	_, svc, r := atlasTestServer(t)
+	if err := svc.Rebuild(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	build, _ := svc.Current()
+	cid := build.Regions[0].Members[0].ChunkID
+
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest("GET", "/atlas/chunk/"+cid, nil))
+	body := rec.Body.String()
+	if rec.Code != 200 || !strings.Contains(body, "atlas-detail-text") || !strings.Contains(body, "/evidence?chunk_id=") {
+		t.Fatalf("chunk detail: %d %s", rec.Code, body)
 	}
 }

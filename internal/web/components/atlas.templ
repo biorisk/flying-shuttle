@@ -14,9 +14,21 @@ templ Atlas(vm viewmodel.AtlasPane) {
 	<section id="atlas" class="atlas-pane" aria-label="Source atlas" data-show="$atlasOpen">
 		<header class="atlas-head">
 			<strong>Source atlas</strong>
+			if vm.Status == "ready" {
+				<span class="atlas-viewtabs">
+					<button type="button" data-class="{ active: $atlasView !== 'graph' }" data-on:click="$atlasView = 'list'">list</button>
+					<button type="button" data-class="{ active: $atlasView === 'graph' }" data-on:click="$atlasView = 'graph'; window.atlasGraph && window.atlasGraph.open()">graph</button>
+				</span>
+			}
 			<button type="button" class="atlas-close" data-on:click="$atlasOpen = false; $atlasRegionId = ''">×</button>
 		</header>
-		<div class="atlas-scroll">
+		if vm.Status == "ready" {
+			<div id="atlas-graph" class="atlas-graph" data-show="$atlasView === 'graph'"
+				data-on:atlasnode="$atlasRegionId = evt.detail.id; @get('/atlas/regions/' + evt.detail.id)"
+				data-on:atlaschunk="@get('/atlas/chunk/' + evt.detail.id)"></div>
+			<div id="atlas-detail" class="atlas-detail" data-show="$atlasView === 'graph'"></div>
+		}
+		<div class="atlas-scroll" data-show="$atlasView !== 'graph'">
 			switch vm.Status {
 				case "ready":
 					@atlasRegionList(vm)
@@ -137,6 +149,28 @@ templ AtlasMatches(vm viewmodel.AtlasMatches) {
 				</button>
 			}
 		}
+	</div>
+}
+
+// AtlasChunkDetail is the #atlas-detail fragment for the network view: one
+// chunk's full text with the shared Read / Attach actions.
+templ AtlasChunkDetail(c viewmodel.Candidate) {
+	<div id="atlas-detail" class="atlas-detail" data-show="$atlasView === 'graph'">
+		<div class="candidate-meta">
+			<span class="candidate-source">{ c.SourceFile }</span>
+			<button
+				type="button"
+				class="candidate-open"
+				data-on:click={ "@get('/evidence/transcript?node=' + ($focusId||'') + '&chunk=" + c.ChunkID + "'); $atlasOpen = false" }
+			>Read in transcript →</button>
+			<button
+				type="button"
+				class="atlas-attach"
+				data-attr:disabled="!$focusId"
+				data-on:click={ "@post('/outline/nodes/' + ($focusId||'') + '/evidence?chunk_id=" + c.ChunkID + "')" }
+			>Add as evidence</button>
+		</div>
+		<p class="atlas-detail-text">{ c.Snippet }</p>
 	</div>
 }
 
