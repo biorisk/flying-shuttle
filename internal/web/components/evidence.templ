@@ -27,7 +27,7 @@ templ Evidence(vm viewmodel.EvidencePane) {
 				<p class="evidence-empty">No passages found for “{ vm.Query }”.</p>
 			} else {
 				<header class="evidence-head">
-					<span class="evidence-count">{ fmt.Sprintf("%d passages", len(vm.Candidates)) }</span>
+					<span class="evidence-count">{ pageRangeLabel(vm) }</span>
 					<span class="evidence-q" title="query">{ vm.Query }</span>
 				</header>
 				<ul class="candidate-list">
@@ -75,6 +75,16 @@ templ Evidence(vm viewmodel.EvidencePane) {
 						</li>
 					}
 				</ul>
+				<div class="evidence-pager">
+					<button type="button" data-on:click={ evidencePageExpr(-1, vm.TotalPages) } disabled?={ vm.Page <= 1 }>‹ Prev</button>
+					<span class="pager-status">{ fmt.Sprintf("Page %d of %d", vm.Page, vm.TotalPages) }</span>
+					<button type="button" data-on:click={ evidencePageExpr(1, vm.TotalPages) } disabled?={ vm.Page >= vm.TotalPages }>Next ›</button>
+					<select data-on:change={ evidencePageSizeExpr() } aria-label="Results per page">
+						for _, opt := range vm.PageSizeOptions {
+							<option value={ intString(opt) } selected?={ opt == vm.PageSize }>{ intString(opt) } / page</option>
+						}
+					</select>
+				</div>
 			}
 		</div>
 		@TranscriptReader(viewmodel.TranscriptReader{})

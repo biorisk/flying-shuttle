@@ -36,12 +36,16 @@ func TestEvidenceFinder_ranksAndResolves(t *testing.T) {
 
 	f := &web.EvidenceFinder{Index: idx, Store: s}
 
-	got, err := f.Find(context.Background(), "fear", 5, "")
+	res, err := f.FindPage(context.Background(), "fear", "", 1, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
+	got := res.Candidates
 	if len(got) < 2 {
 		t.Fatalf("expected the two fear passages, got %d: %+v", len(got), got)
+	}
+	if res.Total < 2 {
+		t.Fatalf("expected Total >= 2, got %d", res.Total)
 	}
 	ids := map[string]bool{}
 	for _, c := range got {
@@ -61,8 +65,8 @@ func TestEvidenceFinder_ranksAndResolves(t *testing.T) {
 	}
 
 	// Blank query -> nil.
-	if got, _ := f.Find(context.Background(), "   ", 5, ""); got != nil {
-		t.Fatalf("blank query should yield nil, got %v", got)
+	if res, _ := f.FindPage(context.Background(), "   ", "", 1, 5); res.Candidates != nil || res.Total != 0 {
+		t.Fatalf("blank query should yield no candidates, got %+v", res)
 	}
 }
 
@@ -85,9 +89,10 @@ func TestEvidenceFinder_multiSpanSnippet(t *testing.T) {
 	idx.IndexChunk(&c)
 
 	f := &web.EvidenceFinder{Index: idx, Store: s}
-	got, err := f.Find(context.Background(), "budget", 5, "")
+	res, err := f.FindPage(context.Background(), "budget", "", 1, 5)
+	got := res.Candidates
 	if err != nil || len(got) != 1 {
-		t.Fatalf("Find: %v / %d", err, len(got))
+		t.Fatalf("FindPage: %v / %d", err, len(got))
 	}
 	var plain string
 	for _, seg := range got[0].Segments {
@@ -127,9 +132,10 @@ func TestEvidenceFinder_marksHitsAndCentersSnippet(t *testing.T) {
 	idx.IndexChunk(&c)
 
 	f := &web.EvidenceFinder{Index: idx, Store: s}
-	got, err := f.Find(context.Background(), "budget shortfall", 5, "")
+	res, err := f.FindPage(context.Background(), "budget shortfall", "", 1, 5)
+	got := res.Candidates
 	if err != nil || len(got) != 1 {
-		t.Fatalf("Find: %v / %d results", err, len(got))
+		t.Fatalf("FindPage: %v / %d results", err, len(got))
 	}
 	cand := got[0]
 	if cand.FocusStart == 0 {

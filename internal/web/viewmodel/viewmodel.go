@@ -66,6 +66,17 @@ type EvidencePane struct {
 	// configured, so Candidates is empty for that reason rather than a
 	// genuine no-match.
 	SemanticUnavailable bool
+
+	// Page/PageSize/TotalMatches/TotalPages describe this render's slice of
+	// the full ranked pool. TotalMatches is exact in keyword/hybrid mode
+	// (every chunk sharing a query term); in semantic mode it's bounded by
+	// search.MaxVectorPoolSize (HNSW is approximate top-k, not exhaustive —
+	// there is no true "every match" for it).
+	Page            int
+	PageSize        int
+	TotalMatches    int
+	TotalPages      int
+	PageSizeOptions []int
 }
 
 // ReaderSegment is one chunk's text within the transcript reader window.

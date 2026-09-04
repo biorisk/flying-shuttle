@@ -1,6 +1,7 @@
 package components
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/biorisk/flying-shuttle/internal/web/viewmodel"
@@ -32,23 +33,69 @@ func activeBranchName(vm viewmodel.BranchBar) string {
 	return "main"
 }
 
+// pageRangeLabel renders the evidence pane's count line, e.g.
+// "13–24 of 137 passages". Semantic mode's total is bounded by
+// search.MaxVectorPoolSize (HNSW is approximate top-k, not exhaustive), so
+// it's labeled "nearest neighbors" rather than implying every match is
+// accounted for.
+func pageRangeLabel(vm viewmodel.EvidencePane) string {
+	if vm.TotalMatches == 0 {
+		return "0 passages"
+	}
+	start := (vm.Page-1)*vm.PageSize + 1
+	end := start + len(vm.Candidates) - 1
+	noun := "passages"
+	if vm.Mode == "semantic" {
+		noun = "nearest neighbors"
+	}
+	return fmt.Sprintf("%d–%d of %d %s", start, end, vm.TotalMatches, noun)
+}
+
+// evidenceFetchTail is the part of the @get(...) URL every evidence-pane
+// trigger (bullet input, mode toggle, pager) shares once the node id segment
+// is in place: current query, mode, and pagination off their page signals.
+const evidenceFetchTail = "&q=' + encodeURIComponent($evidenceQuery) + '&mode=' + $searchMode + '&page=' + $evidencePage + '&page_size=' + $evidencePageSize)"
+
 // evidenceExpr fetches the evidence pane for the current bullet text. Datastar
 // auto-cancels the previous in-flight request for the same element, so rapid
 // typing collapses to the latest query. $evidenceQuery is kept in step with
-// the bullet text so the mode toggle (evidenceModeExpr) can re-fetch it
-// without needing a fresh keystroke.
+// the bullet text so the mode toggle and pager can re-fetch it without
+// needing a fresh keystroke. A new query always jumps back to page 1 — a
+// stale page number from the last bullet wouldn't mean anything here.
+//
+// The node id is spliced directly into the URL literal (not as a separate
+// JS string operand) so a plain substring match on "/evidence?node=<id>"
+// still finds it server-rendered, same as before pagination existed.
 func evidenceExpr(id string) string {
-	return "$evidenceQuery = evt.target.value; " +
-		"@get('/evidence?node=" + id + "&q=' + encodeURIComponent($evidenceQuery) + '&mode=' + $searchMode)"
+	return "$evidenceQuery = evt.target.value; $evidencePage = 1; " +
+		"@get('/evidence?node=" + id + evidenceFetchTail
 }
 
 // evidenceModeExpr switches the evidence pane's retrieval mode and re-issues
-// the last query under it. A no-op fetch (blank $evidenceQuery) still lands —
-// the handler just re-renders the idle placeholder — which is fine since the
-// button is rarely reachable before a first query anyway.
+// the last query under it, back at page 1 (each mode has its own ranking and
+// total, so the page you were on in another mode isn't meaningful here). A
+// no-op fetch (blank $evidenceQuery) still lands — the handler just
+// re-renders the idle placeholder — which is fine since the button is rarely
+// reachable before a first query anyway.
 func evidenceModeExpr(mode string) string {
-	return "$searchMode = '" + mode + "'; " +
-		"@get('/evidence?node=' + ($focusId||'') + '&q=' + encodeURIComponent($evidenceQuery) + '&mode=' + $searchMode)"
+	return "$searchMode = '" + mode + "'; $evidencePage = 1; " +
+		"@get('/evidence?node=' + ($focusId||'') + '" + evidenceFetchTail
+}
+
+// evidencePageExpr moves the evidence pane's pager by delta pages (-1/+1),
+// clamped to [1, totalPages], and re-fetches. totalPages comes from the just
+// rendered EvidencePane so the client never has to guess it.
+func evidencePageExpr(delta int, totalPages int) string {
+	return "$evidencePage = Math.max(1, Math.min(" + intString(totalPages) + ", $evidencePage + (" + intString(delta) + "))); " +
+		"@get('/evidence?node=' + ($focusId||'') + '" + evidenceFetchTail
+}
+
+// evidencePageSizeExpr changes the evidence pane's page size from the pager's
+// <select> and re-fetches at page 1 (the old page number belongs to the old
+// size's pagination, not the new one's).
+func evidencePageSizeExpr() string {
+	return "$evidencePageSize = parseInt(evt.target.value); $evidencePage = 1; " +
+		"@get('/evidence?node=' + ($focusId||'') + '" + evidenceFetchTail
 }
 
 // threadToggleExpr toggles a bullet's thread membership, or in Brush mode

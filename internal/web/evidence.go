@@ -17,38 +17,107 @@ type EvidenceFinder struct {
 	Store store.Store
 }
 
-// DefaultCandidateLimit is how many passages the evidence pane shows.
-const DefaultCandidateLimit = 12
+// DefaultPageSize is how many passages the evidence pane shows per page.
+const DefaultPageSize = 12
+
+// PageSizeOptions are the page sizes the pager's selector offers. Requests
+// for any other size are clamped to the nearest of these (see ClampPageSize).
+var PageSizeOptions = []int{12, 25, 50, 100}
+
+// ClampPageSize maps an arbitrary requested page size onto the nearest
+// PageSizeOptions entry, so a request can't force an unbounded amount of
+// per-candidate snippet work. n <= 0 yields DefaultPageSize.
+func ClampPageSize(n int) int {
+	if n <= 0 {
+		return DefaultPageSize
+	}
+	best := PageSizeOptions[0]
+	for _, opt := range PageSizeOptions {
+		if opt == n {
+			return opt
+		}
+		if abs(opt-n) < abs(best-n) {
+			best = opt
+		}
+	}
+	return best
+}
+
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
+}
 
 // snippetRunes caps a candidate's displayed text.
 const snippetRunes = 320
 
-// Find runs the hybrid index over query and resolves the hits to candidates.
-// A blank query returns nil (the pane shows its idle prompt). mode selects
-// the retrieval arm(s) — see search.Mode; an empty/unrecognized mode is
-// hybrid.
-func (f *EvidenceFinder) Find(ctx context.Context, query string, limit int, mode search.Mode) ([]viewmodel.Candidate, error) {
+// FindPage runs the hybrid index over query and resolves one page of hits to
+// candidates. A blank query returns a zero FindResult (the pane shows its
+// idle prompt). mode selects the retrieval arm(s) — see search.Mode; an
+// empty/unrecognized mode is hybrid. page is 1-based and gets clamped into
+// [1, TotalPages] (or 1 when there are no results) — the effective page
+// served is on the returned FindResult, so the caller doesn't need to
+// duplicate that logic to know what it actually got.
+//
+// The full ranked pool is fetched once per call and only the requested page
+// is resolved into candidates (snippet/highlight computation happens per
+// candidate, so this keeps that work bounded by pageSize, not by however
+// many chunks matched overall).
+type FindResult struct {
+	Candidates []viewmodel.Candidate
+	Total      int
+	Page       int
+	PageSize   int
+}
+
+func (f *EvidenceFinder) FindPage(ctx context.Context, query string, mode search.Mode, page, pageSize int) (FindResult, error) {
+	pageSize = ClampPageSize(pageSize)
+	if page < 1 {
+		page = 1
+	}
 	query = strings.TrimSpace(query)
 	if query == "" || f.Index == nil {
-		return nil, nil
-	}
-	if limit <= 0 {
-		limit = DefaultCandidateLimit
+		return FindResult{Page: 1, PageSize: pageSize}, nil
 	}
 
 	// A draft bullet is prose, not a query — strip stop words and filler so
 	// both retrieval and the locator work from the salient terms.
 	q := search.CleanQuery(query)
 
-	results, err := f.Index.SearchMode(ctx, q, limit, mode)
+	all, err := f.Index.SearchMode(ctx, q, 0, mode) // full ranked pool
 	if err != nil {
-		return nil, err
+		return FindResult{Page: 1, PageSize: pageSize}, err
 	}
 
-	topScore := 0.0
-	if len(results) > 0 {
-		topScore = results[0].Score
+	total := len(all)
+	totalPages := (total + pageSize - 1) / pageSize
+	if totalPages < 1 {
+		totalPages = 1
 	}
+	if page > totalPages {
+		page = totalPages
+	}
+
+	// topScore anchors ScoreNorm to the pool's best match (page 1's top),
+	// not the current page's, so the relevance bar stays comparable across
+	// pages — a page-3 item scoring "40%" means 40% of the best match
+	// overall, not 40% of its weaker page-mates.
+	topScore := 0.0
+	if total > 0 {
+		topScore = all[0].Score
+	}
+
+	start := (page - 1) * pageSize
+	end := start + pageSize
+	if start > total {
+		start = total
+	}
+	if end > total {
+		end = total
+	}
+	results := all[start:end]
 
 	out := make([]viewmodel.Candidate, 0, len(results))
 	for _, r := range results {
@@ -114,7 +183,7 @@ func (f *EvidenceFinder) Find(ctx context.Context, query string, limit int, mode
 		}
 		out = append(out, cand)
 	}
-	return out, nil
+	return FindResult{Candidates: out, Total: total, Page: page, PageSize: pageSize}, nil
 }
 
 // segmentize splits runes[win] into verbatim and hit-marked (<mark>) segments.

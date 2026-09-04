@@ -163,35 +163,62 @@ func (h *HybridIndex) Search(ctx context.Context, query string, limit int) ([]Re
 	return h.SearchMode(ctx, query, limit, ModeHybrid)
 }
 
+// MaxVectorPoolSize bounds how many HNSW neighbors the vector arm ever pulls
+// when SearchMode is asked for the full ranked pool (limit <= 0). Vector
+// search is approximate top-k, not exhaustive, so unlike BM25/passage there
+// is no true "every match" for it — this is the practical ceiling on how
+// deep a semantic-mode caller can page.
+const MaxVectorPoolSize = 500
+
 // SearchMode is Search with an explicit retrieval mode: ModeHybrid (default),
 // ModeKeyword (BM25 + passage only, no embedder call), or ModeSemantic
 // (vector only). An unrecognized mode is treated as ModeHybrid.
+//
+// limit > 0 behaves as before: each arm is fetched to roughly 3x limit (min
+// 20) before fusing, and the fused result is truncated to limit. limit <= 0
+// returns the FULL ranked pool, not truncated: BM25 and passage are
+// exhaustive (every term-matching doc, no cap — cheap, since both already
+// score every match internally before any truncation), and vector is capped
+// at MaxVectorPoolSize since it has no exhaustive equivalent. Callers that
+// want to paginate (e.g. the evidence pane) should request the full pool
+// once and slice it themselves, rather than re-querying per page.
 func (h *HybridIndex) SearchMode(ctx context.Context, query string, limit int, mode Mode) ([]Result, error) {
+	full := limit <= 0
+
 	// Get candidates from both sources. Fetch more than limit so RRF
-	// has enough candidates to work with.
+	// has enough candidates to work with (or everything, for a full pool).
 	candidateLimit := limit * 3
 	if candidateLimit < 20 {
 		candidateLimit = 20
+	}
+	bm25Limit, passageLimit, vecLimit := candidateLimit, candidateLimit, candidateLimit
+	if full {
+		bm25Limit, passageLimit = 0, 0 // BM25Index.Search(_, 0) = every match, unbounded
+		vecLimit = MaxVectorPoolSize
 	}
 
 	mode = mode.normalize()
 
 	var bm25Results, passageResults []Result
 	if mode != ModeSemantic {
-		bm25Results = h.BM25.Search(query, candidateLimit)
+		bm25Results = h.BM25.Search(query, bm25Limit)
 
 		// Passage arm: match small retrieval units, then roll each chunk's best
 		// passage up into a chunk-level result carrying that passage's span.
 		if h.Passages != nil && h.Passages.Len() > 0 {
 			seen := make(map[string]bool)
-			for _, pr := range h.Passages.Search(query, candidateLimit*3) {
+			passageScanLimit := passageLimit * 3
+			if full {
+				passageScanLimit = 0
+			}
+			for _, pr := range h.Passages.Search(query, passageScanLimit) {
 				cid, span, ok := SplitPassageID(pr.ChunkID)
 				if !ok || seen[cid] {
 					continue
 				}
 				seen[cid] = true
 				passageResults = append(passageResults, Result{ChunkID: cid, Score: pr.Score, Passage: span})
-				if len(passageResults) >= candidateLimit {
+				if !full && len(passageResults) >= passageLimit {
 					break
 				}
 			}
@@ -207,17 +234,17 @@ func (h *HybridIndex) SearchMode(ctx context.Context, query string, limit int, m
 			// failing the whole query. In ModeSemantic that's none, so the
 			// caller correctly sees an empty result set.
 			fused := fuseArms(h.rrfk(), bm25Results, passageResults, nil)
-			if limit > 0 && len(fused) > limit {
+			if !full && len(fused) > limit {
 				fused = fused[:limit]
 			}
 			return fused, nil
 		}
-		vecResults = h.Vector.Search(qVec, candidateLimit)
+		vecResults = h.Vector.Search(qVec, vecLimit)
 	}
 
 	fused := fuseArms(h.rrfk(), bm25Results, passageResults, vecResults)
 
-	if limit > 0 && len(fused) > limit {
+	if !full && len(fused) > limit {
 		fused = fused[:limit]
 	}
 	return fused, nil

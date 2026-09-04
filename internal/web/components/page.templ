@@ -18,7 +18,9 @@ package components
 //   collapsed     — { [nodeId]: true } map of collapsed outline subtrees
 //   searchMode    — evidence pane retrieval mode: "hybrid" | "keyword" | "semantic"
 //   evidenceQuery — last bullet text sent to /evidence, kept so the mode
-//                   toggle can re-fetch without a fresh keystroke
+//                   toggle and pager can re-fetch without a fresh keystroke
+//   evidencePage     — evidence pane's current page (1-based)
+//   evidencePageSize — evidence pane's page size (12/25/50/100)
 // PageContent bundles the fragment components the shell renders on first load.
 // Any nil field falls back to an empty placeholder element carrying the right
 // id so later Datastar patches still have a target.
@@ -39,7 +41,7 @@ templ Page(c PageContent) {
 		<div
 			id="shell"
 			class="shell"
-			data-signals="{ focusId: '', drawerOpen: false, centerView: 'outline', threadId: '', evidenceWidth: 420, collapsed: {}, readerChunk: '', glue: 50, brushMode: false, exits: {}, diffAgainst: '', atlasOpen: false, atlasRegionId: '', atlasBuilding: false, atlasRegions: 0, atlasChunkCount: 0, atlasError: '', atlasQuery: '', atlasView: 'list', searchMode: 'hybrid', evidenceQuery: '' }"
+			data-signals="{ focusId: '', drawerOpen: false, centerView: 'outline', threadId: '', evidenceWidth: 420, collapsed: {}, readerChunk: '', glue: 50, brushMode: false, exits: {}, diffAgainst: '', atlasOpen: false, atlasRegionId: '', atlasBuilding: false, atlasRegions: 0, atlasChunkCount: 0, atlasError: '', atlasQuery: '', atlasView: 'list', searchMode: 'hybrid', evidenceQuery: '', evidencePage: 1, evidencePageSize: 12 }"
 			data-class="{ 'drawer-open': $drawerOpen }"
 			data-style:grid-template-columns="($drawerOpen ? '300px ' : '0 ') + '1fr ' + $evidenceWidth + 'px'"
 		>
