@@ -116,17 +116,26 @@ chunk vectors ──────────►   regions ───LLM──► 
                               call per region)              per-chunk TF-IDF keywords
 ```
 
-- **Phase A — clustering method is UNRESOLVED and needs its own review.**
-  Requirements to evaluate candidates against:
-  - Pure Go, deterministic, runs in seconds on a few thousand chunks.
-  - Produces many small regions (rough target ~5–15 chunks each; not a hard
-    constraint).
-  - No fixed cluster count baked in as a hard requirement.
-  - Plays well with then building a similarity graph over the regions.
-  Track as a spike (bd issue in §13). Do not pick k-means-with-magic-numbers by
-  default; community detection on a chunk kNN graph, HDBSCAN-style density
-  clustering, and agglomerative clustering with a distance cut are all on the
-  table. **No implementation until this is decided.**
+- **Phase A — RESOLVED (`flying-shuttle-g3u`): bisecting spherical k-means with
+  a size stop.** Start with all chunks in one region; repeatedly take the
+  largest region still over `MaxRegionSize` and split it in two with k=2
+  spherical k-means (cosine → renormalised centroids); stop when no region
+  exceeds `MaxRegionSize` or a `MaxRegions` cap is hit; then merge any region
+  under `MinRegionSize` into its nearest sibling by centroid cosine. Defaults
+  `MaxRegionSize 15`, `MinRegionSize 4`, `MaxRegions 400`.
+  - Deterministic: fixed RNG seed, farthest-pair seeding for the k=2 split, and
+    all ties broken by chunk id.
+  - Fast: each split is O(size·iters·dim); total ≈ O(n·log(n/max)·iters·dim) —
+    sub-second for a few thousand vectors.
+  - Chosen over Louvain-on-a-kNN-graph and HDBSCAN because both need a few
+    hundred lines of subtle pure-Go graph code, while this is ~150 lines we can
+    trust; bounded, readable region sizes matter more for a navigation aid than
+    optimal modularity, and the region **link** graph (`link.go`) re-introduces
+    the neighbourhood topology anyway. Revisit Louvain only if region quality
+    proves poor in real use.
+  - Implementation: `internal/atlas/cluster.go`, `ClusterChunks(ids []string,
+    vectors [][]float32, params ClusterParams) []Region` (centroid + members
+    with cosine distance filled; digests left empty for Phase B).
 - **Phase B** — one LLM call per region, feeding up to ~15 member chunks nearest
   the centroid (truncated). Line-formatted output (`TITLE:` / `ABSTRACT:` /
   `KEYWORDS:`), **not JSON** — per the `flying-shuttle-hs8` concern about
