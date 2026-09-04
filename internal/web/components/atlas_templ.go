@@ -42,7 +42,7 @@ func AtlasList(vm viewmodel.AtlasPane) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<section id=\"atlas\" class=\"atlas-pane\" aria-label=\"Source atlas\" data-show=\"$atlasOpen\"><header class=\"atlas-head\"><strong>Source atlas</strong> <button type=\"button\" class=\"atlas-close\" data-on:click=\"$atlasOpen = false; $atlasRegionId = ''\">×</button></header><div class=\"atlas-scroll\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<section id=\"atlas\" class=\"atlas-pane\" aria-label=\"Source atlas\" data-show=\"$atlasOpen\"><header class=\"atlas-head\"><strong>Source atlas</strong> <button type=\"button\" class=\"atlas-close\" data-on:click=\"$atlasOpen = false; $atlasRegionId = ''; $centerView = ($centerView === 'atlas' ? 'outline' : $centerView)\">×</button></header><div class=\"atlas-scroll\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

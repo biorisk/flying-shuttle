@@ -87,7 +87,14 @@ func (h *handlers) atlasPane(w http.ResponseWriter, r *http.Request) {
 	if node := r.URL.Query().Get("node"); node != "" && vm.Status == "ready" {
 		vm.Matches = h.atlasAffinityFor(r.Context(), node)
 	}
-	if _, err := Patch(w, r, components.AtlasList(vm), components.AtlasCanvas(vm)); err != nil {
+	// AtlasList only: this handler fires on every Atlas-tab open (and re-fires
+	// on subsequent node focus changes), racing the same click's
+	// window.atlasGraph.open() call. Re-patching #atlas-canvas here would
+	// morph in a fresh, empty #atlas-graph div right as Cytoscape mounts its
+	// canvas into the live one, wiping it out from under the user. The canvas
+	// shell only needs to change on a real status transition (building ->
+	// ready, etc.), which atlasRebuild patches separately.
+	if _, err := Patch(w, r, components.AtlasList(vm)); err != nil {
 		log.Printf("atlas pane: %v", err)
 	}
 }
