@@ -68,6 +68,10 @@ func run() error {
 	defer stop()
 	restart := make(chan string, 1) // carries the project to switch to
 
+	// Shared compute budget: the embedder and (later) the instruct LLM acquire
+	// this so large local-model jobs never run concurrently on 8GB.
+	computeGate := ingest.NewComputeGate()
+
 	// Embedder (optional local Python sidecar).
 	var embedder ingest.Embedder
 	if env("SHUTTLE_EMBED_AUTOSTART", "1") != "0" {
@@ -78,6 +82,7 @@ func run() error {
 			Addr:   env("SHUTTLE_EMBED_ADDR", "127.0.0.1:8071"),
 			Dir:    env("SHUTTLE_EMBED_DIR", filepath.Dir(script)),
 		})
+		py.Gate = computeGate
 		py.Start(ctx)
 		embedder = py
 	} else {
