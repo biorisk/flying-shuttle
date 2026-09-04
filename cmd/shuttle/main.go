@@ -155,7 +155,8 @@ func run() error {
 	// / bullet affinity are unavailable but browsing still works. A nil
 	// summariser (or an unreachable LLM) falls back to extractive digests.
 	atlasSvc := &atlas.Service{
-		BaseCtx: ctx,
+		BaseCtx:  ctx,
+		Embedder: embedder,
 		Builder: &atlas.Builder{
 			Store:      atlas.NewStore(s.DB()),
 			Corpus:     func() ([]atlas.CorpusChunk, error) { return loadAtlasCorpus(s) },

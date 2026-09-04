@@ -45,10 +45,11 @@ func atlasTestServer(t *testing.T) (*store.SQLiteStore, *atlas.Service, http.Han
 		t.Fatal(err)
 	}
 
-	svc := &atlas.Service{Builder: &atlas.Builder{
+	emb := &ingest.StubEmbedder{Dim: 8}
+	svc := &atlas.Service{Embedder: emb, Builder: &atlas.Builder{
 		Store:    atlas.NewStore(s.DB()),
 		Corpus:   func() ([]atlas.CorpusChunk, error) { return corpus, nil },
-		Embedder: &ingest.StubEmbedder{Dim: 8},
+		Embedder: emb,
 		Params:   atlas.BuildParams{MinChunks: 6},
 	}}
 
@@ -109,5 +110,34 @@ func TestAtlasRegion_DetailAndMembers(t *testing.T) {
 	r.ServeHTTP(rec, httptest.NewRequest("GET", "/atlas/regions/nope", nil))
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("unknown region: %d", rec.Code)
+	}
+}
+
+func TestAtlasSearch_RanksRegions(t *testing.T) {
+	_, svc, r := atlasTestServer(t)
+	if err := svc.Rebuild(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest("GET", "/atlas/search?q=sailing+upwind", nil))
+	body := rec.Body.String()
+	if rec.Code != 200 {
+		t.Fatalf("search: %d %s", rec.Code, body)
+	}
+	// StubEmbedder is deterministic-random, so we can't assert *which* region
+	// ranks first — only that the fragment renders hop buttons.
+	if !strings.Contains(body, `id="atlas-matches"`) {
+		t.Fatalf("no matches fragment: %s", body)
+	}
+	if !strings.Contains(body, "atlas-hop") {
+		t.Fatalf("no ranked regions rendered: %s", body)
+	}
+
+	// Empty query -> empty (but valid) fragment.
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest("GET", "/atlas/search?q=", nil))
+	if rec.Code != 200 || strings.Contains(rec.Body.String(), "atlas-hop") {
+		t.Fatalf("empty query should yield an empty fragment: %s", rec.Body.String())
 	}
 }

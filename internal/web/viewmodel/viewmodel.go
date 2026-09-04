@@ -266,8 +266,16 @@ type AtlasPane struct {
 	Regions    []AtlasRegionRow
 	RegionOpen string // id of the region whose detail is expanded, if any
 	ChunkCount int
-	Stale      bool // corpus has grown noticeably since this build
-	Behind     int  // chunks added since the build (when Stale)
+	Stale      bool         // corpus has grown noticeably since this build
+	Behind     int          // chunks added since the build (when Stale)
+	Matches    AtlasMatches // regions ranked for the focused bullet (may be empty)
+}
+
+// AtlasMatches is the #atlas-matches fragment: regions ranked by similarity to
+// a query — a search string or the focused bullet's prose.
+type AtlasMatches struct {
+	Label   string // e.g. "sources for this bullet" or the search query
+	Regions []AtlasRegionRow
 }
 
 // AtlasRegionRow is one region in the list.

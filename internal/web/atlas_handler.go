@@ -1,8 +1,10 @@
 package web
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/biorisk/flying-shuttle/internal/atlas"
 	"github.com/biorisk/flying-shuttle/internal/web/components"
@@ -20,6 +22,7 @@ func (h *handlers) mountAtlas(r chi.Router) {
 	}
 	r.Get("/atlas", h.atlasPane)
 	r.Get("/atlas/status", h.atlasStatus)
+	r.Get("/atlas/search", h.atlasSearch)
 	r.Get("/atlas/regions/{id}", h.atlasRegion)
 	r.Post("/atlas/rebuild", h.atlasRebuild)
 }
@@ -74,8 +77,52 @@ func (h *handlers) atlasPaneSSR() viewmodel.AtlasPane {
 }
 
 func (h *handlers) atlasPane(w http.ResponseWriter, r *http.Request) {
-	if _, err := Patch(w, r, components.Atlas(h.atlasPaneView())); err != nil {
+	vm := h.atlasPaneView()
+	// When opened with a bullet in focus, seed the "sources for this bullet"
+	// ranking so it's there before the user searches.
+	if node := r.URL.Query().Get("node"); node != "" && vm.Status == "ready" {
+		vm.Matches = h.atlasAffinityFor(r.Context(), node)
+	}
+	if _, err := Patch(w, r, components.Atlas(vm)); err != nil {
 		log.Printf("atlas pane: %v", err)
+	}
+}
+
+// atlasAffinityFor ranks regions against a bullet's prose.
+func (h *handlers) atlasAffinityFor(ctx context.Context, nodeID string) viewmodel.AtlasMatches {
+	n, err := h.d.Store.GetNode(nodeID)
+	if err != nil {
+		return viewmodel.AtlasMatches{}
+	}
+	text := strings.TrimSpace(n.Title + "\n" + n.Body)
+	hits := h.d.Atlas.RankForText(ctx, text, 5)
+	return h.matchesView("sources for this bullet", hits)
+}
+
+func (h *handlers) matchesView(label string, hits []atlas.RegionHit) viewmodel.AtlasMatches {
+	m := viewmodel.AtlasMatches{Label: label}
+	for _, hit := range hits {
+		if hit.Score <= 0 {
+			continue
+		}
+		if reg := h.d.Atlas.Region(hit.RegionID); reg != nil {
+			m.Regions = append(m.Regions, viewmodel.AtlasRegionRow{
+				ID: reg.ID, Title: reg.Digest.Title, Keywords: reg.Digest.Keywords, ChunkCount: reg.ChunkCount,
+			})
+		}
+	}
+	return m
+}
+
+func (h *handlers) atlasSearch(w http.ResponseWriter, r *http.Request) {
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	var m viewmodel.AtlasMatches
+	if q != "" {
+		m = h.matchesView("“"+q+"”", h.d.Atlas.RankForText(r.Context(), q, 8))
+	}
+	sse := datastar.NewSSE(w, r)
+	if err := sse.PatchElementTempl(components.AtlasMatches(m)); err != nil {
+		log.Printf("atlas search: %v", err)
 	}
 }
 

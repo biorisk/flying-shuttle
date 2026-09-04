@@ -46,6 +46,14 @@ templ atlasRegionList(vm viewmodel.AtlasPane) {
 	if vm.Stale {
 		<p class="atlas-stale">Atlas is { fmt.Sprint(vm.Behind) } passages behind — rebuild to refresh.</p>
 	}
+	<input
+		class="atlas-search"
+		type="search"
+		placeholder="search the atlas…"
+		data-bind="atlasQuery"
+		data-on:input__debounce.300ms="@get('/atlas/search?q=' + encodeURIComponent($atlasQuery))"
+	/>
+	@AtlasMatches(vm.Matches)
 	<ul class="atlas-regions">
 		for _, r := range vm.Regions {
 			<li class={ "atlas-region", templ.KV("open", r.ID == vm.RegionOpen) }>
@@ -106,6 +114,28 @@ templ AtlasRegion(vm viewmodel.AtlasRegionDetail) {
 					>{ nonEmpty(n.Title, "untitled") }</button>
 				}
 			</div>
+		}
+	</div>
+}
+
+// AtlasMatches is the #atlas-matches fragment: regions ranked for a query or
+// the focused bullet, as hop buttons.
+templ AtlasMatches(vm viewmodel.AtlasMatches) {
+	<div id="atlas-matches" class="atlas-matches">
+		if len(vm.Regions) > 0 {
+			<span class="atlas-matches-label">{ nonEmpty(vm.Label, "matches") }</span>
+			for _, r := range vm.Regions {
+				<button
+					type="button"
+					class="atlas-hop"
+					data-on:click={ fmt.Sprintf("$atlasRegionId = %q; @get('/atlas/regions/%s')", r.ID, r.ID) }
+				>
+					{ nonEmpty(r.Title, "untitled") }
+					if len(r.Keywords) > 0 {
+						<span class="atlas-hop-kw">{ strings.Join(r.Keywords, " · ") }</span>
+					}
+				</button>
+			}
 		}
 	</div>
 }

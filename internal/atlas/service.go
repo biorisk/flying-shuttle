@@ -2,8 +2,11 @@ package atlas
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/biorisk/flying-shuttle/internal/ingest"
 )
 
 // ErrBuilding is returned by Service.Rebuild when a build is already running.
@@ -41,6 +44,10 @@ type Service struct {
 	// BaseCtx is the app-lifecycle context used by StartRebuild so a build
 	// aborts cleanly on shutdown. Defaults to context.Background().
 	BaseCtx context.Context
+	// Embedder backs query-side ranking (search box + focused-bullet
+	// affinity). Usually the same instance as Builder.Embedder. When nil or
+	// not ready, RankForText returns nil.
+	Embedder ingest.Embedder
 
 	mu       sync.Mutex
 	building bool
@@ -128,6 +135,36 @@ func (s *Service) RankRegions(query []float32, limit int) []RegionHit {
 		return nil
 	}
 	return idx.Rank(query, limit)
+}
+
+// RankForText embeds free text (a search string, or a bullet's prose) on the
+// query side and ranks the current build's regions against it. Returns nil
+// when there is no build, no digest vectors, or no ready embedder.
+func (s *Service) RankForText(ctx context.Context, text string, limit int) []RegionHit {
+	text = strings.TrimSpace(text)
+	build, idx := s.Current()
+	if text == "" || build == nil || idx == nil || idx.Len() == 0 || s.Embedder == nil {
+		return nil
+	}
+	vec, err := ingest.EmbedQueryOr(ctx, s.Embedder, text)
+	if err != nil {
+		return nil
+	}
+	return idx.Rank(vec, limit)
+}
+
+// Region returns one region from the current build by id, or nil.
+func (s *Service) Region(id string) *Region {
+	build, _ := s.Current()
+	if build == nil {
+		return nil
+	}
+	for i := range build.Regions {
+		if build.Regions[i].ID == id {
+			return &build.Regions[i]
+		}
+	}
+	return nil
 }
 
 // Status returns a UI-facing snapshot.
