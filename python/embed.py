@@ -9,7 +9,7 @@ from pathlib import Path
 csv.field_size_limit(sys.maxsize)
 
 # 1. Configuration
-MODEL_PATH = "./Qwen3-Embedding-4B-4bit-DWQ"
+MODEL_PATH = "mlx-community/embeddinggemma-300m-bf16"
 BATCH_SIZE = 1  # Crucial for 8GB RAM
 CHUNK_SIZE = 300
 OVERLAP = 150
@@ -20,38 +20,32 @@ _model = None
 _tokenizer = None
 
 
+# EmbeddingGemma document-side task prefix (see config_sentence_transformers).
+DOC_PREFIX = "title: none | text: "
+
+
 def _load_model():
     global _model, _tokenizer
     if _model is None:
-        import mlx.core as mx
-        from mlx_lm import load
+        from mlx_embeddings import load
         print(f"--- Loading {MODEL_PATH} ---")
         _model, _tokenizer = load(MODEL_PATH)
     return _model, _tokenizer
 
 
 def get_embeddings(text_list):
-    import mlx.core as mx
     import numpy as np
     model, tokenizer = _load_model()
 
-    # Instructions help Qwen3-Embedding categorize the context
-    instruction = "Represent this transcript for retrieval: "
-    inputs = [instruction + t for t in text_list]
-
-    tokens = tokenizer._tokenizer(inputs, padding=True, return_tensors="np")
-    input_ids = mx.array(tokens['input_ids'])
-
-    output = model.model(input_ids)
-
-    # Qwen3-Embedding: last token hidden state → embedding vector
-    embeddings = output[:, -1, :]
-
-    # L2-normalize for cosine similarity
-    norm = mx.linalg.norm(embeddings, axis=-1, keepdims=True)
-    normalized = embeddings / norm
-
-    return np.array(normalized.astype(mx.float32))
+    enc = tokenizer._tokenizer(
+        [DOC_PREFIX + t for t in text_list],
+        padding=True, truncation=True, max_length=2048, return_tensors="mlx",
+    )
+    out = model(enc["input_ids"], attention_mask=enc["attention_mask"])
+    v = np.array(out.text_embeds, dtype=np.float32)
+    norm = np.linalg.norm(v, axis=-1, keepdims=True)
+    norm[norm == 0] = 1.0
+    return v / norm
 
 
 # ---------------------------------------------------------------------------

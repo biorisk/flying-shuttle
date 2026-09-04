@@ -22,6 +22,7 @@ package components
 type PageContent struct {
 	Outline     templ.Component
 	Evidence    templ.Component
+	Atlas       templ.Component
 	Ingest      templ.Component
 	Preview     templ.Component
 	ProjectBar  templ.Component
@@ -35,7 +36,7 @@ templ Page(c PageContent) {
 		<div
 			id="shell"
 			class="shell"
-			data-signals="{ focusId: '', drawerOpen: false, centerView: 'outline', threadId: '', evidenceWidth: 420, collapsed: {}, readerChunk: '', glue: 50, brushMode: false, exits: {}, diffAgainst: '' }"
+			data-signals="{ focusId: '', drawerOpen: false, centerView: 'outline', threadId: '', evidenceWidth: 420, collapsed: {}, readerChunk: '', glue: 50, brushMode: false, exits: {}, diffAgainst: '', atlasOpen: false, atlasRegionId: '', atlasBuilding: false, atlasRegions: 0, atlasChunkCount: 0, atlasError: '', atlasQuery: '', atlasView: 'list' }"
 			data-class="{ 'drawer-open': $drawerOpen }"
 			data-style:grid-template-columns="($drawerOpen ? '300px ' : '0 ') + '1fr ' + $evidenceWidth + 'px'"
 		>
@@ -69,6 +70,7 @@ templ Page(c PageContent) {
 						<button type="button" data-class="{ active: $centerView === 'preview' }" data-on:click="$centerView = 'preview'; @get('/stitch?thread=' + ($threadId||'') + '&glue=' + $glue)">Preview</button>
 					</span>
 					<a class="outline-preview-link" href="/outline.html" target="_blank" title="Open the outline as a formatted page (rendered / raw / PDF)">outline&#8599;</a>
+					<button type="button" class="atlas-toggle" data-class="{ active: $atlasOpen }" data-on:click="$atlasOpen = !$atlasOpen; @get('/atlas?node=' + ($focusId||''))" title="Browse the source atlas">atlas</button>
 					<span class="dag-bars">
 						if c.ThreadBar != nil {
 							@c.ThreadBar
@@ -104,6 +106,11 @@ templ Page(c PageContent) {
 				<section id="evidence" class="evidence-pane" aria-label="Evidence">
 					<p class="evidence-empty">Start typing a bullet — supporting passages appear here.</p>
 				</section>
+			}
+			if c.Atlas != nil {
+				@c.Atlas
+			} else {
+				<section id="atlas" class="atlas-pane" aria-label="Source atlas" data-show="$atlasOpen"></section>
 			}
 		</div>
 	}

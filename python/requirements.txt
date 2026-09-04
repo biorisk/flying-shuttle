@@ -1,5 +1,6 @@
 # Embedding pipeline (Apple Silicon / MLX).
-# The model itself is downloaded separately into
-# python/Qwen3-Embedding-4B-4bit-DWQ (see embed.py MODEL_PATH).
+# Model: mlx-community/embeddinggemma-300m-bf16 (768-dim), pulled from the HF
+# hub on first load and cached under ~/.cache/huggingface.
 mlx-lm>=0.19
+mlx-embeddings>=0.0.3
 numpy>=1.26

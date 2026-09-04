@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/biorisk/flying-shuttle/internal/ingest"
+	"github.com/biorisk/flying-shuttle/internal/atlas"
 	"github.com/biorisk/flying-shuttle/internal/outline"
 	"github.com/biorisk/flying-shuttle/internal/pipeline"
 	"github.com/biorisk/flying-shuttle/internal/project"
@@ -23,6 +24,7 @@ type Deps struct {
 	ClusterEmbedder ingest.Embedder // backs cluster suggestions; may be a stub
 	Index           *search.HybridIndex
 	Stitcher        stitch.Stitcher
+	Atlas           *atlas.Service
 	AfterIngest     func() // nudges the embedding backfiller; must not block
 
 	ProjectName   string
@@ -69,6 +71,7 @@ func NewRouter(d Deps) http.Handler {
 		Ingester:      ingester,
 		Index:         d.Index,
 		Stitcher:      d.Stitcher,
+		Atlas:         d.Atlas,
 		ProjectName:   d.ProjectName,
 		OutlineMDPath: d.OutlineMDPath,
 		PreviewReload: d.PreviewReload,

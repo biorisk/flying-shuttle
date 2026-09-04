@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/biorisk/flying-shuttle/internal/api"
+	"github.com/biorisk/flying-shuttle/internal/atlas"
 	"github.com/biorisk/flying-shuttle/internal/indexer"
 	"github.com/biorisk/flying-shuttle/internal/ingest"
 	"github.com/biorisk/flying-shuttle/internal/project"
@@ -50,6 +51,9 @@ func run() error {
 	if err := s.Migrate(); err != nil {
 		return err
 	}
+	if err := reconcileEmbeddingModel(s, paths.HNSW); err != nil {
+		return err
+	}
 
 	// Recovery: a fresh DB but a working-doc state.json present -> re-import it.
 	if empty, _ := storeIsEmpty(s); empty {
@@ -67,6 +71,10 @@ func run() error {
 	defer stop()
 	restart := make(chan string, 1) // carries the project to switch to
 
+	// Shared compute budget: the embedder and (later) the instruct LLM acquire
+	// this so large local-model jobs never run concurrently on 8GB.
+	computeGate := ingest.NewComputeGate()
+
 	// Embedder (optional local Python sidecar).
 	var embedder ingest.Embedder
 	if env("SHUTTLE_EMBED_AUTOSTART", "1") != "0" {
@@ -77,6 +85,7 @@ func run() error {
 			Addr:   env("SHUTTLE_EMBED_ADDR", "127.0.0.1:8071"),
 			Dir:    env("SHUTTLE_EMBED_DIR", filepath.Dir(script)),
 		})
+		py.Gate = computeGate
 		py.Start(ctx)
 		embedder = py
 	} else {
@@ -122,8 +131,46 @@ func run() error {
 		afterIngest = bf.Trigger
 	}
 
+	// Shared instruct LLM (lazy — nothing loads until the first digest call).
+	// It idle-sheds itself; the supervisor restarts it on demand.
+	var atlasSummariser atlas.Summariser
+	if env("SHUTTLE_LLM_AUTOSTART", "1") != "0" {
+		llmScript, _ := filepath.Abs(env("SHUTTLE_LLM_SCRIPT", "python/llm_server.py"))
+		completer := ingest.NewPythonCompleter(ingest.PythonCompleterConfig{
+			Python: detectPython(),
+			Script: llmScript,
+			Addr:   env("SHUTTLE_LLM_ADDR", "127.0.0.1:8072"),
+			Dir:    env("SHUTTLE_LLM_DIR", filepath.Dir(llmScript)),
+		})
+		completer.Gate = computeGate // never overlaps a big embed batch
+		atlasSummariser = &atlas.LLMSummariser{
+			Complete:  completer,
+			ModelName: env("SHUTTLE_LLM_MODEL", "gemma-4-e2b-it-4bit"),
+		}
+	}
+
+	// Source Atlas: a derived network over the transcript corpus (see
+	// source_atlas_plan.md). Rebuilds run on demand via POST /atlas/rebuild;
+	// nothing runs in the background here. A nil embedder means digest search
+	// / bullet affinity are unavailable but browsing still works. A nil
+	// summariser (or an unreachable LLM) falls back to extractive digests.
+	atlasSvc := &atlas.Service{
+		BaseCtx:  ctx,
+		Embedder: embedder,
+		Builder: &atlas.Builder{
+			Store:      atlas.NewStore(s.DB()),
+			Corpus:     func() ([]atlas.CorpusChunk, error) { return loadAtlasCorpus(s) },
+			Embedder:   embedder,
+			Summariser: atlasSummariser,
+		},
+	}
+	if err := atlasSvc.LoadCurrent(); err != nil {
+		log.Printf("atlas: load current build: %v", err)
+	}
+
 	deps := api.Deps{
 		Store:           s,
+		Atlas:           atlasSvc,
 		UploadDir:       paths.UploadDir,
 		ClusterEmbedder: clusterEmbedder,
 		Index:           idx,
@@ -177,6 +224,66 @@ func run() error {
 	}
 	log.Println("done")
 	return nil
+}
+
+// embedModelID identifies the current embedding model / vector space. Bump it
+// whenever the model or its dimension changes so stale vectors are dropped.
+const embedModelID = "embeddinggemma-300m-768"
+
+// reconcileEmbeddingModel clears stored embeddings and the HNSW snapshot when
+// the embedding model has changed since the last run (or when a pre-marker DB
+// holds vectors of the wrong dimension). The backfiller then re-embeds.
+func reconcileEmbeddingModel(s *store.SQLiteStore, hnswPath string) error {
+	prev, err := s.GetMeta("embed_model")
+	if err != nil {
+		return err
+	}
+	stale := prev != "" && prev != embedModelID
+	if prev == "" {
+		if dim, err := s.SampleEmbeddingDim(); err != nil {
+			return err
+		} else if dim != 0 && dim != 768 {
+			stale = true
+		}
+	}
+	if stale {
+		n, err := s.ClearAllEmbeddings()
+		if err != nil {
+			return err
+		}
+		_ = os.Remove(hnswPath)
+		log.Printf("embedding model changed (%q -> %q): cleared %d stale vectors, dropped %s",
+			prev, embedModelID, n, filepath.Base(hnswPath))
+	}
+	return s.SetMeta("embed_model", embedModelID)
+}
+
+// loadAtlasCorpus pulls every embedded chunk (content + vector) for an Atlas
+// build.
+func loadAtlasCorpus(s store.Store) ([]atlas.CorpusChunk, error) {
+	ids, err := s.ListChunkIDsWithEmbedding()
+	if err != nil {
+		return nil, err
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	chunks, err := s.GetChunksByIDs(ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]atlas.CorpusChunk, 0, len(chunks))
+	for _, c := range chunks {
+		if len(c.EmbeddingVec) == 0 {
+			continue
+		}
+		out = append(out, atlas.CorpusChunk{
+			ID:      c.ID,
+			Content: c.Content,
+			Vec:     ingest.BytesToFloat32s(c.EmbeddingVec),
+		})
+	}
+	return out, nil
 }
 
 func storeIsEmpty(s store.Store) (bool, error) {

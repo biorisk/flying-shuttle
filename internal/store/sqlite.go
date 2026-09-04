@@ -43,6 +43,11 @@ func NewSQLiteStore(dsn string) (*SQLiteStore, error) {
 
 func (s *SQLiteStore) Close() error { return s.db.Close() }
 
+// DB returns the underlying database handle. It is exposed so self-contained
+// subsystems (e.g. internal/atlas) can own their own persistence against the
+// same single connection without bloating the Store interface.
+func (s *SQLiteStore) DB() *sql.DB { return s.db }
+
 func (s *SQLiteStore) Migrate() error {
 	migrations := []string{
 		"migrations/001_initial_schema.sql",
@@ -50,6 +55,8 @@ func (s *SQLiteStore) Migrate() error {
 		"migrations/003_snapshots.sql",
 		"migrations/004_branches.sql",
 		"migrations/005_evidence.sql",
+		"migrations/006_atlas.sql",
+		"migrations/007_meta.sql",
 	}
 	for _, name := range migrations {
 		data, err := migrationFS.ReadFile(name)
@@ -307,6 +314,51 @@ func (s *SQLiteStore) SetChunkEmbedding(id string, vec []byte) error {
 		return fmt.Errorf("chunk %s: %w", id, ErrNotFound)
 	}
 	return nil
+}
+
+// ClearAllEmbeddings nulls every chunk's embedding vector. Used when the
+// embedding model (and hence the vector space) changes; the backfiller then
+// re-embeds everything with the new model.
+func (s *SQLiteStore) ClearAllEmbeddings() (int64, error) {
+	res, err := s.db.Exec(`UPDATE chunks SET embedding_vec = NULL WHERE embedding_vec IS NOT NULL`)
+	if err != nil {
+		return 0, err
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
+}
+
+// SampleEmbeddingDim returns the float32 dimension of the first stored
+// embedding vector, or 0 if none are stored.
+func (s *SQLiteStore) SampleEmbeddingDim() (int, error) {
+	var b []byte
+	err := s.db.QueryRow(
+		`SELECT embedding_vec FROM chunks WHERE embedding_vec IS NOT NULL LIMIT 1`).Scan(&b)
+	if err == sql.ErrNoRows {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	return len(b) / 4, nil
+}
+
+// GetMeta returns meta[key], or "" if unset.
+func (s *SQLiteStore) GetMeta(key string) (string, error) {
+	var v string
+	err := s.db.QueryRow(`SELECT value FROM meta WHERE key = ?`, key).Scan(&v)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	return v, err
+}
+
+// SetMeta upserts meta[key] = value.
+func (s *SQLiteStore) SetMeta(key, value string) error {
+	_, err := s.db.Exec(
+		`INSERT INTO meta (key, value) VALUES (?, ?)
+		 ON CONFLICT(key) DO UPDATE SET value = excluded.value`, key, value)
+	return err
 }
 
 // --- Nodes ---

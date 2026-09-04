@@ -4,12 +4,15 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"os"
 	"os/exec"
+	"strconv"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 )
 
@@ -19,7 +22,18 @@ type PythonEmbedderConfig struct {
 	Script string // path to embed_server.py
 	Addr   string // host:port the server listens on, e.g. "127.0.0.1:8071"
 	Dir    string // working directory for the child (where the model lives)
+	// Threads caps the child's BLAS/OpenMP thread pools so a batch run doesn't
+	// saturate the machine. 0 -> defaultEmbedThreads.
+	Threads int
+	// TermGrace is how long to wait after SIGTERM before the child is
+	// SIGKILLed on shutdown. 0 -> defaultTermGrace.
+	TermGrace time.Duration
 }
+
+const (
+	defaultEmbedThreads = 4
+	defaultTermGrace    = 5 * time.Second
+)
 
 // PythonEmbedder spawns and supervises python/embed_server.py and proxies
 // embedding calls to it over HTTP. It implements Embedder.
@@ -36,6 +50,15 @@ type PythonEmbedder struct {
 
 	mu  sync.Mutex
 	cmd *exec.Cmd
+
+	// callMu serialises requests to the single-threaded server: one batch at a
+	// time (single-flight), matching source_atlas_plan.md §9.
+	callMu sync.Mutex
+
+	// Gate, when set, is a shared compute budget acquired around every batch so
+	// the embedder and the instruct LLM never run large jobs concurrently on
+	// 8GB. nil is fine (no gating).
+	Gate *ComputeGate
 }
 
 // NewPythonEmbedder creates a supervisor. Call Start to launch the process.
@@ -114,6 +137,25 @@ func (p *PythonEmbedder) runOnce(ctx context.Context) error {
 	cmd := exec.CommandContext(ctx, p.cfg.Python, p.cfg.Script, "--addr", p.cfg.Addr)
 	cmd.Dir = p.cfg.Dir
 	cmd.Env = append(os.Environ(), "PYTHONUNBUFFERED=1")
+	threads := strconv.Itoa(p.threads())
+	for _, k := range []string{
+		"OMP_NUM_THREADS", "MKL_NUM_THREADS",
+		"OPENBLAS_NUM_THREADS", "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS",
+	} {
+		cmd.Env = append(cmd.Env, k+"="+threads)
+	}
+
+	// Own process group so we can signal the child AND anything it spawns.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	// On ctx cancel: SIGTERM the whole group, then let WaitDelay escalate to
+	// SIGKILL if it doesn't exit. No orphaned python/MLX after shutdown.
+	cmd.Cancel = func() error {
+		if cmd.Process == nil {
+			return nil
+		}
+		return syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM)
+	}
+	cmd.WaitDelay = p.termGrace()
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -168,18 +210,66 @@ func pipeLog(prefix string, r io.Reader) {
 	}
 }
 
-// Embed implements Embedder.
-func (p *PythonEmbedder) Embed(ctx context.Context, text string) ([]float32, error) {
-	if !p.ready.Load() {
-		return nil, ErrEmbedderNotReady
+func (p *PythonEmbedder) threads() int {
+	if p.cfg.Threads > 0 {
+		return p.cfg.Threads
 	}
-	return p.http.Embed(ctx, text)
+	return defaultEmbedThreads
 }
 
-// EmbedBatch implements Embedder.
+func (p *PythonEmbedder) termGrace() time.Duration {
+	if p.cfg.TermGrace > 0 {
+		return p.cfg.TermGrace
+	}
+	return defaultTermGrace
+}
+
+// Embed implements Embedder.
+func (p *PythonEmbedder) Embed(ctx context.Context, text string) ([]float32, error) {
+	vecs, err := p.EmbedBatch(ctx, []string{text})
+	if err != nil {
+		return nil, err
+	}
+	if len(vecs) == 0 {
+		return nil, fmt.Errorf("embedder returned no vector")
+	}
+	return vecs[0], nil
+}
+
+// EmbedBatch implements Embedder. Calls are single-flight and gated by the
+// shared compute budget.
 func (p *PythonEmbedder) EmbedBatch(ctx context.Context, texts []string) ([][]float32, error) {
 	if !p.ready.Load() {
 		return nil, ErrEmbedderNotReady
 	}
+	if err := p.Gate.Acquire(ctx); err != nil {
+		return nil, err
+	}
+	defer p.Gate.Release()
+
+	p.callMu.Lock()
+	defer p.callMu.Unlock()
+	if !p.ready.Load() {
+		return nil, ErrEmbedderNotReady
+	}
 	return p.http.EmbedBatch(ctx, texts)
+}
+
+// EmbedQuery implements QueryEmbedder — the query side of the asymmetric
+// retrieval model. Gated and single-flight like EmbedBatch.
+func (p *PythonEmbedder) EmbedQuery(ctx context.Context, text string) ([]float32, error) {
+	if !p.ready.Load() {
+		return nil, ErrEmbedderNotReady
+	}
+	if err := p.Gate.Acquire(ctx); err != nil {
+		return nil, err
+	}
+	defer p.Gate.Release()
+
+	p.callMu.Lock()
+	defer p.callMu.Unlock()
+	if !p.ready.Load() {
+		return nil, ErrEmbedderNotReady
+	}
+	return p.http.EmbedQuery(ctx, text)
 }

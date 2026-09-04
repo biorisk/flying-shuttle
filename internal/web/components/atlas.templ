@@ -1,0 +1,182 @@
+package components
+
+import (
+	"fmt"
+	"strings"
+	"github.com/biorisk/flying-shuttle/internal/web/viewmodel"
+)
+
+// Atlas is the #atlas fragment: a browsable view of the Source Atlas — the
+// derived NETWORK over the transcript corpus (regions + similarity links).
+// It is not the outline. Shown when $atlasOpen; it shares the right column
+// with #evidence.
+templ Atlas(vm viewmodel.AtlasPane) {
+	<section id="atlas" class="atlas-pane" aria-label="Source atlas" data-show="$atlasOpen">
+		<header class="atlas-head">
+			<strong>Source atlas</strong>
+			if vm.Status == "ready" {
+				<span class="atlas-viewtabs">
+					<button type="button" data-class="{ active: $atlasView !== 'graph' }" data-on:click="$atlasView = 'list'">list</button>
+					<button type="button" data-class="{ active: $atlasView === 'graph' }" data-on:click="$atlasView = 'graph'; window.atlasGraph && window.atlasGraph.open()">graph</button>
+				</span>
+			}
+			<button type="button" class="atlas-close" data-on:click="$atlasOpen = false; $atlasRegionId = ''">×</button>
+		</header>
+		if vm.Status == "ready" {
+			<div id="atlas-graph" class="atlas-graph" data-show="$atlasView === 'graph'"
+				data-on:atlasnode="$atlasRegionId = evt.detail.id; @get('/atlas/regions/' + evt.detail.id)"
+				data-on:atlaschunk="@get('/atlas/chunk/' + evt.detail.id)"></div>
+			<div id="atlas-detail" class="atlas-detail" data-show="$atlasView === 'graph'"></div>
+		}
+		<div class="atlas-scroll" data-show="$atlasView !== 'graph'">
+			switch vm.Status {
+				case "ready":
+					@atlasRegionList(vm)
+				case "building":
+					<p class="atlas-empty" data-on:interval__duration.2s="@get('/atlas')">
+						Building the atlas… clustering { fmt.Sprint(vm.ChunkCount) } passages and summarising each group.
+					</p>
+				case "failed":
+					<p class="atlas-empty atlas-error">Atlas build failed: { vm.Error }</p>
+					<button type="button" class="atlas-build" data-on:click="@post('/atlas/rebuild')">Try again</button>
+				default:
+					<p class="atlas-empty">
+						The atlas groups your transcript passages into a browsable map of topics.
+						Upload transcripts, let embeddings finish, then build it.
+					</p>
+					<button type="button" class="atlas-build" data-on:click="@post('/atlas/rebuild')">Build the atlas</button>
+			}
+		</div>
+	</section>
+}
+
+templ atlasRegionList(vm viewmodel.AtlasPane) {
+	<div class="atlas-toolbar">
+		<span class="atlas-count">{ fmt.Sprintf("%d regions · %d passages", len(vm.Regions), vm.ChunkCount) }</span>
+		<button type="button" class="atlas-rebuild" data-on:click="@post('/atlas/rebuild')" title="Rebuild from the current corpus">rebuild</button>
+	</div>
+	if vm.Stale {
+		<p class="atlas-stale">Atlas is { fmt.Sprint(vm.Behind) } passages behind — rebuild to refresh.</p>
+	}
+	<input
+		class="atlas-search"
+		type="search"
+		placeholder="search the atlas…"
+		data-bind="atlasQuery"
+		data-on:input__debounce.300ms="@get('/atlas/search?q=' + encodeURIComponent($atlasQuery))"
+	/>
+	@AtlasMatches(vm.Matches)
+	<ul class="atlas-regions">
+		for _, r := range vm.Regions {
+			<li class={ "atlas-region", templ.KV("open", r.ID == vm.RegionOpen) }>
+				<button
+					type="button"
+					class="atlas-region-head"
+					data-on:click={ fmt.Sprintf("$atlasRegionId = ($atlasRegionId === %q ? '' : %q); @get('/atlas/regions/%s')", r.ID, r.ID, r.ID) }
+				>
+					<span class="atlas-region-title">{ nonEmpty(r.Title, "untitled region") }</span>
+					<span class="atlas-region-n">{ fmt.Sprint(r.ChunkCount) }</span>
+				</button>
+				<p class="atlas-region-kw">{ strings.Join(r.Keywords, " · ") }</p>
+				<div id={ "atlas-region-" + r.ID } class="atlas-region-detail" data-show={ fmt.Sprintf("$atlasRegionId === %q", r.ID) }></div>
+			</li>
+		}
+	</ul>
+}
+
+// AtlasRegion is the #atlas-region-<id> fragment: one region's digest, its
+// member passages (reusing the evidence Candidate card), and linked regions.
+templ AtlasRegion(vm viewmodel.AtlasRegionDetail) {
+	<div id={ "atlas-region-" + vm.ID } class="atlas-region-detail" data-show={ fmt.Sprintf("$atlasRegionId === %q", vm.ID) }>
+		if vm.Abstract != "" {
+			<p class="atlas-abstract">{ vm.Abstract }</p>
+		}
+		<p class="atlas-source" title="how this summary was produced">{ vm.Source }</p>
+		if len(vm.Members) > 0 {
+			<ul class="atlas-members candidate-list">
+				for _, c := range vm.Members {
+					<li class="candidate" data-chunk={ c.ChunkID } data-source={ c.SourceFile }>
+						<div class="candidate-meta">
+							<span class="candidate-source">{ c.SourceFile }</span>
+							<button
+								type="button"
+								class="candidate-open"
+								data-on:click={ "@get('/evidence/transcript?node=' + ($focusId||'') + '&chunk=" + c.ChunkID + "')" }
+							>Read in transcript →</button>
+							<button
+								type="button"
+								class="atlas-attach"
+								data-attr:disabled="!$focusId"
+								data-on:click={ "@post('/outline/nodes/' + ($focusId||'') + '/evidence?chunk_id=" + c.ChunkID + "')" }
+							>Add as evidence</button>
+						</div>
+						<p class="candidate-text">{ c.Snippet }</p>
+					</li>
+				}
+			</ul>
+		}
+		if len(vm.Neighbours) > 0 {
+			<div class="atlas-neighbours">
+				<span class="atlas-neighbours-label">related regions</span>
+				for _, n := range vm.Neighbours {
+					<button
+						type="button"
+						class="atlas-hop"
+						data-on:click={ fmt.Sprintf("$atlasRegionId = %q; @get('/atlas/regions/%s')", n.ID, n.ID) }
+					>{ nonEmpty(n.Title, "untitled") }</button>
+				}
+			</div>
+		}
+	</div>
+}
+
+// AtlasMatches is the #atlas-matches fragment: regions ranked for a query or
+// the focused bullet, as hop buttons.
+templ AtlasMatches(vm viewmodel.AtlasMatches) {
+	<div id="atlas-matches" class="atlas-matches">
+		if len(vm.Regions) > 0 {
+			<span class="atlas-matches-label">{ nonEmpty(vm.Label, "matches") }</span>
+			for _, r := range vm.Regions {
+				<button
+					type="button"
+					class="atlas-hop"
+					data-on:click={ fmt.Sprintf("$atlasRegionId = %q; @get('/atlas/regions/%s')", r.ID, r.ID) }
+				>
+					{ nonEmpty(r.Title, "untitled") }
+					if len(r.Keywords) > 0 {
+						<span class="atlas-hop-kw">{ strings.Join(r.Keywords, " · ") }</span>
+					}
+				</button>
+			}
+		}
+	</div>
+}
+
+// AtlasChunkDetail is the #atlas-detail fragment for the network view: one
+// chunk's full text with the shared Read / Attach actions.
+templ AtlasChunkDetail(c viewmodel.Candidate) {
+	<div id="atlas-detail" class="atlas-detail" data-show="$atlasView === 'graph'">
+		<div class="candidate-meta">
+			<span class="candidate-source">{ c.SourceFile }</span>
+			<button
+				type="button"
+				class="candidate-open"
+				data-on:click={ "@get('/evidence/transcript?node=' + ($focusId||'') + '&chunk=" + c.ChunkID + "'); $atlasOpen = false" }
+			>Read in transcript →</button>
+			<button
+				type="button"
+				class="atlas-attach"
+				data-attr:disabled="!$focusId"
+				data-on:click={ "@post('/outline/nodes/' + ($focusId||'') + '/evidence?chunk_id=" + c.ChunkID + "')" }
+			>Add as evidence</button>
+		</div>
+		<p class="atlas-detail-text">{ c.Snippet }</p>
+	</div>
+}
+
+func nonEmpty(s, fallback string) string {
+	if strings.TrimSpace(s) == "" {
+		return fallback
+	}
+	return s
+}

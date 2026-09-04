@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/biorisk/flying-shuttle/internal/atlas"
 	"github.com/biorisk/flying-shuttle/internal/outline"
 	"github.com/biorisk/flying-shuttle/internal/pipeline"
 	"github.com/biorisk/flying-shuttle/internal/search"
@@ -25,6 +26,7 @@ type Deps struct {
 	Ingester   *pipeline.Ingester
 	Index      *search.HybridIndex
 	Stitcher   stitch.Stitcher
+	Atlas      *atlas.Service
 
 	ProjectName   string
 	OutlineMDPath string            // ~/.shuttle/<project>/outline.md, for the preview
@@ -77,6 +79,7 @@ func Mount(r chi.Router, d Deps) {
 		r.Post("/ingest/path", h.ingestPath)
 		h.mountOutlineEdit(r)
 		h.mountThreads(r)
+		h.mountAtlas(r)
 		h.mountExits(r)
 		r.Post("/outline/rescue", h.outlineRescue)
 
@@ -110,6 +113,7 @@ func (h *handlers) shell(w http.ResponseWriter, r *http.Request) {
 	Render(w, r, components.Page(components.PageContent{
 		Outline:     components.Outline(ov),
 		Evidence:    components.Evidence(viewmodel.EvidencePane{}),
+		Atlas:       components.Atlas(h.atlasPaneSSR()),
 		Ingest:      components.Ingest(h.ingestView()),
 		Preview:     components.Stitch(viewmodel.StitchView{Glue: 50}),
 		ProjectBar:  components.ProjectBar(h.projectBarView()),

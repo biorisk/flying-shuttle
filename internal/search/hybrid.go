@@ -162,7 +162,7 @@ func (h *HybridIndex) Search(ctx context.Context, query string, limit int) ([]Re
 
 	var vecResults []Result
 	if h.Embedder != nil && h.Vector.Len() > 0 {
-		qVec, err := h.Embedder.Embed(ctx, query)
+		qVec, err := ingest.EmbedQueryOr(ctx, h.Embedder, query)
 		if err != nil {
 			// Embedder unavailable (e.g. still warming up) — degrade to
 			// keyword + passage rather than failing the whole query.
