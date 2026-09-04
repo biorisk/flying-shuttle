@@ -37,7 +37,13 @@ func (e *ExtractiveSummariser) Summarise(_ context.Context, in SummariseInput) (
 	kwCount := orDefault(e.KeywordCount, 6)
 	sentences := orDefault(e.AbstractSentences, 2)
 
-	keywords := e.KW.TopFromDocs(in.Texts, kwCount)
+	kw := e.KW
+	if kw == nil {
+		// No corpus keyworder supplied — fall back to IDF over just this
+		// region's texts. Coarser, but keeps the extractive path working.
+		kw = NewKeyworder(in.Texts)
+	}
+	keywords := kw.TopFromDocs(in.Texts, kwCount)
 
 	titleParts := keywords
 	if len(titleParts) > titleTerms {

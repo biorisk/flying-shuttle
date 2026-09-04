@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/biorisk/flying-shuttle/internal/api"
+	"github.com/biorisk/flying-shuttle/internal/atlas"
 	"github.com/biorisk/flying-shuttle/internal/indexer"
 	"github.com/biorisk/flying-shuttle/internal/ingest"
 	"github.com/biorisk/flying-shuttle/internal/project"
@@ -122,8 +123,25 @@ func run() error {
 		afterIngest = bf.Trigger
 	}
 
+	// Source Atlas: a derived network over the transcript corpus (see
+	// source_atlas_plan.md). Rebuilds run on demand via POST /atlas/rebuild;
+	// nothing runs in the background here. A nil embedder means digest search
+	// / bullet affinity are unavailable but browsing still works.
+	atlasSvc := &atlas.Service{
+		BaseCtx: ctx,
+		Builder: &atlas.Builder{
+			Store:    atlas.NewStore(s.DB()),
+			Corpus:   func() ([]atlas.CorpusChunk, error) { return loadAtlasCorpus(s) },
+			Embedder: embedder,
+		},
+	}
+	if err := atlasSvc.LoadCurrent(); err != nil {
+		log.Printf("atlas: load current build: %v", err)
+	}
+
 	deps := api.Deps{
 		Store:           s,
+		Atlas:           atlasSvc,
 		UploadDir:       paths.UploadDir,
 		ClusterEmbedder: clusterEmbedder,
 		Index:           idx,
@@ -177,6 +195,34 @@ func run() error {
 	}
 	log.Println("done")
 	return nil
+}
+
+// loadAtlasCorpus pulls every embedded chunk (content + vector) for an Atlas
+// build.
+func loadAtlasCorpus(s store.Store) ([]atlas.CorpusChunk, error) {
+	ids, err := s.ListChunkIDsWithEmbedding()
+	if err != nil {
+		return nil, err
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	chunks, err := s.GetChunksByIDs(ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]atlas.CorpusChunk, 0, len(chunks))
+	for _, c := range chunks {
+		if len(c.EmbeddingVec) == 0 {
+			continue
+		}
+		out = append(out, atlas.CorpusChunk{
+			ID:      c.ID,
+			Content: c.Content,
+			Vec:     ingest.BytesToFloat32s(c.EmbeddingVec),
+		})
+	}
+	return out, nil
 }
 
 func storeIsEmpty(s store.Store) (bool, error) {

@@ -39,6 +39,8 @@ type Store interface {
 	// PruneExcept deletes every build except keepID (cascades to regions,
 	// links, and memberships).
 	PruneExcept(keepID string) error
+	// DeleteBuild removes one build (cascades). Missing id is not an error.
+	DeleteBuild(id string) error
 }
 
 // sqlStore implements Store against the shared *sql.DB. Obtain the handle from
@@ -240,6 +242,11 @@ func (s *sqlStore) ListBuilds() ([]Build, error) {
 
 func (s *sqlStore) PruneExcept(keepID string) error {
 	_, err := s.db.Exec(`DELETE FROM atlas_build WHERE id <> ?`, keepID)
+	return err
+}
+
+func (s *sqlStore) DeleteBuild(id string) error {
+	_, err := s.db.Exec(`DELETE FROM atlas_build WHERE id = ?`, id)
 	return err
 }
 
