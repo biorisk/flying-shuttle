@@ -97,9 +97,15 @@ func (b *Builder) assemble(ctx context.Context, buildID string, chunks []CorpusC
 	}
 
 	kw := NewKeyworder(collectTexts(chunks))
+	extractive := &ExtractiveSummariser{KW: kw}
 	summ := b.Summariser
-	if summ == nil {
-		summ = &ExtractiveSummariser{KW: kw} // ships without an LLM
+	switch s := summ.(type) {
+	case nil:
+		summ = extractive // ships without an LLM
+	case *LLMSummariser:
+		if s.Fallback == nil {
+			s.Fallback = extractive // corpus-wide IDF for degraded fields
+		}
 	}
 
 	// Phase B — digest each region independently.

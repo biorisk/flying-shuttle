@@ -131,16 +131,36 @@ func run() error {
 		afterIngest = bf.Trigger
 	}
 
+	// Shared instruct LLM (lazy — nothing loads until the first digest call).
+	// It idle-sheds itself; the supervisor restarts it on demand.
+	var atlasSummariser atlas.Summariser
+	if env("SHUTTLE_LLM_AUTOSTART", "1") != "0" {
+		llmScript, _ := filepath.Abs(env("SHUTTLE_LLM_SCRIPT", "python/llm_server.py"))
+		completer := ingest.NewPythonCompleter(ingest.PythonCompleterConfig{
+			Python: detectPython(),
+			Script: llmScript,
+			Addr:   env("SHUTTLE_LLM_ADDR", "127.0.0.1:8072"),
+			Dir:    env("SHUTTLE_LLM_DIR", filepath.Dir(llmScript)),
+		})
+		completer.Gate = computeGate // never overlaps a big embed batch
+		atlasSummariser = &atlas.LLMSummariser{
+			Complete:  completer,
+			ModelName: env("SHUTTLE_LLM_MODEL", "gemma-4-e2b-it-4bit"),
+		}
+	}
+
 	// Source Atlas: a derived network over the transcript corpus (see
 	// source_atlas_plan.md). Rebuilds run on demand via POST /atlas/rebuild;
 	// nothing runs in the background here. A nil embedder means digest search
-	// / bullet affinity are unavailable but browsing still works.
+	// / bullet affinity are unavailable but browsing still works. A nil
+	// summariser (or an unreachable LLM) falls back to extractive digests.
 	atlasSvc := &atlas.Service{
 		BaseCtx: ctx,
 		Builder: &atlas.Builder{
-			Store:    atlas.NewStore(s.DB()),
-			Corpus:   func() ([]atlas.CorpusChunk, error) { return loadAtlasCorpus(s) },
-			Embedder: embedder,
+			Store:      atlas.NewStore(s.DB()),
+			Corpus:     func() ([]atlas.CorpusChunk, error) { return loadAtlasCorpus(s) },
+			Embedder:   embedder,
+			Summariser: atlasSummariser,
 		},
 	}
 	if err := atlasSvc.LoadCurrent(); err != nil {

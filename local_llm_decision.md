@@ -23,7 +23,28 @@ see "Confirmation step".**
   3. **Per-bullet clusters** (`hs8`) — see its own section; may not call the
      LLM at all.
 
-## Recommendation: `mlx-community/Qwen2.5-3B-Instruct-4bit`
+## Shipped: `mlx-community/gemma-4-e2b-it-4bit`
+
+**Update (implemented in `flying-shuttle-6n5`).** The recommendation below was
+Qwen2.5-3B-Instruct-4bit, but the HF hub was rate-limiting unauthenticated
+downloads and only `gemma-4-e2b-it-4bit` was fully cached on the target M1.
+Tested it directly: loads in ~3 s, generates a well-formed
+`TITLE:/ABSTRACT:/KEYWORDS:` digest in ~1.6 s, ~2 B effective params so it sits
+well under the RAM ceiling with room to spare. It is a light "thinking" model —
+`apply_chat_template(enable_thinking=False)` plus a Go-side `stripThinking()`
+guard keep the output clean; `max_tokens` is 320 to leave headroom.
+
+`llm_server.py` runs all MLX work on one dedicated worker thread (Metal streams
+are thread-local — loading on one thread and generating on another throws
+"no Stream(gpu, 1)").
+
+Qwen2.5-3B stays the documented upgrade if gemma-4-e2b's prose quality proves
+thin for the **stitcher** (the digest task it handles fine). Swap via
+`SHUTTLE_LLM_MODEL`.
+
+---
+
+## Original recommendation: `mlx-community/Qwen2.5-3B-Instruct-4bit`
 
 | | |
 |---|---|
