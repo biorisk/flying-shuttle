@@ -83,6 +83,38 @@ func TestExtractiveSummariser(t *testing.T) {
 	}
 }
 
+func TestKeyworder_TagRegions(t *testing.T) {
+	kw := NewKeyworder(corpus)
+	texts := map[string]string{
+		"s0": corpus[0], "s1": corpus[1], "s2": corpus[2],
+		"b0": corpus[3], "b1": corpus[4],
+	}
+	regions := []Region{
+		{ID: "sail", Members: []Member{{ChunkID: "s0"}, {ChunkID: "s1"}, {ChunkID: "s2"}}},
+		{ID: "bake", Members: []Member{{ChunkID: "b0"}, {ChunkID: "b1"}},
+			Digest: Digest{Keywords: []string{"preset"}}},
+	}
+	kw.TagRegions(regions, texts, 5, 3)
+
+	for _, m := range regions[0].Members {
+		if len(m.Keywords) == 0 || len(m.Keywords) > 3 {
+			t.Fatalf("member keyword count: %v", m.Keywords)
+		}
+	}
+	if len(regions[0].Digest.Keywords) == 0 {
+		t.Fatal("empty-digest region should get extractive keywords")
+	}
+	if regions[1].Digest.Keywords[0] != "preset" || len(regions[1].Digest.Keywords) != 1 {
+		t.Fatalf("pre-set digest keywords should be left alone: %v", regions[1].Digest.Keywords)
+	}
+	// Determinism.
+	regions2 := []Region{{ID: "sail", Members: []Member{{ChunkID: "s0"}, {ChunkID: "s1"}, {ChunkID: "s2"}}}}
+	kw.TagRegions(regions2, texts, 5, 3)
+	if regions2[0].Members[0].Keywords[0] != regions[0].Members[0].Keywords[0] {
+		t.Fatal("non-deterministic member tagging")
+	}
+}
+
 func TestFirstSentences(t *testing.T) {
 	got := firstSentences("One two. Three four! Five six? Seven.", 2)
 	if got != "One two. Three four!" {

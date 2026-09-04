@@ -78,6 +78,35 @@ func (k *Keyworder) topScored(tf map[string]int, n int) []string {
 	return out
 }
 
+// TagRegions fills in extractive keyword labels across a build: each region's
+// Digest.Keywords (when still empty — an LLM digest may already have set them)
+// and every member chunk's Keywords. texts maps chunk id -> chunk content.
+// perRegion / perChunk cap the tag counts (defaults 6 / 4).
+func (k *Keyworder) TagRegions(regions []Region, texts map[string]string, perRegion, perChunk int) {
+	perRegion = orTagDefault(perRegion, 6)
+	perChunk = orTagDefault(perChunk, 4)
+	for ri := range regions {
+		r := &regions[ri]
+		memTexts := make([]string, 0, len(r.Members))
+		for mi := range r.Members {
+			m := &r.Members[mi]
+			body := texts[m.ChunkID]
+			memTexts = append(memTexts, body)
+			m.Keywords = k.Top(body, perChunk)
+		}
+		if len(r.Digest.Keywords) == 0 {
+			r.Digest.Keywords = k.TopFromDocs(memTexts, perRegion)
+		}
+	}
+}
+
+func orTagDefault(v, def int) int {
+	if v > 0 {
+		return v
+	}
+	return def
+}
+
 // termCounts tokenises text into scoreable terms with their frequency.
 func termCounts(text string) map[string]int {
 	out := make(map[string]int)
