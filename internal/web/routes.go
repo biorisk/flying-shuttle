@@ -113,6 +113,7 @@ func (h *handlers) shell(w http.ResponseWriter, r *http.Request) {
 	Render(w, r, components.Page(components.PageContent{
 		Outline:     components.Outline(ov),
 		Evidence:    components.Evidence(viewmodel.EvidencePane{}),
+		Atlas:       components.Atlas(h.atlasPaneSSR()),
 		Ingest:      components.Ingest(h.ingestView()),
 		Preview:     components.Stitch(viewmodel.StitchView{Glue: 50}),
 		ProjectBar:  components.ProjectBar(h.projectBarView()),

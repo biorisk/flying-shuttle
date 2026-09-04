@@ -316,3 +316,44 @@ mark.mark-active { outline: 2px solid var(--accent); outline-offset: 1px; }
 .outline-preview-link:hover { color: var(--text); }
 .stitch-export { display: inline-flex; gap: 10px; }
 .stitch-export a { color: var(--accent); font-size: 12px; text-decoration: none; }
+
+/* --- source atlas pane (overlays the evidence column when open) --- */
+.atlas-toggle { border: none; color: var(--text-dim); padding: 3px 6px; font-size: 12px; }
+.atlas-toggle.active { color: var(--accent); }
+.atlas-pane {
+	grid-column: 3; grid-row: 1;
+	background: var(--panel);
+	border-left: 1px solid var(--edge);
+	display: flex; flex-direction: column;
+	min-width: 0; overflow: hidden; z-index: 5;
+}
+.atlas-head {
+	display: flex; align-items: center; justify-content: space-between;
+	padding: 8px 12px; border-bottom: 1px solid var(--edge); font-size: 13px;
+}
+.atlas-close { border: none; background: none; color: var(--text-dim); font-size: 16px; line-height: 1; }
+.atlas-scroll { flex: 1; overflow: auto; padding: 10px 12px; }
+.atlas-empty { color: var(--text-dim); font-size: 13px; line-height: 1.5; }
+.atlas-error { color: #ff8080; }
+.atlas-build, .atlas-rebuild, .atlas-hop, .atlas-attach {
+	font-size: 12px; padding: 3px 8px; margin-top: 6px;
+	background: var(--panel-2); border: 1px solid var(--edge); color: var(--text);
+}
+.atlas-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.atlas-count { font-size: 12px; color: var(--text-dim); }
+.atlas-stale { font-size: 12px; color: #e0b050; margin: 4px 0 8px; }
+.atlas-regions { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.atlas-region { border: 1px solid var(--edge); border-radius: var(--radius); padding: 7px 8px; }
+.atlas-region.open { border-color: var(--accent); }
+.atlas-region-head {
+	width: 100%; display: flex; justify-content: space-between; gap: 8px;
+	border: none; background: none; color: var(--text); text-align: left; padding: 0; font-size: 13px;
+}
+.atlas-region-n { flex: none; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.atlas-region-kw { margin: 3px 0 0; font-size: 11px; color: var(--text-dim); }
+.atlas-region-detail[data-show] { margin-top: 8px; }
+.atlas-abstract { font-size: 12px; line-height: 1.5; margin: 0 0 4px; }
+.atlas-source { font-size: 10px; color: var(--text-dim); margin: 0 0 6px; }
+.atlas-members { margin: 6px 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.atlas-neighbours { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 6px; }
+.atlas-neighbours-label { font-size: 10px; color: var(--text-dim); width: 100%; }

@@ -253,3 +253,39 @@ type IngestDrawer struct {
 	// (e.g. "Queued 3 transcript(s)…" or an error). Empty most of the time.
 	Notice string
 }
+
+// --- Source Atlas (the transcript network; NOT the outline) ---
+
+// AtlasPane is the render model for the #atlas fragment: the list of regions
+// in the current build, or a build/empty prompt.
+type AtlasPane struct {
+	Status   string // "none" | "building" | "ready" | "failed"
+	Error    string
+	Building bool
+	// Ready-state fields:
+	Regions    []AtlasRegionRow
+	RegionOpen string // id of the region whose detail is expanded, if any
+	ChunkCount int
+	Stale      bool // corpus has grown noticeably since this build
+	Behind     int  // chunks added since the build (when Stale)
+}
+
+// AtlasRegionRow is one region in the list.
+type AtlasRegionRow struct {
+	ID         string
+	Title      string
+	Keywords   []string
+	ChunkCount int
+}
+
+// AtlasRegionDetail is the render model for #atlas-region: one region's digest,
+// its member chunks (as evidence Candidates), and its linked neighbours.
+type AtlasRegionDetail struct {
+	ID         string
+	Title      string
+	Abstract   string
+	Keywords   []string
+	Source     string // "extractive" | "llm:<model>" | ...
+	Members    []Candidate
+	Neighbours []AtlasRegionRow // linked regions, strongest link first
+}
