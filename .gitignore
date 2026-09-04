@@ -28,3 +28,7 @@ uploads/
 
 # Reference docs (binary)
 *.pdf
+
+# Beads / Dolt files (added by bd init)
+.beads-credential-key
+.beads/proxieddb/
