@@ -1,7 +1,8 @@
 package components
 
 // Page is the full application shell: a collapsible left ingest drawer, the
-// Outline as the main column, and the Evidence pane on the right.
+// main column (Outline, Preview, or the Source Atlas network graph), and the
+// right pane (Evidence, or the Atlas region list while atlasOpen).
 //
 // The outline and evidence arguments are the *fragment* components — each owns
 // its own root element (`#outline`, `#evidence`), so the same component is used
@@ -21,13 +22,21 @@ package components
 //                   toggle and pager can re-fetch without a fresh keystroke
 //   evidencePage     — evidence pane's current page (1-based)
 //   evidencePageSize — evidence pane's page size (12/25/50/100)
+//   centerView       — also takes "atlas": the Source Atlas network graph
+//                       takes over the main column. Independent of atlasOpen
+//                       (see below) — leaving this view doesn't close the
+//                       atlas region list in the right pane.
+//   atlasOpen        — right-pane Source Atlas region list visible, replacing
+//                       Evidence. Set true by the Atlas tab; only the list
+//                       pane's × button clears it.
 // PageContent bundles the fragment components the shell renders on first load.
 // Any nil field falls back to an empty placeholder element carrying the right
 // id so later Datastar patches still have a target.
 type PageContent struct {
 	Outline     templ.Component
 	Evidence    templ.Component
-	Atlas       templ.Component
+	AtlasList   templ.Component
+	AtlasCanvas templ.Component
 	Ingest      templ.Component
 	Preview     templ.Component
 	ProjectBar  templ.Component
@@ -41,7 +50,7 @@ templ Page(c PageContent) {
 		<div
 			id="shell"
 			class="shell"
-			data-signals="{ focusId: '', drawerOpen: false, centerView: 'outline', threadId: '', evidenceWidth: 420, collapsed: {}, readerChunk: '', glue: 50, brushMode: false, exits: {}, diffAgainst: '', atlasOpen: false, atlasRegionId: '', atlasBuilding: false, atlasRegions: 0, atlasChunkCount: 0, atlasError: '', atlasQuery: '', atlasView: 'list', searchMode: 'hybrid', evidenceQuery: '', evidencePage: 1, evidencePageSize: 12 }"
+			data-signals="{ focusId: '', drawerOpen: false, centerView: 'outline', threadId: '', evidenceWidth: 420, collapsed: {}, readerChunk: '', glue: 50, brushMode: false, exits: {}, diffAgainst: '', atlasOpen: false, atlasRegionId: '', atlasBuilding: false, atlasRegions: 0, atlasChunkCount: 0, atlasError: '', atlasQuery: '', searchMode: 'hybrid', evidenceQuery: '', evidencePage: 1, evidencePageSize: 12 }"
 			data-class="{ 'drawer-open': $drawerOpen }"
 			data-style:grid-template-columns="($drawerOpen ? '300px ' : '0 ') + '1fr ' + $evidenceWidth + 'px'"
 		>
@@ -73,9 +82,9 @@ templ Page(c PageContent) {
 					<span class="view-tabs">
 						<button type="button" data-class="{ active: $centerView === 'outline' }" data-on:click="$centerView = 'outline'">Outline</button>
 						<button type="button" data-class="{ active: $centerView === 'preview' }" data-on:click="$centerView = 'preview'; @get('/stitch?thread=' + ($threadId||'') + '&glue=' + $glue)">Preview</button>
+						<button type="button" data-class="{ active: $centerView === 'atlas' }" data-on:click="$atlasOpen = true; $centerView = 'atlas'; @get('/atlas?node=' + ($focusId||'')); window.atlasGraph && window.atlasGraph.open()" title="Browse the source atlas">Atlas</button>
 					</span>
 					<a class="outline-preview-link" href="/outline.html" target="_blank" title="Open the outline as a formatted page (rendered / raw / PDF)">outline&#8599;</a>
-					<button type="button" class="atlas-toggle" data-class="{ active: $atlasOpen }" data-on:click="$atlasOpen = !$atlasOpen; @get('/atlas?node=' + ($focusId||''))" title="Browse the source atlas">atlas</button>
 					<span class="dag-bars">
 						if c.ThreadBar != nil {
 							@c.ThreadBar
@@ -104,6 +113,11 @@ templ Page(c PageContent) {
 				} else {
 					<section id="stitch" class="stitch" data-show="$centerView === 'preview'"></section>
 				}
+				if c.AtlasCanvas != nil {
+					@c.AtlasCanvas
+				} else {
+					<section id="atlas-canvas" data-show="$centerView === 'atlas'"></section>
+				}
 			</main>
 			if c.Evidence != nil {
 				@c.Evidence
@@ -112,8 +126,8 @@ templ Page(c PageContent) {
 					<p class="evidence-empty">Start typing a bullet — supporting passages appear here.</p>
 				</section>
 			}
-			if c.Atlas != nil {
-				@c.Atlas
+			if c.AtlasList != nil {
+				@c.AtlasList
 			} else {
 				<section id="atlas" class="atlas-pane" aria-label="Source atlas" data-show="$atlasOpen"></section>
 			}

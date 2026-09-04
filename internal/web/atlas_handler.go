@@ -87,7 +87,7 @@ func (h *handlers) atlasPane(w http.ResponseWriter, r *http.Request) {
 	if node := r.URL.Query().Get("node"); node != "" && vm.Status == "ready" {
 		vm.Matches = h.atlasAffinityFor(r.Context(), node)
 	}
-	if _, err := Patch(w, r, components.Atlas(vm)); err != nil {
+	if _, err := Patch(w, r, components.AtlasList(vm), components.AtlasCanvas(vm)); err != nil {
 		log.Printf("atlas pane: %v", err)
 	}
 }
@@ -138,7 +138,9 @@ func (h *handlers) atlasStatus(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) atlasRebuild(w http.ResponseWriter, r *http.Request) {
 	h.d.Atlas.StartRebuild()
 	sse := datastar.NewSSE(w, r)
-	_ = sse.PatchElementTempl(components.Atlas(h.atlasPaneView()))
+	vm := h.atlasPaneView()
+	_ = sse.PatchElementTempl(components.AtlasList(vm))
+	_ = sse.PatchElementTempl(components.AtlasCanvas(vm))
 	_ = sse.MarshalAndPatchSignals(atlasSignals(h.d.Atlas.Status()))
 }
 

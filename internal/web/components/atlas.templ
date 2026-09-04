@@ -6,29 +6,20 @@ import (
 	"github.com/biorisk/flying-shuttle/internal/web/viewmodel"
 )
 
-// Atlas is the #atlas fragment: a browsable view of the Source Atlas — the
-// derived NETWORK over the transcript corpus (regions + similarity links).
-// It is not the outline. Shown when $atlasOpen; it shares the right column
-// with #evidence.
-templ Atlas(vm viewmodel.AtlasPane) {
+// AtlasList is the #atlas fragment: the browsable region list for the Source
+// Atlas — the derived NETWORK over the transcript corpus (regions +
+// similarity links). It is not the outline. Shown when $atlasOpen; it
+// replaces #evidence in the right column while open, independent of which
+// main view ($centerView) is active — so browsing back to the outline still
+// leaves it in place. The network graph itself lives in AtlasCanvas, in the
+// main column.
+templ AtlasList(vm viewmodel.AtlasPane) {
 	<section id="atlas" class="atlas-pane" aria-label="Source atlas" data-show="$atlasOpen">
 		<header class="atlas-head">
 			<strong>Source atlas</strong>
-			if vm.Status == "ready" {
-				<span class="atlas-viewtabs">
-					<button type="button" data-class="{ active: $atlasView !== 'graph' }" data-on:click="$atlasView = 'list'">list</button>
-					<button type="button" data-class="{ active: $atlasView === 'graph' }" data-on:click="$atlasView = 'graph'; window.atlasGraph && window.atlasGraph.open()">graph</button>
-				</span>
-			}
 			<button type="button" class="atlas-close" data-on:click="$atlasOpen = false; $atlasRegionId = ''">×</button>
 		</header>
-		if vm.Status == "ready" {
-			<div id="atlas-graph" class="atlas-graph" data-show="$atlasView === 'graph'"
-				data-on:atlasnode="$atlasRegionId = evt.detail.id; @get('/atlas/regions/' + evt.detail.id)"
-				data-on:atlaschunk="@get('/atlas/chunk/' + evt.detail.id)"></div>
-			<div id="atlas-detail" class="atlas-detail" data-show="$atlasView === 'graph'"></div>
-		}
-		<div class="atlas-scroll" data-show="$atlasView !== 'graph'">
+		<div class="atlas-scroll">
 			switch vm.Status {
 				case "ready":
 					@atlasRegionList(vm)
@@ -47,6 +38,23 @@ templ Atlas(vm viewmodel.AtlasPane) {
 					<button type="button" class="atlas-build" data-on:click="@post('/atlas/rebuild')">Build the atlas</button>
 			}
 		</div>
+	</section>
+}
+
+// AtlasCanvas is the #atlas-canvas fragment: the Source Atlas network graph
+// (Cytoscape, via atlas_graph.js) plus its chunk-detail panel. It takes over
+// the main column, replacing #outline/#stitch, while $centerView === 'atlas'.
+// Tapping a region node fires 'atlasnode', which fetches that region's detail
+// into AtlasList's #atlas-region-<id> in the right pane — the graph and the
+// list are separate panes now, but stay in sync through that shared signal.
+templ AtlasCanvas(vm viewmodel.AtlasPane) {
+	<section id="atlas-canvas" data-show="$centerView === 'atlas'">
+		if vm.Status == "ready" {
+			<div id="atlas-graph" class="atlas-graph"
+				data-on:atlasnode="$atlasRegionId = evt.detail.id; @get('/atlas/regions/' + evt.detail.id)"
+				data-on:atlaschunk="@get('/atlas/chunk/' + evt.detail.id)"></div>
+			<div id="atlas-detail" class="atlas-detail"></div>
+		}
 	</section>
 }
 
@@ -155,7 +163,7 @@ templ AtlasMatches(vm viewmodel.AtlasMatches) {
 // AtlasChunkDetail is the #atlas-detail fragment for the network view: one
 // chunk's full text with the shared Read / Attach actions.
 templ AtlasChunkDetail(c viewmodel.Candidate) {
-	<div id="atlas-detail" class="atlas-detail" data-show="$atlasView === 'graph'">
+	<div id="atlas-detail" class="atlas-detail" data-show="$centerView === 'atlas'">
 		<div class="candidate-meta">
 			<span class="candidate-source">{ c.SourceFile }</span>
 			<button

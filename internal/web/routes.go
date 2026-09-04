@@ -110,10 +110,12 @@ func (h *handlers) shell(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("shell: outline: %v", err)
 	}
+	atlasVM := h.atlasPaneSSR()
 	Render(w, r, components.Page(components.PageContent{
 		Outline:     components.Outline(ov),
 		Evidence:    components.Evidence(viewmodel.EvidencePane{}),
-		Atlas:       components.Atlas(h.atlasPaneSSR()),
+		AtlasList:   components.AtlasList(atlasVM),
+		AtlasCanvas: components.AtlasCanvas(atlasVM),
 		Ingest:      components.Ingest(h.ingestView()),
 		Preview:     components.Stitch(viewmodel.StitchView{Glue: 50}),
 		ProjectBar:  components.ProjectBar(h.projectBarView()),

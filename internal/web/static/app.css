@@ -373,9 +373,9 @@ mark.mark-active { outline: 2px solid var(--accent); outline-offset: 1px; }
 .stitch-export { display: inline-flex; gap: 10px; }
 .stitch-export a { color: var(--accent); font-size: 12px; text-decoration: none; }
 
-/* --- source atlas pane (overlays the evidence column when open) --- */
-.atlas-toggle { border: none; color: var(--text-dim); padding: 3px 6px; font-size: 12px; }
-.atlas-toggle.active { color: var(--accent); }
+/* --- source atlas region list (overlays the evidence column when open) ---
+   The Atlas topbar control is a plain .view-tabs button (shared styling with
+   Outline/Preview) — no dedicated toggle style needed. */
 .atlas-pane {
 	grid-column: 3; grid-row: 1;
 	background: var(--panel);
@@ -414,10 +414,9 @@ mark.mark-active { outline: 2px solid var(--accent); outline-offset: 1px; }
 .atlas-neighbours { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 6px; }
 .atlas-neighbours-label { font-size: 10px; color: var(--text-dim); width: 100%; }
 
-/* --- atlas network view --- */
-.atlas-viewtabs { display: inline-flex; gap: 2px; margin-left: auto; margin-right: 8px; }
-.atlas-viewtabs button { border: none; background: none; color: var(--text-dim); font-size: 11px; padding: 2px 6px; }
-.atlas-viewtabs button.active { color: var(--accent); }
+/* --- atlas network view: #atlas-canvas takes over the main column while
+   $centerView === 'atlas', same flex slot as #outline/#stitch --- */
+#atlas-canvas { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .atlas-graph { flex: 1; min-height: 0; background: var(--panel-2); }
 .atlas-detail { border-top: 1px solid var(--edge); padding: 8px 12px; max-height: 45%; overflow: auto; }
 .atlas-detail:empty { display: none; }
