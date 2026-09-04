@@ -43,6 +43,11 @@ func NewSQLiteStore(dsn string) (*SQLiteStore, error) {
 
 func (s *SQLiteStore) Close() error { return s.db.Close() }
 
+// DB returns the underlying database handle. It is exposed so self-contained
+// subsystems (e.g. internal/atlas) can own their own persistence against the
+// same single connection without bloating the Store interface.
+func (s *SQLiteStore) DB() *sql.DB { return s.db }
+
 func (s *SQLiteStore) Migrate() error {
 	migrations := []string{
 		"migrations/001_initial_schema.sql",
@@ -50,6 +55,7 @@ func (s *SQLiteStore) Migrate() error {
 		"migrations/003_snapshots.sql",
 		"migrations/004_branches.sql",
 		"migrations/005_evidence.sql",
+		"migrations/006_atlas.sql",
 	}
 	for _, name := range migrations {
 		data, err := migrationFS.ReadFile(name)
