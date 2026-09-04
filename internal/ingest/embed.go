@@ -8,6 +8,21 @@ import (
 )
 
 // Embedder computes dense vector embeddings for text.
+// QueryEmbedder is an optional extension: an Embedder that distinguishes the
+// query side of an asymmetric retrieval model from the document side. Search
+// code should type-assert for it and fall back to Embed when absent.
+type QueryEmbedder interface {
+	EmbedQuery(ctx context.Context, text string) ([]float32, error)
+}
+
+// EmbedQueryOr uses e.EmbedQuery when e implements QueryEmbedder, else e.Embed.
+func EmbedQueryOr(ctx context.Context, e Embedder, text string) ([]float32, error) {
+	if qe, ok := e.(QueryEmbedder); ok {
+		return qe.EmbedQuery(ctx, text)
+	}
+	return e.Embed(ctx, text)
+}
+
 type Embedder interface {
 	// Embed returns a float32 embedding vector for the given text.
 	Embed(ctx context.Context, text string) ([]float32, error)

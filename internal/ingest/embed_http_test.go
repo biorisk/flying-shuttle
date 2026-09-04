@@ -37,6 +37,45 @@ func TestHTTPEmbedder_EmbedBatch(t *testing.T) {
 	}
 }
 
+func TestHTTPEmbedder_QueryVsDocumentPrompt(t *testing.T) {
+	var seen []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Texts  []string `json:"texts"`
+			Prompt string   `json:"prompt"`
+		}
+		json.NewDecoder(r.Body).Decode(&req)
+		seen = append(seen, req.Prompt)
+		out := make([][]float32, len(req.Texts))
+		for i := range out {
+			out[i] = []float32{1, 0}
+		}
+		json.NewEncoder(w).Encode(map[string]any{"embeddings": out, "dim": 2})
+	}))
+	defer srv.Close()
+
+	e := NewHTTPEmbedder(srv.URL)
+	if _, err := e.EmbedBatch(context.Background(), []string{"a"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.EmbedQuery(context.Background(), "q"); err != nil {
+		t.Fatal(err)
+	}
+	if len(seen) != 2 || seen[0] != "document" || seen[1] != "query" {
+		t.Fatalf("prompt routing wrong: %v", seen)
+	}
+
+	// EmbedQueryOr picks the query path when the embedder implements it.
+	var qe QueryEmbedder = e
+	_ = qe
+	if _, err := EmbedQueryOr(context.Background(), e, "x"); err != nil {
+		t.Fatal(err)
+	}
+	if seen[len(seen)-1] != "query" {
+		t.Fatalf("EmbedQueryOr did not use query path: %v", seen)
+	}
+}
+
 func TestHTTPEmbedder_NotReadyOn503(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)

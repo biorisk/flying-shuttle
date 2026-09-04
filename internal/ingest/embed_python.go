@@ -254,3 +254,22 @@ func (p *PythonEmbedder) EmbedBatch(ctx context.Context, texts []string) ([][]fl
 	}
 	return p.http.EmbedBatch(ctx, texts)
 }
+
+// EmbedQuery implements QueryEmbedder — the query side of the asymmetric
+// retrieval model. Gated and single-flight like EmbedBatch.
+func (p *PythonEmbedder) EmbedQuery(ctx context.Context, text string) ([]float32, error) {
+	if !p.ready.Load() {
+		return nil, ErrEmbedderNotReady
+	}
+	if err := p.Gate.Acquire(ctx); err != nil {
+		return nil, err
+	}
+	defer p.Gate.Release()
+
+	p.callMu.Lock()
+	defer p.callMu.Unlock()
+	if !p.ready.Load() {
+		return nil, ErrEmbedderNotReady
+	}
+	return p.http.EmbedQuery(ctx, text)
+}

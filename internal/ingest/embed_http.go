@@ -48,9 +48,24 @@ func (e *HTTPEmbedder) Healthy(ctx context.Context) bool {
 	return resp.StatusCode == http.StatusOK
 }
 
-// Embed returns the embedding for a single text.
+// Embed returns the document-side embedding for a single text.
 func (e *HTTPEmbedder) Embed(ctx context.Context, text string) ([]float32, error) {
-	vecs, err := e.EmbedBatch(ctx, []string{text})
+	return one(e.EmbedBatch(ctx, []string{text}))
+}
+
+// EmbedBatch returns document-side embeddings for multiple texts in order.
+func (e *HTTPEmbedder) EmbedBatch(ctx context.Context, texts []string) ([][]float32, error) {
+	return e.embedBatch(ctx, texts, "document")
+}
+
+// EmbedQuery returns the query-side embedding for a search string. Asymmetric
+// retrieval models (EmbeddingGemma) apply a different task prefix to queries
+// than to documents.
+func (e *HTTPEmbedder) EmbedQuery(ctx context.Context, text string) ([]float32, error) {
+	return one(e.embedBatch(ctx, []string{text}, "query"))
+}
+
+func one(vecs [][]float32, err error) ([]float32, error) {
 	if err != nil {
 		return nil, err
 	}
@@ -60,13 +75,12 @@ func (e *HTTPEmbedder) Embed(ctx context.Context, text string) ([]float32, error
 	return vecs[0], nil
 }
 
-// EmbedBatch returns embeddings for multiple texts in order.
-func (e *HTTPEmbedder) EmbedBatch(ctx context.Context, texts []string) ([][]float32, error) {
+func (e *HTTPEmbedder) embedBatch(ctx context.Context, texts []string, prompt string) ([][]float32, error) {
 	if len(texts) == 0 {
 		return nil, nil
 	}
 
-	body, err := json.Marshal(map[string]any{"texts": texts})
+	body, err := json.Marshal(map[string]any{"texts": texts, "prompt": prompt})
 	if err != nil {
 		return nil, err
 	}

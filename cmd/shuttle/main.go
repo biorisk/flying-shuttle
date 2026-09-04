@@ -51,6 +51,9 @@ func run() error {
 	if err := s.Migrate(); err != nil {
 		return err
 	}
+	if err := reconcileEmbeddingModel(s, paths.HNSW); err != nil {
+		return err
+	}
 
 	// Recovery: a fresh DB but a working-doc state.json present -> re-import it.
 	if empty, _ := storeIsEmpty(s); empty {
@@ -200,6 +203,38 @@ func run() error {
 	}
 	log.Println("done")
 	return nil
+}
+
+// embedModelID identifies the current embedding model / vector space. Bump it
+// whenever the model or its dimension changes so stale vectors are dropped.
+const embedModelID = "embeddinggemma-300m-768"
+
+// reconcileEmbeddingModel clears stored embeddings and the HNSW snapshot when
+// the embedding model has changed since the last run (or when a pre-marker DB
+// holds vectors of the wrong dimension). The backfiller then re-embeds.
+func reconcileEmbeddingModel(s *store.SQLiteStore, hnswPath string) error {
+	prev, err := s.GetMeta("embed_model")
+	if err != nil {
+		return err
+	}
+	stale := prev != "" && prev != embedModelID
+	if prev == "" {
+		if dim, err := s.SampleEmbeddingDim(); err != nil {
+			return err
+		} else if dim != 0 && dim != 768 {
+			stale = true
+		}
+	}
+	if stale {
+		n, err := s.ClearAllEmbeddings()
+		if err != nil {
+			return err
+		}
+		_ = os.Remove(hnswPath)
+		log.Printf("embedding model changed (%q -> %q): cleared %d stale vectors, dropped %s",
+			prev, embedModelID, n, filepath.Base(hnswPath))
+	}
+	return s.SetMeta("embed_model", embedModelID)
 }
 
 // loadAtlasCorpus pulls every embedded chunk (content + vector) for an Atlas

@@ -46,7 +46,8 @@ func (b *Builder) Build(ctx context.Context) (*Build, *RegionIndex, error) {
 	p := b.Params
 	minChunks := p.MinChunks
 	if minChunks <= 0 {
-		minChunks = 2 * ClusterParams{}.withDefaults().MaxRegionSize
+		// Enough to form a few regions; below this the Atlas is just a list.
+		minChunks = 3 * ClusterParams{}.withDefaults().MinRegionSize
 	}
 
 	chunks, err := b.Corpus()
