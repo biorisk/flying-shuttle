@@ -28,6 +28,15 @@ import (
 )
 
 func main() {
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "migrate":
+			if err := runMigrate(os.Args[2:]); err != nil {
+				log.Fatal(err)
+			}
+			return
+		}
+	}
 	// A project switch re-execs this binary; loop so the process image is
 	// replaced cleanly rather than nested.
 	if err := run(); err != nil {
