@@ -74,4 +74,4 @@ _Add a brief overview of your project architecture_
 
 ## Conventions & Patterns
 
-_Add your project-specific conventions here_
+This is a single developer repo. Always commit to main branch unless explicitly instructed to create a new branch.
