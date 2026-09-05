@@ -67,11 +67,13 @@ templ AtlasCanvas(vm viewmodel.AtlasPane) {
 templ atlasRegionList(vm viewmodel.AtlasPane) {
 	<div class="atlas-toolbar">
 		<span class="atlas-count">{ fmt.Sprintf("%d regions · %d passages", len(vm.Regions), vm.ChunkCount) }</span>
-		if !vm.Rebuilding {
+		if !vm.Rebuilding && !vm.ReadOnly {
 			<button type="button" class="atlas-rebuild" data-on:click="@post('/atlas/rebuild')" title="Rebuild from the current corpus">rebuild</button>
 		}
 	</div>
-	if vm.Rebuilding {
+	if vm.ReadOnly {
+		<p class="atlas-stale" data-on-interval__duration.10s="@get('/atlas/status')">Corpus is read-only — held by project “{ orDash(vm.Holder) }”. It picks up rebuilds automatically.</p>
+	} else if vm.Rebuilding {
 		<p class="atlas-rebuilding" data-on-interval__duration.3s="@get('/atlas')">
 			Rebuilding… this map stays usable until the new one is ready.
 		</p>

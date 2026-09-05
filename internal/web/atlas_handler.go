@@ -48,6 +48,8 @@ func (h *handlers) atlasPaneView() viewmodel.AtlasPane {
 	svc := h.d.Atlas
 	st := svc.Status()
 	vm := viewmodel.AtlasPane{Error: st.LastError, Building: st.Building, ChunkCount: st.ChunkCount}
+	vm.ReadOnly = svc.ReadOnly
+	vm.Holder = h.d.CorpusHolder
 
 	build, _ := svc.Current()
 	switch {
@@ -152,6 +154,18 @@ func (h *handlers) atlasSearch(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) atlasStatus(w http.ResponseWriter, r *http.Request) {
+	// A read-only session polls this endpoint; use it to notice a rebuild the
+	// lock holder finished and swap the fresh build into memory.
+	if h.d.Atlas != nil && h.d.Atlas.ReadOnly {
+		if swapped, err := h.d.Atlas.Refresh(); err == nil && swapped {
+			sse := datastar.NewSSE(w, r)
+			vm := h.atlasPaneView()
+			_ = sse.PatchElementTempl(components.AtlasList(vm))
+			_ = sse.PatchElementTempl(components.AtlasCanvas(vm))
+			_ = sse.MarshalAndPatchSignals(atlasSignals(h.d.Atlas.Status()))
+			return
+		}
+	}
 	sse := datastar.NewSSE(w, r)
 	_ = sse.MarshalAndPatchSignals(atlasSignals(h.d.Atlas.Status()))
 }

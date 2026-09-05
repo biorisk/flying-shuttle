@@ -23,6 +23,8 @@ type Deps struct {
 	Store           doc.Store
 	Corpus          corpus.Store // nil when the project is unbound (no corpus)
 	CorpusName      string       // bound corpus name, for the project bar
+	CorpusReadOnly  bool         // true when another project holds the writer lock
+	CorpusHolder    string       // name of the project holding the writer lock
 	UploadDir       string
 	ClusterEmbedder ingest.Embedder // backs cluster suggestions; may be a stub
 	Index           *search.HybridIndex
@@ -68,20 +70,22 @@ func NewRouter(d Deps) http.Handler {
 
 	home, _ := project.Home()
 	web.Mount(r, web.Deps{
-		Store:         d.Store,
-		Corpus:        d.Corpus,
-		CorpusName:    d.CorpusName,
-		Outline:       &outline.Service{Store: d.Store, Corpus: d.Corpus},
-		Transcript:    &transcript.Service{Store: d.Corpus},
-		Ingester:      ingester,
-		Index:         d.Index,
-		Stitcher:      d.Stitcher,
-		Atlas:         d.Atlas,
-		ProjectName:   d.ProjectName,
-		OutlineMDPath: d.OutlineMDPath,
-		PreviewReload: d.PreviewReload,
-		ProjectHome:   home,
-		SwitchProject: d.Restart,
+		Store:          d.Store,
+		Corpus:         d.Corpus,
+		CorpusName:     d.CorpusName,
+		CorpusReadOnly: d.CorpusReadOnly,
+		CorpusHolder:   d.CorpusHolder,
+		Outline:        &outline.Service{Store: d.Store, Corpus: d.Corpus},
+		Transcript:     &transcript.Service{Store: d.Corpus},
+		Ingester:       ingester,
+		Index:          d.Index,
+		Stitcher:       d.Stitcher,
+		Atlas:          d.Atlas,
+		ProjectName:    d.ProjectName,
+		OutlineMDPath:  d.OutlineMDPath,
+		PreviewReload:  d.PreviewReload,
+		ProjectHome:    home,
+		SwitchProject:  d.Restart,
 	})
 
 	return r

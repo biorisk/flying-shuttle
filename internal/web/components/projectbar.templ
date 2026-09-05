@@ -38,7 +38,11 @@ templ ProjectBar(vm viewmodel.ProjectBar) {
 		}
 		if vm.Switching == "" {
 			if vm.CorpusName != "" {
-				<span class="corpus-name" title="Bound corpus">▪ { vm.CorpusName }</span>
+				if vm.CorpusReadOnly {
+					<span class="corpus-name corpus-ro" title={ "Read-only — writer lock held by project " + vm.CorpusHolder }>▪ { vm.CorpusName } (read-only)</span>
+				} else {
+					<span class="corpus-name" title="Bound corpus">▪ { vm.CorpusName }</span>
+				}
 			} else if vm.CanSwitch {
 				<details class="dag-menu corpus-bind">
 					<summary class="corpus-bind-toggle" title="Bind a corpus to this project">no corpus — bind…</summary>

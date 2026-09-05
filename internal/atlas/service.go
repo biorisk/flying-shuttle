@@ -48,6 +48,10 @@ type Service struct {
 	// affinity). Usually the same instance as Builder.Embedder. When nil or
 	// not ready, RankForText returns nil.
 	Embedder ingest.Embedder
+	// ReadOnly is set by non-lock-holding corpus sessions: browsing and
+	// ranking work, but Rebuild / StartRebuild are refused. Such a session
+	// still picks up a rebuild finished by the lock holder via Refresh.
+	ReadOnly bool
 
 	mu       sync.Mutex
 	building bool
@@ -73,10 +77,33 @@ func (s *Service) LoadCurrent() error {
 	return nil
 }
 
+// Refresh re-reads the current build from the store and swaps it into memory
+// if its id changed. A read-only session calls this on a slow poll so it
+// picks up a rebuild the lock holder finished. Returns true when it swapped.
+func (s *Service) Refresh() (bool, error) {
+	b, err := s.Builder.Store.CurrentBuild()
+	if err == ErrNoBuild {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.current != nil && s.current.ID == b.ID {
+		return false, nil
+	}
+	s.current, s.index, s.lastAt = b, LoadRegionIndex(b), b.CreatedAt
+	return true, nil
+}
+
 // Rebuild runs a full build and blocks until it finishes. It returns
 // ErrBuilding immediately if one is already running. ctx cancellation aborts
 // the build cleanly.
 func (s *Service) Rebuild(ctx context.Context) error {
+	if s.ReadOnly {
+		return ErrReadOnly
+	}
 	if !s.acquire() {
 		return ErrBuilding
 	}
@@ -86,6 +113,9 @@ func (s *Service) Rebuild(ctx context.Context) error {
 // StartRebuild launches a rebuild in the background using BaseCtx, returning
 // false if one is already running. This is what POST /atlas/rebuild calls.
 func (s *Service) StartRebuild() bool {
+	if s.ReadOnly {
+		return false
+	}
 	if !s.acquire() {
 		return false
 	}

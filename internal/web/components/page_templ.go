@@ -57,6 +57,10 @@ type PageContent struct {
 	// the Atlas tab, and the evidence pane are hidden and the outline still
 	// works on its own.
 	CorpusBound bool
+	// CorpusReadOnly is true when another project holds the corpus writer
+	// lock: browsing works but ingest is hidden.
+	CorpusReadOnly bool
+	CorpusHolder   string
 }
 
 func Page(c PageContent) templ.Component {
@@ -96,7 +100,7 @@ func Page(c PageContent) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if c.CorpusBound {
+			if c.CorpusBound && !c.CorpusReadOnly {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<aside id=\"ingest-drawer\" class=\"drawer\" aria-label=\"Transcript ingest\"><header class=\"drawer-head\"><span>Transcripts</span> <button type=\"button\" class=\"icon-btn\" data-on:click=\"$drawerOpen = false\" title=\"Close\">&times;</button></header>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

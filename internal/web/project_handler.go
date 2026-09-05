@@ -16,6 +16,8 @@ func (h *handlers) projectBarView() viewmodel.ProjectBar {
 		CanSwitch: h.d.SwitchProject != nil && h.d.ProjectHome != "",
 	}
 	vm.CorpusName = h.d.CorpusName
+	vm.CorpusReadOnly = h.d.CorpusReadOnly
+	vm.CorpusHolder = h.d.CorpusHolder
 	if h.d.ProjectHome != "" {
 		names, err := project.ListProjects(h.d.ProjectHome)
 		if err != nil {

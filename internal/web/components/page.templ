@@ -47,6 +47,10 @@ type PageContent struct {
 	// the Atlas tab, and the evidence pane are hidden and the outline still
 	// works on its own.
 	CorpusBound bool
+	// CorpusReadOnly is true when another project holds the corpus writer
+	// lock: browsing works but ingest is hidden.
+	CorpusReadOnly bool
+	CorpusHolder   string
 }
 
 templ Page(c PageContent) {
@@ -58,7 +62,7 @@ templ Page(c PageContent) {
 			data-class="{ 'drawer-open': $drawerOpen }"
 			data-style:grid-template-columns="($drawerOpen ? '300px ' : '0 ') + '1fr ' + $evidenceWidth + 'px'"
 		>
-			if c.CorpusBound {
+			if c.CorpusBound && !c.CorpusReadOnly {
 				<aside id="ingest-drawer" class="drawer" aria-label="Transcript ingest">
 					<header class="drawer-head">
 						<span>Transcripts</span>

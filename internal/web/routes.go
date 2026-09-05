@@ -21,15 +21,17 @@ import (
 // Deps are the services the server-rendered UI needs. Fields are added as
 // tasks require them.
 type Deps struct {
-	Store      doc.Store
-	Corpus     corpus.Store // nil when the project is unbound (no corpus)
-	CorpusName string       // name of the bound corpus, for the project bar
-	Outline    *outline.Service
-	Transcript *transcript.Service
-	Ingester   *pipeline.Ingester
-	Index      *search.HybridIndex
-	Stitcher   stitch.Stitcher
-	Atlas      *atlas.Service
+	Store          doc.Store
+	Corpus         corpus.Store // nil when the project is unbound (no corpus)
+	CorpusName     string       // name of the bound corpus, for the project bar
+	CorpusReadOnly bool         // another project holds the corpus writer lock
+	CorpusHolder   string       // that project's name
+	Outline        *outline.Service
+	Transcript     *transcript.Service
+	Ingester       *pipeline.Ingester
+	Index          *search.HybridIndex
+	Stitcher       stitch.Stitcher
+	Atlas          *atlas.Service
 
 	ProjectName   string
 	OutlineMDPath string            // ~/.shuttle/<project>/outline.md, for the preview
@@ -124,17 +126,19 @@ func (h *handlers) shell(w http.ResponseWriter, r *http.Request) {
 	}
 	atlasVM := h.atlasPaneSSR()
 	Render(w, r, components.Page(components.PageContent{
-		Outline:     components.Outline(ov),
-		Evidence:    components.Evidence(viewmodel.EvidencePane{}),
-		AtlasList:   components.AtlasList(atlasVM),
-		AtlasCanvas: components.AtlasCanvas(atlasVM),
-		Ingest:      components.Ingest(h.ingestView()),
-		Preview:     components.Stitch(viewmodel.StitchView{Glue: 50}),
-		ProjectBar:  components.ProjectBar(h.projectBarView()),
-		ThreadBar:   components.ThreadBar(h.threadBarView()),
-		SnapshotBar: components.SnapshotBar(h.snapshotBarView()),
-		BranchBar:   components.BranchBar(h.branchBarView()),
-		CorpusBound: h.d.Corpus != nil,
+		Outline:        components.Outline(ov),
+		Evidence:       components.Evidence(viewmodel.EvidencePane{}),
+		AtlasList:      components.AtlasList(atlasVM),
+		AtlasCanvas:    components.AtlasCanvas(atlasVM),
+		Ingest:         components.Ingest(h.ingestView()),
+		Preview:        components.Stitch(viewmodel.StitchView{Glue: 50}),
+		ProjectBar:     components.ProjectBar(h.projectBarView()),
+		ThreadBar:      components.ThreadBar(h.threadBarView()),
+		SnapshotBar:    components.SnapshotBar(h.snapshotBarView()),
+		BranchBar:      components.BranchBar(h.branchBarView()),
+		CorpusBound:    h.d.Corpus != nil,
+		CorpusReadOnly: h.d.CorpusReadOnly,
+		CorpusHolder:   h.d.CorpusHolder,
 	}))
 }
 

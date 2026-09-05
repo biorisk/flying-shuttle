@@ -168,12 +168,14 @@ type Outline struct {
 
 // ProjectBar is the render model for the #project-bar picker.
 type ProjectBar struct {
-	Current    string
-	Names      []string
-	CanSwitch  bool
-	Switching  string   // non-empty while a switch is in progress
-	CorpusName string   // bound corpus ("" = unbound)
-	Corpora    []string // corpora available to bind
+	Current        string
+	Names          []string
+	CanSwitch      bool
+	Switching      string   // non-empty while a switch is in progress
+	CorpusName     string   // bound corpus ("" = unbound)
+	Corpora        []string // corpora available to bind
+	CorpusReadOnly bool
+	CorpusHolder   string
 }
 
 // ThreadRow is one thread in the thread bar.
@@ -292,6 +294,8 @@ type AtlasPane struct {
 	Behind     int          // chunks added since the build (when Stale)
 	Rebuilding bool         // a rebuild is running behind this (still-usable) build
 	Matches    AtlasMatches // regions ranked for the focused bullet (may be empty)
+	ReadOnly   bool         // corpus writer lock held elsewhere: no rebuild button
+	Holder     string       // project holding the writer lock
 }
 
 // AtlasMatches is the #atlas-matches fragment: regions ranked by similarity to

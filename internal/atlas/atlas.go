@@ -25,6 +25,10 @@ import (
 // ErrNoBuild is returned when no ready Atlas build exists yet.
 var ErrNoBuild = errors.New("atlas: no build")
 
+// ErrReadOnly is returned when a rebuild is attempted on a read-only corpus
+// session (the writer lock is held by another project).
+var ErrReadOnly = errors.New("atlas: corpus is read-only")
+
 // BuildStatus tracks a build's lifecycle.
 type BuildStatus string
 

@@ -66,17 +66,37 @@ func run() error {
 	}
 	defer s.Close()
 
-	// The corpus half: a separate corpus.db, opened read-write. nil when the
-	// project is unbound or its corpus directory is missing.
+	// The corpus half: a separate corpus.db. nil when the project is unbound
+	// or its corpus directory is missing. The first session to open a corpus
+	// holds its writer lock (ingest, backfill, index snapshots, atlas
+	// rebuilds); later sessions open it read-only.
 	var cs corpus.Store
+	var corpusLock *project.CorpusLock
+	corpusRW := false
+	corpusHolder := ""
 	if bind.Corpus != nil {
-		cs, err = corpus.Open(bind.Corpus.DB, false)
+		lk, held, info, lerr := project.AcquireCorpusLock(bind.Corpus.Lock, pp.Name)
+		if lerr != nil {
+			return lerr
+		}
+		corpusLock, corpusRW = lk, held
+		if held {
+			defer corpusLock.Release()
+		} else {
+			corpusHolder = info.Project
+			log.Printf("corpus %q is READ-ONLY — writer lock held by project %q (pid %d)",
+				bind.Corpus.Name, info.Project, info.PID)
+		}
+
+		cs, err = corpus.Open(bind.Corpus.DB, !corpusRW)
 		if err != nil {
 			return err
 		}
 		defer cs.Close()
-		if err := reconcileEmbeddingModel(cs, bind.Corpus.HNSW); err != nil {
-			return err
+		if corpusRW {
+			if err := reconcileEmbeddingModel(cs, bind.Corpus.HNSW); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -145,18 +165,23 @@ func run() error {
 	// embedding backfiller only exist when a corpus is bound.
 	afterIngest := func() {}
 	if cs != nil {
+		// Loading + reconciling the in-memory index is read-only against the
+		// corpus, so every session does it.
 		if err := indexer.LoadAndReconcile(cs, idx, bind.Corpus.BM25, bind.Corpus.HNSW); err != nil {
 			return err
 		}
 		log.Printf("index ready: %d docs (BM25), %d vectors (HNSW)", idx.BM25.Len(), idx.Vector.Len())
 
-		snap := indexer.NewSnapshotter(idx, bind.Corpus.BM25, bind.Corpus.HNSW, 15*time.Second)
-		spawn(snap.Run)
+		// Only the lock holder persists snapshots and runs the backfiller.
+		if corpusRW {
+			snap := indexer.NewSnapshotter(idx, bind.Corpus.BM25, bind.Corpus.HNSW, 15*time.Second)
+			spawn(snap.Run)
 
-		if embedder != nil {
-			bf := indexer.NewBackfiller(cs, embedder, idx, 16, 30*time.Second)
-			spawn(bf.Run)
-			afterIngest = bf.Trigger
+			if embedder != nil {
+				bf := indexer.NewBackfiller(cs, embedder, idx, 16, 30*time.Second)
+				spawn(bf.Run)
+				afterIngest = bf.Trigger
+			}
 		}
 	}
 
@@ -190,6 +215,7 @@ func run() error {
 		atlasSvc = &atlas.Service{
 			BaseCtx:  ctx,
 			Embedder: embedder,
+			ReadOnly: !corpusRW,
 			Builder: &atlas.Builder{
 				Store:      atlas.NewStore(cs.DB()),
 				Corpus:     func() ([]atlas.CorpusChunk, error) { return loadAtlasCorpus(cs) },
@@ -207,6 +233,8 @@ func run() error {
 		Store:           s,
 		Corpus:          cs,
 		CorpusName:      corpusName,
+		CorpusReadOnly:  bind.Corpus != nil && !corpusRW,
+		CorpusHolder:    corpusHolder,
 		Atlas:           atlasSvc,
 		UploadDir:       uploadDir,
 		ClusterEmbedder: clusterEmbedder,
@@ -252,6 +280,10 @@ func run() error {
 			return err
 		}
 		s.Close()
+		if cs != nil {
+			cs.Close()
+		}
+		corpusLock.Release() // nil-safe; the new image re-acquires
 		exe, err := os.Executable()
 		if err != nil {
 			return err
