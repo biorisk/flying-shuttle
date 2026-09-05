@@ -67,6 +67,16 @@ func (h *handlers) outlineViewOpts(opts outlineOpts) (viewmodel.Outline, error) 
 		}
 	}
 
+	// Which evidence bullets carry an author-edited excerpt (§5.6).
+	editedNode := map[string]bool{}
+	if evs, err := h.d.Store.ListAllEvidence(); err == nil {
+		for _, e := range evs {
+			if e.Edited {
+				editedNode[e.NodeID] = true
+			}
+		}
+	}
+
 	var conv func(tn *outline.TreeNode) viewmodel.OutlineNode
 	conv = func(tn *outline.TreeNode) viewmodel.OutlineNode {
 		n := viewmodel.OutlineNode{
@@ -77,6 +87,7 @@ func (h *handlers) outlineViewOpts(opts outlineOpts) (viewmodel.Outline, error) 
 			Version:  tn.Node.Version,
 			Locked:   tn.Node.Locked,
 			Evidence: tn.Node.Type == model.NodeTypeChunkRef,
+			Edited:   editedNode[tn.Node.ID],
 			Depth:    tn.Depth,
 			Prev:     prev[tn.Node.ID],
 			Next:     next[tn.Node.ID],

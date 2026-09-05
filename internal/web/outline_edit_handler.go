@@ -19,6 +19,7 @@ func (h *handlers) mountOutlineEdit(r chi.Router) {
 	r.Post("/outline/roots", h.outlineAddRoot)
 	r.Post("/outline/move", h.outlineMove)
 	r.Post("/outline/quote-edit", h.outlineQuoteEdit)
+	r.Post("/outline/quote-text", h.outlineQuoteText)
 	r.Route("/outline/nodes/{id}", func(r chi.Router) {
 		r.Patch("/", h.outlineSetTitle)
 		r.Delete("/", h.outlineDelete)
@@ -145,6 +146,29 @@ func (h *handlers) outlineQuoteEdit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := h.d.Outline.EditQuote(nodeID, op, start, end); err != nil &&
+		!errors.Is(err, outline.ErrNoop) {
+		h.editError(w, r, err)
+		return
+	}
+	h.patchOutline(w, r, "")
+}
+
+// outlineQuoteText replaces an evidence bullet's excerpt with author-supplied
+// text — a per-project customization that never touches the corpus (§5.6).
+//
+//	POST /outline/quote-text   form: node_id, text
+func (h *handlers) outlineQuoteText(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	nodeID := r.FormValue("node_id")
+	text := r.FormValue("text")
+	if nodeID == "" {
+		http.Error(w, "node_id required", http.StatusBadRequest)
+		return
+	}
+	if _, err := h.d.Outline.SetQuoteText(nodeID, text); err != nil &&
 		!errors.Is(err, outline.ErrNoop) {
 		h.editError(w, r, err)
 		return

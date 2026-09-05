@@ -149,3 +149,38 @@ func TestEditQuote_noopGuards(t *testing.T) {
 		t.Errorf("bad op: want ErrNoop, got %v", err)
 	}
 }
+
+func TestSetQuoteText_editsExcerptOnly(t *testing.T) {
+	svc, id := attachQuote(t)
+
+	// Rewrite the excerpt to arbitrary prose.
+	if _, err := svc.SetQuoteText(id, "a paraphrase of the point"); err != nil {
+		t.Fatal(err)
+	}
+	got, ev := quoteText(t, svc, id)
+	if got != "a paraphrase of the point" {
+		t.Fatalf("node body = %q", got)
+	}
+	if !ev.Edited {
+		t.Fatal("evidence row should be flagged edited")
+	}
+	// The source chunk is untouched.
+	if c, err := svc.Corpus.GetChunk(ev.ChunkID); err != nil || c.Content != "ALPHA the quick brown fox jumps OMEGA" {
+		t.Fatalf("source chunk changed: %+v err=%v", c, err)
+	}
+	// A no-op edit is rejected.
+	if _, err := svc.SetQuoteText(id, "a paraphrase of the point"); err != ErrNoop {
+		t.Fatalf("re-set same text err = %v, want ErrNoop", err)
+	}
+}
+
+func TestEditQuote_flagsEdited(t *testing.T) {
+	svc, id := attachQuote(t)
+	if _, err := svc.EditQuote(id, QuoteTrim, 4, 19); err != nil {
+		t.Fatal(err)
+	}
+	_, ev := quoteText(t, svc, id)
+	if !ev.Edited {
+		t.Fatal("trim should flag the evidence row edited")
+	}
+}

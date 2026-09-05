@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/biorisk/flying-shuttle/internal/model"
@@ -68,6 +69,7 @@ func (s *SQLiteStore) Migrate() error {
 		"migrations/003_snapshots.sql",
 		"migrations/004_branches.sql",
 		"migrations/005_evidence.sql",
+		"migrations/006_evidence_edited.sql",
 	}
 	for _, name := range migrations {
 		data, err := migrationFS.ReadFile(name)
@@ -75,6 +77,9 @@ func (s *SQLiteStore) Migrate() error {
 			return fmt.Errorf("read %s: %w", name, err)
 		}
 		if _, err := s.db.Exec(string(data)); err != nil {
+			if strings.Contains(err.Error(), "duplicate column name") {
+				continue
+			}
 			return fmt.Errorf("exec %s: %w", name, err)
 		}
 	}
@@ -162,15 +167,17 @@ func (s *SQLiteStore) DeleteNode(id string) error {
 func scanEvidenceRows(rows *sql.Rows) (*model.Evidence, error) {
 	var e model.Evidence
 	var createdAt string
+	var edited int
 	if err := rows.Scan(&e.ID, &e.NodeID, &e.ChunkID, &e.SourceFile,
-		&e.CharStart, &e.CharEnd, &e.Text, &e.Position, &createdAt); err != nil {
+		&e.CharStart, &e.CharEnd, &e.Text, &e.Position, &createdAt, &edited); err != nil {
 		return nil, err
 	}
 	e.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAt)
+	e.Edited = edited != 0
 	return &e, nil
 }
 
-const evidenceCols = `id, node_id, chunk_id, source_file, char_start, char_end, text, position, created_at`
+const evidenceCols = `id, node_id, chunk_id, source_file, char_start, char_end, text, position, created_at, edited`
 
 func (s *SQLiteStore) CreateEvidence(e *model.Evidence) error {
 	if e.ID == "" {
@@ -178,16 +185,16 @@ func (s *SQLiteStore) CreateEvidence(e *model.Evidence) error {
 	}
 	_, err := s.db.Exec(
 		`INSERT INTO evidence (`+evidenceCols+`)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, COALESCE(NULLIF(?, ''), strftime('%Y-%m-%dT%H:%M:%fZ','now')))`,
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, COALESCE(NULLIF(?, ''), strftime('%Y-%m-%dT%H:%M:%fZ','now')), ?)`,
 		e.ID, e.NodeID, e.ChunkID, e.SourceFile, e.CharStart, e.CharEnd, e.Text, e.Position,
-		formatTimeOrEmpty(e.CreatedAt))
+		formatTimeOrEmpty(e.CreatedAt), boolToInt(e.Edited))
 	return err
 }
 
 func (s *SQLiteStore) UpdateEvidence(e *model.Evidence) error {
 	res, err := s.db.Exec(
-		`UPDATE evidence SET char_start = ?, char_end = ?, text = ? WHERE id = ?`,
-		e.CharStart, e.CharEnd, e.Text, e.ID)
+		`UPDATE evidence SET char_start = ?, char_end = ?, text = ?, edited = ? WHERE id = ?`,
+		e.CharStart, e.CharEnd, e.Text, boolToInt(e.Edited), e.ID)
 	if err != nil {
 		return err
 	}
@@ -684,9 +691,9 @@ func restoreDAGState(tx *sql.Tx, data *model.SnapshotData) error {
 	}
 	for _, e := range data.Evidence {
 		if _, err := tx.Exec(
-			`INSERT INTO evidence (`+evidenceCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			`INSERT INTO evidence (`+evidenceCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			nz(e.ID), e.NodeID, e.ChunkID, e.SourceFile, e.CharStart, e.CharEnd, e.Text, e.Position,
-			e.CreatedAt.Format(time.RFC3339Nano),
+			e.CreatedAt.Format(time.RFC3339Nano), boolToInt(e.Edited),
 		); err != nil {
 			return fmt.Errorf("restore evidence: %w", err)
 		}
@@ -697,7 +704,7 @@ func restoreDAGState(tx *sql.Tx, data *model.SnapshotData) error {
 	// carry over just the id + position so the citation still resolves.
 	for _, nc := range data.NodeChunks {
 		if _, err := tx.Exec(
-			`INSERT INTO evidence (`+evidenceCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now'))`,
+			`INSERT INTO evidence (`+evidenceCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now'), 0)`,
 			uuid.NewString(), nc.NodeID, nc.ChunkID, "", 0, 0, "", nc.Position,
 		); err != nil {
 			return fmt.Errorf("restore legacy node_chunk: %w", err)

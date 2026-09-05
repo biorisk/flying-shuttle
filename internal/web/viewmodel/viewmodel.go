@@ -150,6 +150,7 @@ type OutlineNode struct {
 	Version  int
 	Locked   bool
 	Evidence bool // chunk_ref evidence sub-bullet
+	Edited   bool // evidence excerpt was edited in this project (§5.6)
 	Depth    int
 	Prev     string
 	Next     string

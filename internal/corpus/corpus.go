@@ -35,6 +35,13 @@ type Store interface {
 	CreateChunk(c *model.Chunk) error
 	CreateChunks(chunks []model.Chunk) error
 	ListChunks() ([]model.Chunk, error)
+	// SoftDeleteChunksBySourceFile marks every live chunk of one transcript
+	// deleted (append-only corpus: re-ingest supersedes rather than mutates).
+	SoftDeleteChunksBySourceFile(sourceFile string) (int, error)
+	// ResolveChunk reports whether a chunk id exists at all and, if so,
+	// whether it is soft-deleted. Used by `shuttle doctor` to tell a dangling
+	// citation from one that merely cites a superseded chunk.
+	ResolveChunk(id string) (found, deleted bool, err error)
 	ListChunksPage(limit, offset int) ([]model.Chunk, int, error)
 	ListChunkIDs() ([]string, error)
 	ListChunkIDsWithEmbedding() ([]string, error)

@@ -95,7 +95,20 @@ templ bullet(n viewmodel.OutlineNode) {
 				</span>
 			}
 			if n.Evidence {
-				<blockquote class="bullet-evidence">{ evidenceText(n) }</blockquote>
+				<blockquote class="bullet-evidence">
+					{ evidenceText(n) }
+					if n.Edited {
+						<span class="evidence-edited" title="This excerpt was edited in this project and no longer matches the source passage.">edited — differs from source</span>
+					}
+				</blockquote>
+				<details class="evidence-edit dag-menu">
+					<summary tabindex="-1" title="Edit this excerpt (does not change the source)">edit text</summary>
+					<form data-on:submit__prevent={ "@post('/outline/quote-text', {contentType:'form'})" }>
+						<input type="hidden" name="node_id" value={ n.ID }/>
+						<textarea name="text" rows="3">{ n.Body }</textarea>
+						<button type="submit">Save excerpt</button>
+					</form>
+				</details>
 				<button
 					type="button"
 					class="evidence-del"

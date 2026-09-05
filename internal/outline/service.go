@@ -358,12 +358,52 @@ func (s *Service) EditQuote(nodeID string, op QuoteOp, start, end int) (*model.N
 	}
 
 	ev.Text, ev.CharStart, ev.CharEnd = newText, newStart, newEnd
+	ev.Edited = true
 	if err := s.Store.UpdateEvidence(&ev); err != nil {
 		return nil, err
 	}
 
 	n.Body = newText
 	n.Title = previewText(newText, 80)
+	if err := s.Store.UpdateNode(n); err != nil {
+		return nil, err
+	}
+	return n, nil
+}
+
+// SetQuoteText replaces an evidence bullet's excerpt with author-supplied
+// text. The source chunk is never touched; the row is flagged edited and its
+// char offsets become best-effort bounds (kept as-is). Two projects citing
+// the same chunk can quote it differently. Returns ErrNoop when nothing
+// changes or the text is blank. See corpus_separation_plan.md §5.6.
+func (s *Service) SetQuoteText(nodeID, text string) (*model.Node, error) {
+	n, err := s.Store.GetNode(nodeID)
+	if err != nil {
+		return nil, err
+	}
+	if n.Type != model.NodeTypeChunkRef {
+		return nil, ErrNoop
+	}
+	evs, err := s.Store.ListNodeEvidence(nodeID)
+	if err != nil {
+		return nil, err
+	}
+	if len(evs) == 0 {
+		return nil, doc.ErrNotFound
+	}
+	ev := evs[0]
+
+	text = strings.TrimSpace(text)
+	if text == "" || text == ev.Text {
+		return nil, ErrNoop
+	}
+
+	ev.Text, ev.Edited = text, true
+	if err := s.Store.UpdateEvidence(&ev); err != nil {
+		return nil, err
+	}
+	n.Body = text
+	n.Title = previewText(text, 80)
 	if err := s.Store.UpdateNode(n); err != nil {
 		return nil, err
 	}

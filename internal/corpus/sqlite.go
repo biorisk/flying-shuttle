@@ -67,6 +67,11 @@ func (s *sqlStore) Migrate() error {
 			return fmt.Errorf("read %s: %w", name, err)
 		}
 		if _, err := s.db.Exec(string(data)); err != nil {
+			// ADD COLUMN is not IF-NOT-EXISTS-able; a re-run hits this and is
+			// a no-op, so tolerate it. Every other statement is guarded.
+			if strings.Contains(err.Error(), "duplicate column name") {
+				continue
+			}
 			return fmt.Errorf("exec %s: %w", name, err)
 		}
 	}
@@ -118,14 +123,37 @@ func (s *sqlStore) CreateChunks(chunks []model.Chunk) error {
 	return tx.Commit()
 }
 
+func (s *sqlStore) SoftDeleteChunksBySourceFile(sourceFile string) (int, error) {
+	res, err := s.db.Exec(
+		`UPDATE chunks SET deleted_at = ? WHERE source_file = ? AND deleted_at IS NULL`,
+		time.Now().UTC().Format(time.RFC3339Nano), sourceFile)
+	if err != nil {
+		return 0, err
+	}
+	n, _ := res.RowsAffected()
+	return int(n), nil
+}
+
+func (s *sqlStore) ResolveChunk(id string) (found, deleted bool, err error) {
+	var del sql.NullString
+	err = s.db.QueryRow(`SELECT deleted_at FROM chunks WHERE id = ?`, id).Scan(&del)
+	if err == sql.ErrNoRows {
+		return false, false, nil
+	}
+	if err != nil {
+		return false, false, err
+	}
+	return true, del.Valid, nil
+}
+
 func (s *sqlStore) GetChunk(id string) (*model.Chunk, error) {
 	row := s.db.QueryRow(
-		`SELECT id, source_file, content, start_offset, end_offset, speaker, embedding_vec, created_at FROM chunks WHERE id = ?`, id)
+		`SELECT id, source_file, content, start_offset, end_offset, speaker, embedding_vec, created_at FROM chunks WHERE id = ? AND deleted_at IS NULL`, id)
 	return scanChunk(row)
 }
 
 func (s *sqlStore) ListChunks() ([]model.Chunk, error) {
-	rows, err := s.db.Query(`SELECT id, source_file, content, start_offset, end_offset, speaker, embedding_vec, created_at FROM chunks ORDER BY created_at`)
+	rows, err := s.db.Query(`SELECT id, source_file, content, start_offset, end_offset, speaker, embedding_vec, created_at FROM chunks WHERE deleted_at IS NULL ORDER BY created_at`)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +174,7 @@ func (s *sqlStore) ListChunks() ([]model.Chunk, error) {
 func (s *sqlStore) ListChunksBySourceFile(sourceFile string) ([]model.Chunk, error) {
 	rows, err := s.db.Query(
 		`SELECT id, source_file, content, start_offset, end_offset, speaker, embedding_vec, created_at
-		 FROM chunks WHERE source_file = ? ORDER BY start_offset, created_at`, sourceFile)
+		 FROM chunks WHERE source_file = ? AND deleted_at IS NULL ORDER BY start_offset, created_at`, sourceFile)
 	if err != nil {
 		return nil, err
 	}
@@ -166,13 +194,13 @@ func (s *sqlStore) ListChunksBySourceFile(sourceFile string) ([]model.Chunk, err
 // total number of chunks in the store. A limit <= 0 means "no limit".
 func (s *sqlStore) ListChunksPage(limit, offset int) ([]model.Chunk, int, error) {
 	var total int
-	if err := s.db.QueryRow(`SELECT COUNT(*) FROM chunks`).Scan(&total); err != nil {
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM chunks WHERE deleted_at IS NULL`).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 	if offset < 0 {
 		offset = 0
 	}
-	q := `SELECT id, source_file, content, start_offset, end_offset, speaker, embedding_vec, created_at FROM chunks ORDER BY created_at LIMIT ? OFFSET ?`
+	q := `SELECT id, source_file, content, start_offset, end_offset, speaker, embedding_vec, created_at FROM chunks WHERE deleted_at IS NULL ORDER BY created_at LIMIT ? OFFSET ?`
 	lim := limit
 	if lim <= 0 {
 		lim = -1 // SQLite: negative LIMIT means no upper bound
@@ -195,7 +223,7 @@ func (s *sqlStore) ListChunksPage(limit, offset int) ([]model.Chunk, int, error)
 
 // ListChunkIDs returns just the IDs of every chunk, cheaply (no content).
 func (s *sqlStore) ListChunkIDs() ([]string, error) {
-	rows, err := s.db.Query(`SELECT id FROM chunks`)
+	rows, err := s.db.Query(`SELECT id FROM chunks WHERE deleted_at IS NULL`)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +242,7 @@ func (s *sqlStore) ListChunkIDs() ([]string, error) {
 // ListChunkIDsWithEmbedding returns the IDs of chunks that have an embedding
 // vector stored, cheaply (no content or vector data).
 func (s *sqlStore) ListChunkIDsWithEmbedding() ([]string, error) {
-	rows, err := s.db.Query(`SELECT id FROM chunks WHERE embedding_vec IS NOT NULL AND length(embedding_vec) > 0`)
+	rows, err := s.db.Query(`SELECT id FROM chunks WHERE deleted_at IS NULL AND embedding_vec IS NOT NULL AND length(embedding_vec) > 0`)
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +278,7 @@ func (s *sqlStore) GetChunksByIDs(ids []string) ([]model.Chunk, error) {
 			args[i] = id
 		}
 		q := `SELECT id, source_file, content, start_offset, end_offset, speaker, embedding_vec, created_at
-		      FROM chunks WHERE id IN (` + strings.Join(ph, ",") + `)`
+		      FROM chunks WHERE deleted_at IS NULL AND id IN (` + strings.Join(ph, ",") + `)`
 		rows, err := s.db.Query(q, args...)
 		if err != nil {
 			return nil, err
@@ -277,7 +305,7 @@ func (s *sqlStore) GetChunksByIDs(ids []string) ([]model.Chunk, error) {
 func (s *sqlStore) ListChunksMissingEmbedding(limit int) ([]model.Chunk, error) {
 	q := `SELECT id, source_file, content, start_offset, end_offset, speaker, embedding_vec, created_at
 	      FROM chunks
-	      WHERE embedding_vec IS NULL OR length(embedding_vec) = 0
+	      WHERE deleted_at IS NULL AND (embedding_vec IS NULL OR length(embedding_vec) = 0)
 	      ORDER BY created_at`
 	var args []any
 	if limit > 0 {
@@ -304,7 +332,7 @@ func (s *sqlStore) ListChunksMissingEmbedding(limit int) ([]model.Chunk, error) 
 func (s *sqlStore) CountChunksMissingEmbedding() (int, error) {
 	var n int
 	err := s.db.QueryRow(
-		`SELECT count(*) FROM chunks WHERE embedding_vec IS NULL OR length(embedding_vec) = 0`,
+		`SELECT count(*) FROM chunks WHERE deleted_at IS NULL AND (embedding_vec IS NULL OR length(embedding_vec) = 0)`,
 	).Scan(&n)
 	return n, err
 }
@@ -337,7 +365,7 @@ func (s *sqlStore) ClearAllEmbeddings() (int64, error) {
 func (s *sqlStore) SampleEmbeddingDim() (int, error) {
 	var b []byte
 	err := s.db.QueryRow(
-		`SELECT embedding_vec FROM chunks WHERE embedding_vec IS NOT NULL LIMIT 1`).Scan(&b)
+		`SELECT embedding_vec FROM chunks WHERE deleted_at IS NULL AND embedding_vec IS NOT NULL LIMIT 1`).Scan(&b)
 	if err == sql.ErrNoRows {
 		return 0, nil
 	}

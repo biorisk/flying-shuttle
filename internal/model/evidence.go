@@ -15,5 +15,6 @@ type Evidence struct {
 	CharEnd    int       `json:"char_end"`
 	Text       string    `json:"text"`
 	Position   int       `json:"position"`
+	Edited     bool      `json:"edited"`
 	CreatedAt  time.Time `json:"created_at"`
 }

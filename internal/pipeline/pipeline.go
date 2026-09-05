@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -207,6 +208,11 @@ func (in *Ingester) run(uploadID, filePath, sourceName string) {
 		}
 	}
 
+	// Append-only corpus: a re-upload of the same transcript supersedes its
+	// old chunks rather than duplicating them.
+	if n, err := in.Store.SoftDeleteChunksBySourceFile(sourceName); err == nil && n > 0 {
+		log.Printf("ingest: superseded %d old chunk(s) for %q", n, sourceName)
+	}
 	chunks := ingest.ChunkTranscript(sourceName, segments)
 	if err := in.storeAndIndex(chunks); err != nil {
 		_ = in.Store.UpdateUploadStatus(uploadID, model.UploadStatusFailed, err.Error())
@@ -227,6 +233,9 @@ func (in *Ingester) Rechunk(uploadID string) ([]model.Chunk, error) {
 	}
 	if len(segs) == 0 {
 		return nil, fmt.Errorf("no transcript segments to chunk")
+	}
+	if _, err := in.Store.SoftDeleteChunksBySourceFile(u.Filename); err != nil {
+		return nil, fmt.Errorf("supersede old chunks: %w", err)
 	}
 	chunks := ingest.ChunkTranscript(u.Filename, segs)
 	if err := in.storeAndIndex(chunks); err != nil {
