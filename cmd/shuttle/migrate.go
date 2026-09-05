@@ -118,6 +118,12 @@ func splitOne(home, name string) error {
 		return err
 	}
 
+	// Fold any pending WAL back into the main db file so the plain-file copy
+	// below is complete.
+	if err := checkpointWAL(filepath.Join(old, "shuttle.db")); err != nil {
+		return fmt.Errorf("checkpoint %s: %w", old, err)
+	}
+
 	// 1. corpus.db = shuttle.db minus the document tables.
 	if err := copyFile(filepath.Join(old, "shuttle.db"), cp.DB); err != nil {
 		return err
@@ -162,6 +168,21 @@ func splitOne(home, name string) error {
 		return err
 	}
 	return os.Rename(old, old+".pre-split")
+}
+
+// checkpointWAL merges a database's -wal file into the main file and truncates
+// it, so a subsequent byte copy of just the .db file loses nothing.
+func checkpointWAL(dbPath string) error {
+	if _, err := os.Stat(dbPath); err != nil {
+		return err
+	}
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	_, err = db.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
+	return err
 }
 
 func dropTables(dbPath string, tables []string) error {
