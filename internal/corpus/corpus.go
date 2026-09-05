@@ -42,6 +42,10 @@ type Store interface {
 	// whether it is soft-deleted. Used by `shuttle doctor` to tell a dangling
 	// citation from one that merely cites a superseded chunk.
 	ResolveChunk(id string) (found, deleted bool, err error)
+	// ChunkContentAnyState returns a chunk's content and deleted state
+	// regardless of soft-delete, for `shuttle doctor` to compare an evidence
+	// excerpt against its source.
+	ChunkContentAnyState(id string) (content string, deleted, found bool, err error)
 	ListChunksPage(limit, offset int) ([]model.Chunk, int, error)
 	ListChunkIDs() ([]string, error)
 	ListChunkIDsWithEmbedding() ([]string, error)

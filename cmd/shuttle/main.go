@@ -35,6 +35,11 @@ func main() {
 				log.Fatal(err)
 			}
 			return
+		case "doctor":
+			if err := runDoctor(os.Args[2:]); err != nil {
+				log.Fatal(err)
+			}
+			return
 		}
 	}
 	// A project switch re-execs this binary; loop so the process image is

@@ -146,6 +146,18 @@ func (s *sqlStore) ResolveChunk(id string) (found, deleted bool, err error) {
 	return true, del.Valid, nil
 }
 
+func (s *sqlStore) ChunkContentAnyState(id string) (content string, deleted, found bool, err error) {
+	var del sql.NullString
+	err = s.db.QueryRow(`SELECT content, deleted_at FROM chunks WHERE id = ?`, id).Scan(&content, &del)
+	if err == sql.ErrNoRows {
+		return "", false, false, nil
+	}
+	if err != nil {
+		return "", false, false, err
+	}
+	return content, del.Valid, true, nil
+}
+
 func (s *sqlStore) GetChunk(id string) (*model.Chunk, error) {
 	row := s.db.QueryRow(
 		`SELECT id, source_file, content, start_offset, end_offset, speaker, embedding_vec, created_at FROM chunks WHERE id = ? AND deleted_at IS NULL`, id)
