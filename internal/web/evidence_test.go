@@ -5,9 +5,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/biorisk/flying-shuttle/internal/corpus"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/search"
-	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/web"
 )
 
@@ -34,7 +35,7 @@ func TestEvidenceFinder_ranksAndResolves(t *testing.T) {
 		idx.IndexChunk(&chunks[i])
 	}
 
-	f := &web.EvidenceFinder{Index: idx, Store: s}
+	f := &web.EvidenceFinder{Index: idx, Corpus: corpus.New(s.DB())}
 
 	res, err := f.FindPage(context.Background(), "fear", "", 1, 5)
 	if err != nil {
@@ -88,7 +89,7 @@ func TestEvidenceFinder_multiSpanSnippet(t *testing.T) {
 	s.CreateChunk(&c)
 	idx.IndexChunk(&c)
 
-	f := &web.EvidenceFinder{Index: idx, Store: s}
+	f := &web.EvidenceFinder{Index: idx, Corpus: corpus.New(s.DB())}
 	res, err := f.FindPage(context.Background(), "budget", "", 1, 5)
 	got := res.Candidates
 	if err != nil || len(got) != 1 {
@@ -131,7 +132,7 @@ func TestEvidenceFinder_marksHitsAndCentersSnippet(t *testing.T) {
 	}
 	idx.IndexChunk(&c)
 
-	f := &web.EvidenceFinder{Index: idx, Store: s}
+	f := &web.EvidenceFinder{Index: idx, Corpus: corpus.New(s.DB())}
 	res, err := f.FindPage(context.Background(), "budget shortfall", "", 1, 5)
 	got := res.Candidates
 	if err != nil || len(got) != 1 {

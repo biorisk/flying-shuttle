@@ -7,16 +7,16 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"github.com/biorisk/flying-shuttle/internal/corpus"
 	"github.com/biorisk/flying-shuttle/internal/ingest"
 	"github.com/biorisk/flying-shuttle/internal/ingest/embedfile"
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/search"
-	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/google/uuid"
 )
 
 type ingestHandler struct {
-	store doc.Store
+	store corpus.Store
 	idx   *search.HybridIndex
 }
 

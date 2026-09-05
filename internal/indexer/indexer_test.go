@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/biorisk/flying-shuttle/internal/corpus"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/ingest"
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/search"
-	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/google/uuid"
 )
 
@@ -39,7 +40,7 @@ func (f *fakeEmbedder) EmbedBatch(_ context.Context, texts []string) ([][]float3
 	return out, nil
 }
 
-func newStore(t *testing.T) doc.Store {
+func newStore(t *testing.T) corpus.Store {
 	t.Helper()
 	s, err := doc.NewSQLiteStore(":memory:")
 	if err != nil {
@@ -49,10 +50,10 @@ func newStore(t *testing.T) doc.Store {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { s.Close() })
-	return s
+	return corpus.New(s.DB())
 }
 
-func mkChunk(t *testing.T, s doc.Store, content string) model.Chunk {
+func mkChunk(t *testing.T, s corpus.Store, content string) model.Chunk {
 	t.Helper()
 	c := model.Chunk{ID: uuid.NewString(), SourceFile: "f.txt", Content: content, EndOffset: len(content)}
 	if err := s.CreateChunk(&c); err != nil {

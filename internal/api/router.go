@@ -3,14 +3,15 @@ package api
 import (
 	"net/http"
 
-	"github.com/biorisk/flying-shuttle/internal/ingest"
 	"github.com/biorisk/flying-shuttle/internal/atlas"
+	"github.com/biorisk/flying-shuttle/internal/corpus"
+	"github.com/biorisk/flying-shuttle/internal/doc"
+	"github.com/biorisk/flying-shuttle/internal/ingest"
 	"github.com/biorisk/flying-shuttle/internal/outline"
 	"github.com/biorisk/flying-shuttle/internal/pipeline"
 	"github.com/biorisk/flying-shuttle/internal/project"
 	"github.com/biorisk/flying-shuttle/internal/search"
 	"github.com/biorisk/flying-shuttle/internal/stitch"
-	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/transcript"
 	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/go-chi/chi/v5"
@@ -20,6 +21,7 @@ import (
 // Deps is everything NewRouter needs.
 type Deps struct {
 	Store           doc.Store
+	Corpus          corpus.Store // nil when the project is unbound (no corpus)
 	UploadDir       string
 	ClusterEmbedder ingest.Embedder // backs cluster suggestions; may be a stub
 	Index           *search.HybridIndex
@@ -39,6 +41,15 @@ type Deps struct {
 // "/", plus a tiny JSON surface under /api/v1 for the offline embedding
 // pipeline (see python/README.md) and a health check.
 func NewRouter(d Deps) http.Handler {
+	// Phase 1 scaffold: corpus and doc share one connection, so a caller
+	// passing only Store still has a usable corpus. Dropped when doc.Store
+	// narrows and every caller passes Corpus.
+	if d.Corpus == nil {
+		if cs, ok := d.Store.(corpus.Store); ok {
+			d.Corpus = cs
+		}
+	}
+
 	r := chi.NewRouter()
 
 	r.Use(chimw.RequestID)
@@ -50,11 +61,11 @@ func NewRouter(d Deps) http.Handler {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 
-	ingester := &pipeline.Ingester{Store: d.Store, UploadDir: d.UploadDir, Index: d.Index, AfterIngest: d.AfterIngest}
+	ingester := &pipeline.Ingester{Store: d.Corpus, UploadDir: d.UploadDir, Index: d.Index, AfterIngest: d.AfterIngest}
 
 	// JSON API — offline embedding-pipeline ingest only. The Python side POSTs
 	// {"path": "..."} pointing at a .fembed / .embed file or directory of them.
-	ih := &ingestHandler{store: d.Store, idx: d.Index}
+	ih := &ingestHandler{store: d.Corpus, idx: d.Index}
 	r.Route("/api/v1/ingest", func(r chi.Router) {
 		r.Use(jsonContent)
 		r.Post("/embed-file", ih.importEmbedFile)
@@ -66,8 +77,9 @@ func NewRouter(d Deps) http.Handler {
 	home, _ := project.Home()
 	web.Mount(r, web.Deps{
 		Store:         d.Store,
-		Outline:       &outline.Service{Store: d.Store},
-		Transcript:    &transcript.Service{Store: d.Store},
+		Corpus:        d.Corpus,
+		Outline:       &outline.Service{Store: d.Store, Corpus: d.Corpus},
+		Transcript:    &transcript.Service{Store: d.Corpus},
 		Ingester:      ingester,
 		Index:         d.Index,
 		Stitcher:      d.Stitcher,

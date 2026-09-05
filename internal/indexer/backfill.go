@@ -6,9 +6,9 @@ import (
 	"log"
 	"time"
 
+	"github.com/biorisk/flying-shuttle/internal/corpus"
 	"github.com/biorisk/flying-shuttle/internal/ingest"
 	"github.com/biorisk/flying-shuttle/internal/search"
-	"github.com/biorisk/flying-shuttle/internal/doc"
 )
 
 // Backfiller embeds chunks that have no vector yet. It runs on an interval and
@@ -16,7 +16,7 @@ import (
 // vectorised within seconds, and one uploaded while it's down is picked up as
 // soon as the embedder becomes ready.
 type Backfiller struct {
-	store    doc.Store
+	store    corpus.Store
 	embedder ingest.Embedder
 	idx      *search.HybridIndex
 
@@ -27,7 +27,7 @@ type Backfiller struct {
 
 // NewBackfiller wires a Backfiller. batch <= 0 defaults to 16; interval <= 0
 // defaults to 30s.
-func NewBackfiller(s doc.Store, e ingest.Embedder, idx *search.HybridIndex, batch int, interval time.Duration) *Backfiller {
+func NewBackfiller(s corpus.Store, e ingest.Embedder, idx *search.HybridIndex, batch int, interval time.Duration) *Backfiller {
 	if batch <= 0 {
 		batch = 16
 	}

@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/stitch"
-	"github.com/biorisk/flying-shuttle/internal/doc"
 )
 
 // LinearizeMode controls which nodes are included and their order.
@@ -97,14 +97,13 @@ func collectChunks(s doc.Store, nodes []model.Node) []stitch.ChunkInput {
 			}
 			seenSpan[key] = true
 
-			speaker := ""
-			if c, err := s.GetChunk(e.ChunkID); err == nil && c.Speaker != nil {
-				speaker = *c.Speaker
-			}
+			// Speaker attribution dropped in the corpus/doc split: evidence
+			// rows carry their own text but not the source chunk's speaker,
+			// and this half no longer reaches the corpus. Only the LLM
+			// stitch prompt used it. See corpus_separation_plan.md §3.
 			chunks = append(chunks, stitch.ChunkInput{
 				ID:      e.ChunkID,
 				Content: e.Text,
-				Speaker: speaker,
 			})
 		}
 	}

@@ -16,12 +16,13 @@ import (
 
 	"github.com/biorisk/flying-shuttle/internal/api"
 	"github.com/biorisk/flying-shuttle/internal/atlas"
+	"github.com/biorisk/flying-shuttle/internal/corpus"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/indexer"
 	"github.com/biorisk/flying-shuttle/internal/ingest"
 	"github.com/biorisk/flying-shuttle/internal/project"
 	"github.com/biorisk/flying-shuttle/internal/search"
 	"github.com/biorisk/flying-shuttle/internal/stitch"
-	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/biorisk/flying-shuttle/internal/workingdocs"
 )
@@ -51,7 +52,11 @@ func run() error {
 	if err := s.Migrate(); err != nil {
 		return err
 	}
-	if err := reconcileEmbeddingModel(s, paths.HNSW); err != nil {
+
+	// The corpus half. In Phase 1 it wraps the same connection as the
+	// document store; Phase 2 opens a separate corpus.db.
+	cs := corpus.New(s.DB())
+	if err := reconcileEmbeddingModel(cs, paths.HNSW); err != nil {
 		return err
 	}
 
@@ -102,7 +107,7 @@ func run() error {
 		}
 	}
 
-	if err := indexer.LoadAndReconcile(s, idx, paths.BM25, paths.HNSW); err != nil {
+	if err := indexer.LoadAndReconcile(cs, idx, paths.BM25, paths.HNSW); err != nil {
 		return err
 	}
 	log.Printf("index ready: %d docs (BM25), %d vectors (HNSW)", idx.BM25.Len(), idx.Vector.Len())
@@ -126,7 +131,7 @@ func run() error {
 
 	afterIngest := func() {}
 	if embedder != nil {
-		bf := indexer.NewBackfiller(s, embedder, idx, 16, 30*time.Second)
+		bf := indexer.NewBackfiller(cs, embedder, idx, 16, 30*time.Second)
 		spawn(bf.Run)
 		afterIngest = bf.Trigger
 	}
@@ -158,8 +163,8 @@ func run() error {
 		BaseCtx:  ctx,
 		Embedder: embedder,
 		Builder: &atlas.Builder{
-			Store:      atlas.NewStore(s.DB()),
-			Corpus:     func() ([]atlas.CorpusChunk, error) { return loadAtlasCorpus(s) },
+			Store:      atlas.NewStore(cs.DB()),
+			Corpus:     func() ([]atlas.CorpusChunk, error) { return loadAtlasCorpus(cs) },
 			Embedder:   embedder,
 			Summariser: atlasSummariser,
 			Labeller:   atlasLabeller,
@@ -171,6 +176,7 @@ func run() error {
 
 	deps := api.Deps{
 		Store:           s,
+		Corpus:          cs,
 		Atlas:           atlasSvc,
 		UploadDir:       paths.UploadDir,
 		ClusterEmbedder: clusterEmbedder,
@@ -234,7 +240,7 @@ const embedModelID = "embeddinggemma-300m-768"
 // reconcileEmbeddingModel clears stored embeddings and the HNSW snapshot when
 // the embedding model has changed since the last run (or when a pre-marker DB
 // holds vectors of the wrong dimension). The backfiller then re-embeds.
-func reconcileEmbeddingModel(s *doc.SQLiteStore, hnswPath string) error {
+func reconcileEmbeddingModel(s corpus.Store, hnswPath string) error {
 	prev, err := s.GetMeta("embed_model")
 	if err != nil {
 		return err
@@ -261,7 +267,7 @@ func reconcileEmbeddingModel(s *doc.SQLiteStore, hnswPath string) error {
 
 // loadAtlasCorpus pulls every embedded chunk (content + vector) for an Atlas
 // build.
-func loadAtlasCorpus(s doc.Store) ([]atlas.CorpusChunk, error) {
+func loadAtlasCorpus(s corpus.Store) ([]atlas.CorpusChunk, error) {
 	ids, err := s.ListChunkIDsWithEmbedding()
 	if err != nil {
 		return nil, err

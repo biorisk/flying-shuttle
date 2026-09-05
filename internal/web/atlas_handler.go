@@ -64,7 +64,7 @@ func (h *handlers) atlasPaneView() viewmodel.AtlasPane {
 				ChunkCount: r.ChunkCount, Color: regionColor(r.ID),
 			})
 		}
-		if cur, err := h.d.Store.ListChunkIDsWithEmbedding(); err == nil {
+		if cur, err := h.d.Corpus.ListChunkIDsWithEmbedding(); err == nil {
 			if behind := len(cur) - build.ChunkCount; behind > 0 && behind*10 > build.ChunkCount {
 				vm.Stale, vm.Behind = true, behind
 			}
@@ -273,7 +273,7 @@ func (h *handlers) atlasGraphJSON(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	chunks, _ := h.d.Store.GetChunksByIDs(ids)
+	chunks, _ := h.d.Corpus.GetChunksByIDs(ids)
 	fileOf := make(map[string]string, len(chunks))  // chunk id -> source file
 	fileChunks := make(map[string]int, len(chunks)) // source file -> chunk count
 	vecByID := make(map[string][]float32, len(chunks))
@@ -355,7 +355,7 @@ func transcriptLabel(d atlas.Digest, filename string) string {
 // chunk belongs to, and connected only by adjacency — the drill-down view has
 // no embedding edges.
 func (h *handlers) writeTranscriptChunks(w http.ResponseWriter, file string, regionByChunk map[string]string) {
-	chunks, err := h.d.Store.ListChunksBySourceFile(file)
+	chunks, err := h.d.Corpus.ListChunksBySourceFile(file)
 	if err != nil || len(chunks) == 0 {
 		http.Error(w, "transcript not found", http.StatusNotFound)
 		return
@@ -396,7 +396,7 @@ func chunkLabel(content string) string {
 // atlasChunk renders the selected passage into the Atlas right pane, as an
 // evidence-style card (#atlas-selected-chunk in AtlasList).
 func (h *handlers) atlasChunk(w http.ResponseWriter, r *http.Request) {
-	c, err := h.d.Store.GetChunk(chi.URLParam(r, "id"))
+	c, err := h.d.Corpus.GetChunk(chi.URLParam(r, "id"))
 	if err != nil {
 		http.Error(w, "chunk not found", http.StatusNotFound)
 		return
@@ -433,7 +433,7 @@ func (h *handlers) atlasRegion(w http.ResponseWriter, r *http.Request) {
 		Keywords: region.Digest.Keywords, Source: region.Digest.Source,
 	}
 	for _, m := range region.Members {
-		c, err := h.d.Store.GetChunk(m.ChunkID)
+		c, err := h.d.Corpus.GetChunk(m.ChunkID)
 		if err != nil {
 			continue
 		}

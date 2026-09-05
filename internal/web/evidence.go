@@ -5,16 +5,16 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/biorisk/flying-shuttle/internal/corpus"
 	"github.com/biorisk/flying-shuttle/internal/search"
-	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/web/viewmodel"
 )
 
 // EvidenceFinder turns bullet text into ranked candidate passages. It is the
 // single retrieval path for the outline editor — there is no separate search.
 type EvidenceFinder struct {
-	Index *search.HybridIndex
-	Store doc.Store
+	Index  *search.HybridIndex
+	Corpus corpus.Reader
 }
 
 // DefaultPageSize is how many passages the evidence pane shows per page.
@@ -121,7 +121,7 @@ func (f *EvidenceFinder) FindPage(ctx context.Context, query string, mode search
 
 	out := make([]viewmodel.Candidate, 0, len(results))
 	for _, r := range results {
-		c, err := f.Store.GetChunk(r.ChunkID)
+		c, err := f.Corpus.GetChunk(r.ChunkID)
 		if err != nil {
 			continue // chunk vanished between index and store; skip
 		}

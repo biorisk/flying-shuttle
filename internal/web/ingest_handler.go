@@ -20,7 +20,7 @@ const uploadListLimit = 500
 // page), so a large batch keeps polling until every file is done.
 func (h *handlers) ingestView() viewmodel.IngestDrawer {
 	var vm viewmodel.IngestDrawer
-	ups, total, err := h.d.Store.ListUploadsPage(0, 0) // all, newest first
+	ups, total, err := h.d.Corpus.ListUploadsPage(0, 0) // all, newest first
 	if err != nil {
 		log.Printf("ingest: list uploads: %v", err)
 		return vm

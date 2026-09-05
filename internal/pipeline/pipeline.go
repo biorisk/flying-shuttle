@@ -14,16 +14,16 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/biorisk/flying-shuttle/internal/corpus"
 	"github.com/biorisk/flying-shuttle/internal/ingest"
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/search"
-	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/google/uuid"
 )
 
 // Ingester accepts and processes transcript uploads.
 type Ingester struct {
-	Store       doc.Store
+	Store       corpus.Store
 	UploadDir   string
 	Index       *search.HybridIndex
 	AfterIngest func() // optional; nudges the embedding backfiller. Must not block.

@@ -6,8 +6,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/biorisk/flying-shuttle/internal/model"
+	"github.com/biorisk/flying-shuttle/internal/corpus"
 	"github.com/biorisk/flying-shuttle/internal/doc"
+	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/google/uuid"
 )
 
@@ -22,6 +23,21 @@ var ErrNoop = errors.New("outline: operation has no effect")
 // leaves at worst an orphan root node (recoverable), never a corrupt graph.
 type Service struct {
 	Store doc.Store
+	// Corpus resolves chunk text when attaching evidence. nil when the
+	// project is unbound (no corpus); AttachEvidence then errors.
+	Corpus corpus.Reader
+}
+
+// corpus returns the corpus reader, falling back to Store when it also
+// implements corpus.Reader (Phase 1: one connection behind both stores).
+func (s *Service) corpus() corpus.Reader {
+	if s.Corpus != nil {
+		return s.Corpus
+	}
+	if cr, ok := s.Store.(corpus.Reader); ok {
+		return cr
+	}
+	return nil
 }
 
 // Tree returns the current outline forest.
@@ -226,7 +242,11 @@ func (s *Service) FocusAfterDelete(id string) (string, error) {
 // chunk. When text is empty (or the range is degenerate) the whole chunk is
 // attached. Returns the new evidence bullet.
 func (s *Service) AttachEvidence(parentID, chunkID string, charStart, charEnd int, text string) (*model.Node, error) {
-	chunk, err := s.Store.GetChunk(chunkID)
+	cr := s.corpus()
+	if cr == nil {
+		return nil, errors.New("no corpus bound: cannot attach evidence")
+	}
+	chunk, err := cr.GetChunk(chunkID)
 	if err != nil {
 		return nil, err
 	}

@@ -6,11 +6,12 @@ import (
 	"os"
 
 	"github.com/biorisk/flying-shuttle/internal/atlas"
+	"github.com/biorisk/flying-shuttle/internal/corpus"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/outline"
 	"github.com/biorisk/flying-shuttle/internal/pipeline"
 	"github.com/biorisk/flying-shuttle/internal/search"
 	"github.com/biorisk/flying-shuttle/internal/stitch"
-	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/transcript"
 	"github.com/biorisk/flying-shuttle/internal/web/components"
 	"github.com/biorisk/flying-shuttle/internal/web/viewmodel"
@@ -21,6 +22,7 @@ import (
 // tasks require them.
 type Deps struct {
 	Store      doc.Store
+	Corpus     corpus.Store // nil when the project is unbound (no corpus)
 	Outline    *outline.Service
 	Transcript *transcript.Service
 	Ingester   *pipeline.Ingester
@@ -39,16 +41,27 @@ type Deps struct {
 // its fragment endpoints, and the /static asset tree. The JSON API lives under
 // /api/v1 and is mounted separately.
 func Mount(r chi.Router, d Deps) {
+	// Phase 1 scaffold: the corpus and document stores are the same
+	// connection, so a caller that passed only Store still has a working
+	// corpus. Removed once doc.Store is narrowed and callers pass Corpus.
+	if d.Corpus == nil {
+		if cs, ok := d.Store.(corpus.Store); ok {
+			d.Corpus = cs
+		}
+	}
 	// Fill in services derivable from the store so callers (and tests) can pass
 	// just Store.
 	if d.Outline == nil && d.Store != nil {
-		d.Outline = &outline.Service{Store: d.Store}
+		d.Outline = &outline.Service{Store: d.Store, Corpus: d.Corpus}
 	}
-	if d.Transcript == nil && d.Store != nil {
-		d.Transcript = &transcript.Service{Store: d.Store}
+	if d.Outline != nil && d.Outline.Corpus == nil {
+		d.Outline.Corpus = d.Corpus
 	}
-	if d.Ingester == nil && d.Store != nil {
-		d.Ingester = &pipeline.Ingester{Store: d.Store}
+	if d.Transcript == nil && d.Corpus != nil {
+		d.Transcript = &transcript.Service{Store: d.Corpus}
+	}
+	if d.Ingester == nil && d.Corpus != nil {
+		d.Ingester = &pipeline.Ingester{Store: d.Corpus}
 	}
 	if d.Stitcher == nil {
 		d.Stitcher = &stitch.StubStitcher{}
@@ -101,7 +114,7 @@ type handlers struct {
 }
 
 func (h *handlers) evidenceFinder() *EvidenceFinder {
-	return &EvidenceFinder{Index: h.d.Index, Store: h.d.Store}
+	return &EvidenceFinder{Index: h.d.Index, Corpus: h.d.Corpus}
 }
 
 // shell renders the full two-pane application page with every region SSR'd.
