@@ -4,10 +4,19 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/biorisk/flying-shuttle/internal/corpus"
 	"github.com/biorisk/flying-shuttle/internal/doc"
+	"github.com/biorisk/flying-shuttle/internal/model"
 )
 
 func newSvc(t *testing.T) *Service {
+	svc, _ := newSvcStore(t)
+	return svc
+}
+
+// newSvcStore returns the outline service plus a corpus store over the same
+// connection, for tests that need to seed chunks before attaching evidence.
+func newSvcStore(t *testing.T) (*Service, corpus.Store) {
 	t.Helper()
 	s, err := doc.NewSQLiteStore(":memory:")
 	if err != nil {
@@ -17,7 +26,15 @@ func newSvc(t *testing.T) *Service {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { s.Close() })
-	return &Service{Store: s}
+	cs := corpus.New(s.DB())
+	return &Service{Store: s, Corpus: cs}, cs
+}
+
+func seedChunk(t *testing.T, cs corpus.Store, c *model.Chunk) {
+	t.Helper()
+	if err := cs.CreateChunk(c); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // layout renders the forest as "id" with 2-space indent per depth, one per line.

@@ -12,13 +12,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/biorisk/flying-shuttle/internal/pipeline"
 	"github.com/biorisk/flying-shuttle/internal/doc"
+	"github.com/biorisk/flying-shuttle/internal/pipeline"
 	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/go-chi/chi/v5"
 )
 
-func ingestRouter(t *testing.T) (chi.Router, doc.Store) {
+func ingestRouter(t *testing.T) (chi.Router, *doc.SQLiteStore) {
 	t.Helper()
 	s, err := doc.NewSQLiteStore(":memory:")
 	if err != nil {

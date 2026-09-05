@@ -4,11 +4,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/doc"
+	"github.com/biorisk/flying-shuttle/internal/model"
 )
 
-func setup(t *testing.T) (*Service, doc.Store) {
+func setup(t *testing.T) (*Service, *doc.SQLiteStore) {
 	t.Helper()
 	s, err := doc.NewSQLiteStore(":memory:")
 	if err != nil {
@@ -23,7 +23,7 @@ func setup(t *testing.T) (*Service, doc.Store) {
 
 // seedTranscript writes n sequential chunks for one source file, each holding
 // "cK" as its text, with contiguous offsets.
-func seed(t *testing.T, s doc.Store, file string, n int) []model.Chunk {
+func seed(t *testing.T, s *doc.SQLiteStore, file string, n int) []model.Chunk {
 	t.Helper()
 	var chunks []model.Chunk
 	pos := 0

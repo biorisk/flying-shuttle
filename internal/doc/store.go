@@ -2,27 +2,13 @@ package doc
 
 import "github.com/biorisk/flying-shuttle/internal/model"
 
-// Store defines persistence operations for all domain entities.
+// Store defines persistence operations for the writing project: the outline
+// (nodes / edges), threads, evidence, snapshots and branches. Corpus-owned
+// data (chunks, uploads, transcript segments, embeddings) lives behind
+// corpus.Store. A project row references the corpus only by chunk id.
 type Store interface {
 	Migrate() error
 	Close() error
-
-	// Chunks (content is immutable; the embedding vector is derived metadata
-	// and may be filled in later via SetChunkEmbedding)
-	CreateChunk(c *model.Chunk) error
-	CreateChunks(chunks []model.Chunk) error // batch insert in a single transaction
-	GetChunk(id string) (*model.Chunk, error)
-	ListChunks() ([]model.Chunk, error)
-	// ListChunksPage returns a page (ordered by created_at) plus the total count.
-	// limit <= 0 means unlimited.
-	ListChunksPage(limit, offset int) ([]model.Chunk, int, error)
-	ListChunksBySourceFile(sourceFile string) ([]model.Chunk, error)
-	ListChunkIDs() ([]string, error)
-	ListChunkIDsWithEmbedding() ([]string, error)
-	GetChunksByIDs(ids []string) ([]model.Chunk, error)
-	ListChunksMissingEmbedding(limit int) ([]model.Chunk, error)
-	CountChunksMissingEmbedding() (int, error)
-	SetChunkEmbedding(id string, vec []byte) error
 
 	// Nodes
 	CreateNode(n *model.Node) error
@@ -31,12 +17,9 @@ type Store interface {
 	UpdateNode(n *model.Node) error // checks version for optimistic concurrency
 	DeleteNode(id string) error
 
-	// Node ↔ Chunk associations (legacy whole-chunk model)
-	GetNodeChunks(nodeID string) ([]model.Chunk, error)
-	SetNodeChunks(nodeID string, chunkIDs []string) error
-	ListUsedChunkIDs() ([]string, error) // all chunk IDs referenced by node_chunks or evidence
-
-	// Evidence: supporting text spans attached to a node (supersedes node_chunks)
+	// Evidence: supporting text spans attached to a node. The row carries a
+	// denormalized copy of its excerpt (source_file, char range, text) so it
+	// renders without the corpus; chunk_id is the only corpus reference.
 	CreateEvidence(e *model.Evidence) error
 	UpdateEvidence(e *model.Evidence) error // updates char_start, char_end, text
 	ListNodeEvidence(nodeID string) ([]model.Evidence, error)
@@ -65,19 +48,6 @@ type Store interface {
 	// Thread ↔ Node ordering
 	GetThreadNodes(threadID string) ([]model.ThreadNode, error)
 	SetThreadNodes(threadID string, nodes []model.ThreadNode) error
-
-	// Uploads
-	CreateUpload(u *model.Upload) error
-	GetUpload(id string) (*model.Upload, error)
-	ListUploads() ([]model.Upload, error)
-	// ListUploadsPage returns a page (newest first) plus the total count.
-	// limit <= 0 means unlimited.
-	ListUploadsPage(limit, offset int) ([]model.Upload, int, error)
-	UpdateUploadStatus(id string, status model.UploadStatus, errMsg string) error
-
-	// Transcript segments
-	CreateTranscriptSegment(seg *model.TranscriptSegment) error
-	ListTranscriptSegments(uploadID string) ([]model.TranscriptSegment, error)
 
 	// Full DAG state (for the working-doc mirror / recovery)
 	ExportState() (*model.SnapshotData, error)

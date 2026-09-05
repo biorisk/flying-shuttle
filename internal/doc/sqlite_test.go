@@ -173,83 +173,6 @@ func TestThreadCRUD(t *testing.T) {
 	}
 }
 
-func TestNodeChunks(t *testing.T) {
-	s := newTestStore(t)
-
-	n := &model.Node{ID: uuid.NewString(), Type: model.NodeTypeChunkRef, Title: "ref"}
-	s.CreateNode(n)
-
-	c1 := &model.Chunk{ID: uuid.NewString(), SourceFile: "a.txt", Content: "aaa", EndOffset: 3}
-	c2 := &model.Chunk{ID: uuid.NewString(), SourceFile: "b.txt", Content: "bbb", EndOffset: 3}
-	s.CreateChunk(c1)
-	s.CreateChunk(c2)
-
-	if err := s.SetNodeChunks(n.ID, []string{c2.ID, c1.ID}); err != nil {
-		t.Fatal(err)
-	}
-
-	chunks, err := s.GetNodeChunks(n.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(chunks) != 2 || chunks[0].ID != c2.ID || chunks[1].ID != c1.ID {
-		t.Fatalf("unexpected chunks order: %v", chunks)
-	}
-}
-
-func TestListUsedChunkIDs(t *testing.T) {
-	s := newTestStore(t)
-
-	// No used chunks initially.
-	used, err := s.ListUsedChunkIDs()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(used) != 0 {
-		t.Fatalf("expected 0 used chunks, got %d", len(used))
-	}
-
-	// Create nodes and chunks, then associate.
-	n1 := &model.Node{ID: uuid.NewString(), Type: model.NodeTypeChunkRef, Title: "ref1"}
-	n2 := &model.Node{ID: uuid.NewString(), Type: model.NodeTypeChunkRef, Title: "ref2"}
-	s.CreateNode(n1)
-	s.CreateNode(n2)
-
-	c1 := &model.Chunk{ID: uuid.NewString(), SourceFile: "a.txt", Content: "aaa", EndOffset: 3}
-	c2 := &model.Chunk{ID: uuid.NewString(), SourceFile: "b.txt", Content: "bbb", EndOffset: 3}
-	c3 := &model.Chunk{ID: uuid.NewString(), SourceFile: "c.txt", Content: "ccc", EndOffset: 3}
-	s.CreateChunk(c1)
-	s.CreateChunk(c2)
-	s.CreateChunk(c3)
-
-	// Associate c1 and c2 with n1, c2 with n2 (c2 used by both, c3 unused).
-	s.SetNodeChunks(n1.ID, []string{c1.ID, c2.ID})
-	s.SetNodeChunks(n2.ID, []string{c2.ID})
-
-	used, err = s.ListUsedChunkIDs()
-	if err != nil {
-		t.Fatal(err)
-	}
-	usedSet := make(map[string]bool)
-	for _, id := range used {
-		usedSet[id] = true
-	}
-
-	if !usedSet[c1.ID] {
-		t.Fatal("expected c1 to be used")
-	}
-	if !usedSet[c2.ID] {
-		t.Fatal("expected c2 to be used")
-	}
-	if usedSet[c3.ID] {
-		t.Fatal("expected c3 to NOT be used")
-	}
-	// DISTINCT — c2 should appear only once.
-	if len(used) != 2 {
-		t.Fatalf("expected 2 distinct used chunks, got %d", len(used))
-	}
-}
-
 func TestMoveNode_reorderSiblings(t *testing.T) {
 	s := newTestStore(t)
 
@@ -435,7 +358,7 @@ func TestSnapshotRestore(t *testing.T) {
 
 	c := &model.Chunk{ID: uuid.NewString(), SourceFile: "a.txt", Content: "chunk content", EndOffset: 13}
 	s.CreateChunk(c)
-	s.SetNodeChunks(parent.ID, []string{c.ID})
+	s.CreateEvidence(&model.Evidence{NodeID: parent.ID, ChunkID: c.ID, SourceFile: c.SourceFile, CharEnd: len([]rune(c.Content)), Text: c.Content})
 
 	// Snapshot this state.
 	summary, err := s.CreateSnapshot("before-edits")
@@ -484,8 +407,8 @@ func TestSnapshotRestore(t *testing.T) {
 		t.Fatalf("expected 1 thread node after restore, got %v", tn)
 	}
 
-	chunks, _ := s.GetNodeChunks(parent.ID)
-	if len(chunks) != 1 || chunks[0].ID != c.ID {
-		t.Fatalf("expected 1 node_chunk after restore, got %v", chunks)
+	ev, _ := s.ListNodeEvidence(parent.ID)
+	if len(ev) != 1 || ev[0].ChunkID != c.ID {
+		t.Fatalf("expected 1 evidence row after restore, got %v", ev)
 	}
 }

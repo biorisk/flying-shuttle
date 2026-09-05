@@ -10,31 +10,33 @@ import (
 	"testing"
 	"time"
 
+	"github.com/biorisk/flying-shuttle/internal/corpus"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/outline"
-	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/go-chi/chi/v5"
 )
 
-func previewRouter(t *testing.T) (chi.Router, *outline.Service, string) {
+func previewRouter(t *testing.T) (chi.Router, *outline.Service, corpus.Store, string) {
 	t.Helper()
 	s, _ := doc.NewSQLiteStore(":memory:")
 	if err := s.Migrate(); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { s.Close() })
+	cs := corpus.New(s.DB())
 	dir := t.TempDir()
 	omd := filepath.Join(dir, "outline.md")
 	os.WriteFile(omd, []byte("# my-book\n\n- Chapter one `[locked]`\n  > a quote — _iv.txt_\n"), 0o644)
-	svc := &outline.Service{Store: s}
+	svc := &outline.Service{Store: s, Corpus: cs}
 	r := chi.NewRouter()
-	web.Mount(r, web.Deps{Store: s, Outline: svc, ProjectName: "my-book", OutlineMDPath: omd})
-	return r, svc, omd
+	web.Mount(r, web.Deps{Store: s, Corpus: cs, Outline: svc, ProjectName: "my-book", OutlineMDPath: omd})
+	return r, svc, cs, omd
 }
 
 func TestPreview_outlineHTMLandControls(t *testing.T) {
-	r, _, _ := previewRouter(t)
+	r, _, _, _ := previewRouter(t)
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, httptest.NewRequest("GET", "/outline.html", nil))
 	if rec.Code != 200 || rec.Header().Get("Content-Type") != "text/html; charset=utf-8" {
@@ -54,7 +56,7 @@ func TestPreview_outlineHTMLandControls(t *testing.T) {
 }
 
 func TestPreview_outlineRawAndPDF(t *testing.T) {
-	r, _, _ := previewRouter(t)
+	r, _, _, _ := previewRouter(t)
 
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, httptest.NewRequest("GET", "/outline.md", nil))
@@ -73,10 +75,12 @@ func TestPreview_outlineRawAndPDF(t *testing.T) {
 }
 
 func TestPreview_manuscriptHTMLandPDF(t *testing.T) {
-	r, svc, _ := previewRouter(t)
+	r, svc, cs, _ := previewRouter(t)
 	b, _ := svc.AddRoot("A point")
 	c := &model.Chunk{ID: "c1", SourceFile: "iv.txt", Content: "the exact words"}
-	svc.Store.CreateChunk(c)
+	if err := cs.CreateChunk(c); err != nil {
+		t.Fatal(err)
+	}
 	svc.AttachEvidence(b.ID, "c1", 0, 0, "")
 
 	rec := httptest.NewRecorder()

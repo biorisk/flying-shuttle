@@ -3,12 +3,12 @@ package dag
 import (
 	"testing"
 
-	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/doc"
+	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/google/uuid"
 )
 
-func newTestStore(t *testing.T) doc.Store {
+func newTestStore(t *testing.T) *doc.SQLiteStore {
 	t.Helper()
 	s, err := doc.NewSQLiteStore(":memory:")
 	if err != nil {
@@ -21,7 +21,7 @@ func newTestStore(t *testing.T) doc.Store {
 	return s
 }
 
-func makeNode(t *testing.T, s doc.Store, title string) *model.Node {
+func makeNode(t *testing.T, s *doc.SQLiteStore, title string) *model.Node {
 	t.Helper()
 	n := &model.Node{ID: uuid.NewString(), Type: model.NodeTypeOutline, Title: title}
 	if err := s.CreateNode(n); err != nil {
@@ -30,7 +30,7 @@ func makeNode(t *testing.T, s doc.Store, title string) *model.Node {
 	return n
 }
 
-func makeEdge(t *testing.T, s doc.Store, from, to string) {
+func makeEdge(t *testing.T, s *doc.SQLiteStore, from, to string) {
 	t.Helper()
 	e := &model.Edge{ID: uuid.NewString(), FromNode: from, ToNode: to, Type: model.EdgeTypeLinear}
 	if err := s.CreateEdge(e); err != nil {

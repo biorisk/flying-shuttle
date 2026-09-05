@@ -5,12 +5,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/stitch"
-	"github.com/biorisk/flying-shuttle/internal/doc"
 )
 
-func setupLinearizeStore(t *testing.T) doc.Store {
+func setupLinearizeStore(t *testing.T) *doc.SQLiteStore {
 	t.Helper()
 	s, err := doc.NewSQLiteStore(":memory:")
 	if err != nil {
@@ -125,8 +125,10 @@ func TestLinearizeAndStitch_withChunks(t *testing.T) {
 	if err := s.CreateChunk(c2); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SetNodeChunks("n1", []string{"c1", "c2"}); err != nil {
-		t.Fatal(err)
+	for i, c := range []*model.Chunk{c1, c2} {
+		if err := s.CreateEvidence(&model.Evidence{NodeID: "n1", ChunkID: c.ID, SourceFile: c.SourceFile, CharEnd: len([]rune(c.Content)), Text: c.Content, Position: i}); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	th := &model.Thread{ID: "t1", Name: "Test"}
@@ -176,11 +178,10 @@ func TestLinearizeAndStitch_sharedChunkDedup(t *testing.T) {
 	if err := s.CreateChunk(c1); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SetNodeChunks("n1", []string{"c1"}); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.SetNodeChunks("n2", []string{"c1"}); err != nil {
-		t.Fatal(err)
+	for _, nid := range []string{"n1", "n2"} {
+		if err := s.CreateEvidence(&model.Evidence{NodeID: nid, ChunkID: c1.ID, SourceFile: c1.SourceFile, CharEnd: len([]rune(c1.Content)), Text: c1.Content}); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	th := &model.Thread{ID: "t1", Name: "Test"}

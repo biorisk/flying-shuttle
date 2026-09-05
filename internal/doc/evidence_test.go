@@ -45,18 +45,6 @@ func TestEvidenceCRUD(t *testing.T) {
 		t.Fatalf("sub-span offsets wrong: %+v", got[1])
 	}
 
-	// GetNodeChunks collapses to the distinct source chunk.
-	chunks, _ := s.GetNodeChunks(n.ID)
-	if len(chunks) != 1 || chunks[0].ID != c.ID {
-		t.Fatalf("expected 1 distinct chunk, got %v", chunks)
-	}
-
-	// ListUsedChunkIDs sees the chunk.
-	used, _ := s.ListUsedChunkIDs()
-	if len(used) != 1 || used[0] != c.ID {
-		t.Fatalf("expected c used, got %v", used)
-	}
-
 	if err := s.DeleteEvidence(sub.ID); err != nil {
 		t.Fatal(err)
 	}

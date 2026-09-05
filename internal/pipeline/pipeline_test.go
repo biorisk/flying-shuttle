@@ -9,7 +9,7 @@ import (
 	"github.com/biorisk/flying-shuttle/internal/doc"
 )
 
-func newIngester(t *testing.T) (*Ingester, doc.Store) {
+func newIngester(t *testing.T) (*Ingester, *doc.SQLiteStore) {
 	t.Helper()
 	s, err := doc.NewSQLiteStore(":memory:")
 	if err != nil {
@@ -22,7 +22,7 @@ func newIngester(t *testing.T) (*Ingester, doc.Store) {
 	return &Ingester{Store: s, UploadDir: t.TempDir()}, s
 }
 
-func waitForChunks(t *testing.T, s doc.Store, want int) {
+func waitForChunks(t *testing.T, s *doc.SQLiteStore, want int) {
 	t.Helper()
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {

@@ -11,15 +11,13 @@ import (
 // of a chunk, and returns the evidence node id plus the service.
 func attachQuote(t *testing.T) (*Service, string) {
 	t.Helper()
-	svc := newSvc(t)
+	svc, cs := newSvcStore(t)
 	root, err := svc.AddRoot("point")
 	if err != nil {
 		t.Fatal(err)
 	}
 	full := "ALPHA the quick brown fox jumps OMEGA"
-	if err := svc.Store.CreateChunk(&model.Chunk{ID: "c1", SourceFile: "f.txt", Content: full}); err != nil {
-		t.Fatal(err)
-	}
+	seedChunk(t, cs, &model.Chunk{ID: "c1", SourceFile: "f.txt", Content: full})
 	start := len([]rune("ALPHA "))
 	end := len([]rune("ALPHA the quick brown fox jumps"))
 	ev, err := svc.AttachEvidence(root.ID, "c1", start, end, "the quick brown fox jumps")
@@ -81,12 +79,10 @@ func TestLocateSelection(t *testing.T) {
 }
 
 func TestAttachEvidence_realignsFromText(t *testing.T) {
-	svc := newSvc(t)
+	svc, cs := newSvcStore(t)
 	root, _ := svc.AddRoot("point")
 	full := "PREFIX the chosen words END"
-	if err := svc.Store.CreateChunk(&model.Chunk{ID: "c1", SourceFile: "f.txt", Content: full}); err != nil {
-		t.Fatal(err)
-	}
+	seedChunk(t, cs, &model.Chunk{ID: "c1", SourceFile: "f.txt", Content: full})
 	// Client sent trimmed text but stale/too-long offsets (the classic bug).
 	ev, err := svc.AttachEvidence(root.ID, "c1", 0, 999, "the chosen words")
 	if err != nil {

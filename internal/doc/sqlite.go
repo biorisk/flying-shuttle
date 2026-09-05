@@ -60,6 +60,7 @@ func (s *SQLiteStore) Migrate() error {
 		"migrations/008_atlas_transcript.sql",
 		"migrations/009_atlas_chunk_label.sql",
 		"migrations/010_atlas_digest.sql",
+		"migrations/011_drop_node_chunks.sql",
 	}
 	for _, name := range migrations {
 		data, err := migrationFS.ReadFile(name)
@@ -438,82 +439,6 @@ func (s *SQLiteStore) DeleteNode(id string) error {
 		return ErrNotFound
 	}
 	return nil
-}
-
-// --- Node ↔ Chunk ---
-
-// GetNodeChunks returns the distinct source chunks a node's evidence draws
-// from, in evidence order. (node_chunks is superseded by the evidence table.)
-func (s *SQLiteStore) GetNodeChunks(nodeID string) ([]model.Chunk, error) {
-	rows, err := s.db.Query(
-		`SELECT c.id, c.source_file, c.content, c.start_offset, c.end_offset, c.speaker, c.embedding_vec, c.created_at
-		 FROM chunks c
-		 JOIN (SELECT chunk_id, MIN(position) AS pos FROM evidence WHERE node_id = ? GROUP BY chunk_id) e
-		   ON c.id = e.chunk_id
-		 ORDER BY e.pos`, nodeID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []model.Chunk
-	for rows.Next() {
-		c, err := scanChunkRows(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, *c)
-	}
-	return out, rows.Err()
-}
-
-// SetNodeChunks replaces a node's evidence with whole-chunk spans for the
-// given chunk IDs. Retained for the pre-evidence API surface (PUT
-// /nodes/{id}/chunks); new code writes CreateEvidence directly.
-func (s *SQLiteStore) SetNodeChunks(nodeID string, chunkIDs []string) error {
-	tx, err := s.db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	if _, err := tx.Exec(`DELETE FROM evidence WHERE node_id = ?`, nodeID); err != nil {
-		return err
-	}
-	for i, cid := range chunkIDs {
-		var sourceFile, content string
-		if err := tx.QueryRow(`SELECT source_file, content FROM chunks WHERE id = ?`, cid).
-			Scan(&sourceFile, &content); err != nil {
-			return fmt.Errorf("chunk %s: %w", cid, err)
-		}
-		if _, err := tx.Exec(
-			`INSERT INTO evidence (`+evidenceCols+`)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now'))`,
-			uuid.NewString(), nodeID, cid, sourceFile, 0, len([]rune(content)), content, i,
-		); err != nil {
-			return err
-		}
-	}
-	return tx.Commit()
-}
-
-func (s *SQLiteStore) ListUsedChunkIDs() ([]string, error) {
-	rows, err := s.db.Query(`
-		SELECT chunk_id FROM node_chunks
-		UNION
-		SELECT chunk_id FROM evidence`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
 }
 
 // --- Evidence ---
@@ -1145,7 +1070,7 @@ func (s *SQLiteStore) gatherDAGState() (*model.SnapshotData, error) {
 
 // clearDAGTables deletes all rows from the live DAG tables within a transaction.
 func clearDAGTables(tx *sql.Tx) error {
-	for _, table := range []string{"evidence", "node_chunks", "thread_nodes", "edges", "threads", "nodes"} {
+	for _, table := range []string{"evidence", "thread_nodes", "edges", "threads", "nodes"} {
 		if _, err := tx.Exec("DELETE FROM " + table); err != nil {
 			return fmt.Errorf("clear %s: %w", table, err)
 		}
