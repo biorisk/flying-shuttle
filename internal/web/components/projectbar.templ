@@ -36,5 +36,27 @@ templ ProjectBar(vm viewmodel.ProjectBar) {
 		} else {
 			<span class="project-name">{ orDash(vm.Current) }</span>
 		}
+		if vm.Switching == "" {
+			if vm.CorpusName != "" {
+				<span class="corpus-name" title="Bound corpus">▪ { vm.CorpusName }</span>
+			} else if vm.CanSwitch {
+				<details class="dag-menu corpus-bind">
+					<summary class="corpus-bind-toggle" title="Bind a corpus to this project">no corpus — bind…</summary>
+					<ul>
+						for _, c := range vm.Corpora {
+							<li>
+								<button type="button" data-on:click={ "@post('/project/bind-corpus?name=' + encodeURIComponent('" + c + "'))" }>{ c }</button>
+							</li>
+						}
+						<li>
+							<form data-on:submit__prevent="@post('/project/bind-corpus?name=' + encodeURIComponent(evt.target.elements.name.value))">
+								<input name="name" placeholder="new-corpus-name" autocomplete="off" pattern="[a-z0-9][a-z0-9_-]*"/>
+								<button type="submit">Create &amp; bind</button>
+							</form>
+						</li>
+					</ul>
+				</details>
+			}
+		}
 	</span>
 }

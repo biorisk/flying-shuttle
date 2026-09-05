@@ -53,6 +53,10 @@ type PageContent struct {
 	ThreadBar   templ.Component
 	SnapshotBar templ.Component
 	BranchBar   templ.Component
+	// CorpusBound is false for a project with no corpus: the ingest drawer,
+	// the Atlas tab, and the evidence pane are hidden and the outline still
+	// works on its own.
+	CorpusBound bool
 }
 
 func Page(c PageContent) templ.Component {
@@ -88,24 +92,40 @@ func Page(c PageContent) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"shell\" class=\"shell\" data-signals=\"{ focusId: '', drawerOpen: false, centerView: 'outline', threadId: '', evidenceWidth: 420, collapsed: {}, readerChunk: '', glue: 50, brushMode: false, exits: {}, diffAgainst: '', atlasOpen: false, atlasRegionId: '', atlasChunkId: '', atlasBuilding: false, atlasBuiltAt: 0, atlasRegions: 0, atlasChunkCount: 0, atlasError: '', atlasQuery: '', searchMode: 'hybrid', evidenceQuery: '', evidencePage: 1, evidencePageSize: 12 }\" data-class=\"{ 'drawer-open': $drawerOpen }\" data-style:grid-template-columns=\"($drawerOpen ? '300px ' : '0 ') + '1fr ' + $evidenceWidth + 'px'\"><aside id=\"ingest-drawer\" class=\"drawer\" aria-label=\"Transcript ingest\"><header class=\"drawer-head\"><span>Transcripts</span> <button type=\"button\" class=\"icon-btn\" data-on:click=\"$drawerOpen = false\" title=\"Close\">&times;</button></header>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"shell\" class=\"shell\" data-signals=\"{ focusId: '', drawerOpen: false, centerView: 'outline', threadId: '', evidenceWidth: 420, collapsed: {}, readerChunk: '', glue: 50, brushMode: false, exits: {}, diffAgainst: '', atlasOpen: false, atlasRegionId: '', atlasChunkId: '', atlasBuilding: false, atlasBuiltAt: 0, atlasRegions: 0, atlasChunkCount: 0, atlasError: '', atlasQuery: '', searchMode: 'hybrid', evidenceQuery: '', evidencePage: 1, evidencePageSize: 12 }\" data-class=\"{ 'drawer-open': $drawerOpen }\" data-style:grid-template-columns=\"($drawerOpen ? '300px ' : '0 ') + '1fr ' + $evidenceWidth + 'px'\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if c.Ingest != nil {
-				templ_7745c5c3_Err = c.Ingest.Render(ctx, templ_7745c5c3_Buffer)
+			if c.CorpusBound {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<aside id=\"ingest-drawer\" class=\"drawer\" aria-label=\"Transcript ingest\"><header class=\"drawer-head\"><span>Transcripts</span> <button type=\"button\" class=\"icon-btn\" data-on:click=\"$drawerOpen = false\" title=\"Close\">&times;</button></header>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div id=\"ingest\" class=\"drawer-body\"></div>")
+				if c.Ingest != nil {
+					templ_7745c5c3_Err = c.Ingest.Render(ctx, templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				} else {
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div id=\"ingest\" class=\"drawer-body\"></div>")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</aside>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</aside><main class=\"center\"><nav class=\"topbar\"><button type=\"button\" class=\"icon-btn drawer-toggle\" data-show=\"!$drawerOpen\" data-on:click=\"$drawerOpen = true\" title=\"Load transcripts\">&#9776;</button> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<main class=\"center\"><nav class=\"topbar\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
+			}
+			if c.CorpusBound {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<button type=\"button\" class=\"icon-btn drawer-toggle\" data-show=\"!$drawerOpen\" data-on:click=\"$drawerOpen = true\" title=\"Load transcripts\">&#9776;</button> ")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
 			}
 			if c.ProjectBar != nil {
 				templ_7745c5c3_Err = c.ProjectBar.Render(ctx, templ_7745c5c3_Buffer)
@@ -113,12 +133,22 @@ func Page(c PageContent) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<span id=\"project-bar\" class=\"project-bar\"></span> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<span id=\"project-bar\" class=\"project-bar\"></span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<span class=\"view-tabs\"><button type=\"button\" data-class=\"{ active: $centerView === 'outline' }\" data-on:click=\"$centerView = 'outline'\">Outline</button> <button type=\"button\" data-class=\"{ active: $centerView === 'preview' }\" data-on:click=\"$centerView = 'preview'; @get('/stitch?thread=' + ($threadId||'') + '&glue=' + $glue)\">Preview</button> <button type=\"button\" data-class=\"{ active: $centerView === 'atlas' }\" data-on:click=\"$atlasOpen = true; $centerView = 'atlas'; @get('/atlas?node=' + ($focusId||'')); window.atlasGraph && window.atlasGraph.open()\" title=\"Browse the source atlas\">Atlas</button></span> <a class=\"outline-preview-link\" href=\"/outline.html\" target=\"_blank\" title=\"Open the outline as a formatted page (rendered / raw / PDF)\">outline&#8599;</a> <span class=\"dag-bars\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<span class=\"view-tabs\"><button type=\"button\" data-class=\"{ active: $centerView === 'outline' }\" data-on:click=\"$centerView = 'outline'\">Outline</button> <button type=\"button\" data-class=\"{ active: $centerView === 'preview' }\" data-on:click=\"$centerView = 'preview'; @get('/stitch?thread=' + ($threadId||'') + '&glue=' + $glue)\">Preview</button> ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if c.CorpusBound {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<button type=\"button\" data-class=\"{ active: $centerView === 'atlas' }\" data-on:click=\"$atlasOpen = true; $centerView = 'atlas'; @get('/atlas?node=' + ($focusId||'')); window.atlasGraph && window.atlasGraph.open()\" title=\"Browse the source atlas\">Atlas</button>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</span> <a class=\"outline-preview-link\" href=\"/outline.html\" target=\"_blank\" title=\"Open the outline as a formatted page (rendered / raw / PDF)\">outline&#8599;</a> <span class=\"dag-bars\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -128,7 +158,7 @@ func Page(c PageContent) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<span id=\"thread-bar\" class=\"dag-bar\"></span> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<span id=\"thread-bar\" class=\"dag-bar\"></span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -139,7 +169,7 @@ func Page(c PageContent) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<span id=\"snapshot-bar\" class=\"dag-bar\"></span> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<span id=\"snapshot-bar\" class=\"dag-bar\"></span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -150,12 +180,12 @@ func Page(c PageContent) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<span id=\"branch-bar\" class=\"dag-bar\"></span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<span id=\"branch-bar\" class=\"dag-bar\"></span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</span></nav>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</span></nav>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -165,7 +195,7 @@ func Page(c PageContent) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<section id=\"outline\" class=\"outline-pane\" data-show=\"$centerView === 'outline'\"></section>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<section id=\"outline\" class=\"outline-pane\" data-show=\"$centerView === 'outline'\"></section>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -176,7 +206,7 @@ func Page(c PageContent) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<section id=\"stitch\" class=\"stitch\" data-show=\"$centerView === 'preview'\"></section>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<section id=\"stitch\" class=\"stitch\" data-show=\"$centerView === 'preview'\"></section>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -187,38 +217,49 @@ func Page(c PageContent) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<section id=\"atlas-canvas\" data-show=\"$centerView === 'atlas'\"></section>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<section id=\"atlas-canvas\" data-show=\"$centerView === 'atlas'\"></section>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</main>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</main>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if c.Evidence != nil {
-				templ_7745c5c3_Err = c.Evidence.Render(ctx, templ_7745c5c3_Buffer)
+			if c.CorpusBound {
+				if c.Evidence != nil {
+					templ_7745c5c3_Err = c.Evidence.Render(ctx, templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				} else {
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<section id=\"evidence\" class=\"evidence-pane\" aria-label=\"Evidence\"><p class=\"evidence-empty\">Start typing a bullet — supporting passages appear here.</p></section>")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, " ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
+				if c.AtlasList != nil {
+					templ_7745c5c3_Err = c.AtlasList.Render(ctx, templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				} else {
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<section id=\"atlas\" class=\"atlas-pane\" aria-label=\"Source atlas\" data-show=\"$atlasOpen\"></section>")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<section id=\"evidence\" class=\"evidence-pane\" aria-label=\"Evidence\"><p class=\"evidence-empty\">Start typing a bullet — supporting passages appear here.</p></section>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<section id=\"evidence\" class=\"evidence-pane\" aria-label=\"Evidence\"><p class=\"evidence-empty\">No corpus bound. Evidence, the transcript reader, the Source Atlas and transcript ingest are unavailable — the outline, threads, snapshots, branches and export all work.</p></section><section id=\"atlas\" class=\"atlas-pane\" aria-label=\"Source atlas\" data-show=\"$atlasOpen\"></section>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			if c.AtlasList != nil {
-				templ_7745c5c3_Err = c.AtlasList.Render(ctx, templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<section id=\"atlas\" class=\"atlas-pane\" aria-label=\"Source atlas\" data-show=\"$atlasOpen\"></section>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

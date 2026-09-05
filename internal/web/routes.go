@@ -23,6 +23,7 @@ import (
 type Deps struct {
 	Store      doc.Store
 	Corpus     corpus.Store // nil when the project is unbound (no corpus)
+	CorpusName string       // name of the bound corpus, for the project bar
 	Outline    *outline.Service
 	Transcript *transcript.Service
 	Ingester   *pipeline.Ingester
@@ -67,6 +68,7 @@ func Mount(r chi.Router, d Deps) {
 	h.mountPreview(r)
 	r.Post("/project/switch", h.projectSwitch)
 	r.Post("/project/new", h.projectNew)
+	r.Post("/project/bind-corpus", h.bindCorpus)
 
 	// Test hook: wipe the outline. Registered only when SHUTTLE_E2E=1 so the
 	// Playwright suite can reset between scenarios without a JSON CRUD API.
@@ -76,17 +78,22 @@ func Mount(r chi.Router, d Deps) {
 
 	r.Group(func(r chi.Router) {
 		r.Get("/outline", h.outline)
-		r.Get("/evidence", h.evidence)
-		r.Get("/evidence/transcript", h.transcriptReader)
 		r.Get("/stitch", h.stitchView)
-		r.Get("/ingest", h.ingest)
-		r.Post("/ingest", h.ingestUpload)
-		r.Post("/ingest/path", h.ingestPath)
 		h.mountOutlineEdit(r)
 		h.mountThreads(r)
-		h.mountAtlas(r)
 		h.mountExits(r)
 		r.Post("/outline/rescue", h.outlineRescue)
+
+		// Corpus-backed surfaces: only mounted for a bound project. An
+		// unbound project's UI hides these; the endpoints 404.
+		if d.Corpus != nil {
+			r.Get("/evidence", h.evidence)
+			r.Get("/evidence/transcript", h.transcriptReader)
+			r.Get("/ingest", h.ingest)
+			r.Post("/ingest", h.ingestUpload)
+			r.Post("/ingest/path", h.ingestPath)
+			h.mountAtlas(r)
+		}
 
 		r.Get("/snapshots", h.snapshotBar)
 		r.Post("/snapshots", h.snapshotCreate)
@@ -127,6 +134,7 @@ func (h *handlers) shell(w http.ResponseWriter, r *http.Request) {
 		ThreadBar:   components.ThreadBar(h.threadBarView()),
 		SnapshotBar: components.SnapshotBar(h.snapshotBarView()),
 		BranchBar:   components.BranchBar(h.branchBarView()),
+		CorpusBound: h.d.Corpus != nil,
 	}))
 }
 

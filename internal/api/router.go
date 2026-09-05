@@ -22,6 +22,7 @@ import (
 type Deps struct {
 	Store           doc.Store
 	Corpus          corpus.Store // nil when the project is unbound (no corpus)
+	CorpusName      string       // bound corpus name, for the project bar
 	UploadDir       string
 	ClusterEmbedder ingest.Embedder // backs cluster suggestions; may be a stub
 	Index           *search.HybridIndex
@@ -69,6 +70,7 @@ func NewRouter(d Deps) http.Handler {
 	web.Mount(r, web.Deps{
 		Store:         d.Store,
 		Corpus:        d.Corpus,
+		CorpusName:    d.CorpusName,
 		Outline:       &outline.Service{Store: d.Store, Corpus: d.Corpus},
 		Transcript:    &transcript.Service{Store: d.Corpus},
 		Ingester:      ingester,

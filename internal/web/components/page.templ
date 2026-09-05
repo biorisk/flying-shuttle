@@ -43,6 +43,10 @@ type PageContent struct {
 	ThreadBar   templ.Component
 	SnapshotBar templ.Component
 	BranchBar   templ.Component
+	// CorpusBound is false for a project with no corpus: the ingest drawer,
+	// the Atlas tab, and the evidence pane are hidden and the outline still
+	// works on its own.
+	CorpusBound bool
 }
 
 templ Page(c PageContent) {
@@ -54,26 +58,30 @@ templ Page(c PageContent) {
 			data-class="{ 'drawer-open': $drawerOpen }"
 			data-style:grid-template-columns="($drawerOpen ? '300px ' : '0 ') + '1fr ' + $evidenceWidth + 'px'"
 		>
-			<aside id="ingest-drawer" class="drawer" aria-label="Transcript ingest">
-				<header class="drawer-head">
-					<span>Transcripts</span>
-					<button type="button" class="icon-btn" data-on:click="$drawerOpen = false" title="Close">&times;</button>
-				</header>
-				if c.Ingest != nil {
-					@c.Ingest
-				} else {
-					<div id="ingest" class="drawer-body"></div>
-				}
-			</aside>
+			if c.CorpusBound {
+				<aside id="ingest-drawer" class="drawer" aria-label="Transcript ingest">
+					<header class="drawer-head">
+						<span>Transcripts</span>
+						<button type="button" class="icon-btn" data-on:click="$drawerOpen = false" title="Close">&times;</button>
+					</header>
+					if c.Ingest != nil {
+						@c.Ingest
+					} else {
+						<div id="ingest" class="drawer-body"></div>
+					}
+				</aside>
+			}
 			<main class="center">
 				<nav class="topbar">
-					<button
-						type="button"
-						class="icon-btn drawer-toggle"
-						data-show="!$drawerOpen"
-						data-on:click="$drawerOpen = true"
-						title="Load transcripts"
-					>&#9776;</button>
+					if c.CorpusBound {
+						<button
+							type="button"
+							class="icon-btn drawer-toggle"
+							data-show="!$drawerOpen"
+							data-on:click="$drawerOpen = true"
+							title="Load transcripts"
+						>&#9776;</button>
+					}
 					if c.ProjectBar != nil {
 						@c.ProjectBar
 					} else {
@@ -82,7 +90,9 @@ templ Page(c PageContent) {
 					<span class="view-tabs">
 						<button type="button" data-class="{ active: $centerView === 'outline' }" data-on:click="$centerView = 'outline'">Outline</button>
 						<button type="button" data-class="{ active: $centerView === 'preview' }" data-on:click="$centerView = 'preview'; @get('/stitch?thread=' + ($threadId||'') + '&glue=' + $glue)">Preview</button>
-						<button type="button" data-class="{ active: $centerView === 'atlas' }" data-on:click="$atlasOpen = true; $centerView = 'atlas'; @get('/atlas?node=' + ($focusId||'')); window.atlasGraph && window.atlasGraph.open()" title="Browse the source atlas">Atlas</button>
+						if c.CorpusBound {
+							<button type="button" data-class="{ active: $centerView === 'atlas' }" data-on:click="$atlasOpen = true; $centerView = 'atlas'; @get('/atlas?node=' + ($focusId||'')); window.atlasGraph && window.atlasGraph.open()" title="Browse the source atlas">Atlas</button>
+						}
 					</span>
 					<a class="outline-preview-link" href="/outline.html" target="_blank" title="Open the outline as a formatted page (rendered / raw / PDF)">outline&#8599;</a>
 					<span class="dag-bars">
@@ -119,16 +129,23 @@ templ Page(c PageContent) {
 					<section id="atlas-canvas" data-show="$centerView === 'atlas'"></section>
 				}
 			</main>
-			if c.Evidence != nil {
-				@c.Evidence
+			if c.CorpusBound {
+				if c.Evidence != nil {
+					@c.Evidence
+				} else {
+					<section id="evidence" class="evidence-pane" aria-label="Evidence">
+						<p class="evidence-empty">Start typing a bullet — supporting passages appear here.</p>
+					</section>
+				}
+				if c.AtlasList != nil {
+					@c.AtlasList
+				} else {
+					<section id="atlas" class="atlas-pane" aria-label="Source atlas" data-show="$atlasOpen"></section>
+				}
 			} else {
 				<section id="evidence" class="evidence-pane" aria-label="Evidence">
-					<p class="evidence-empty">Start typing a bullet — supporting passages appear here.</p>
+					<p class="evidence-empty">No corpus bound. Evidence, the transcript reader, the Source Atlas and transcript ingest are unavailable — the outline, threads, snapshots, branches and export all work.</p>
 				</section>
-			}
-			if c.AtlasList != nil {
-				@c.AtlasList
-			} else {
 				<section id="atlas" class="atlas-pane" aria-label="Source atlas" data-show="$atlasOpen"></section>
 			}
 		</div>

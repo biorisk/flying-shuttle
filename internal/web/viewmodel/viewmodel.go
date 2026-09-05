@@ -168,10 +168,12 @@ type Outline struct {
 
 // ProjectBar is the render model for the #project-bar picker.
 type ProjectBar struct {
-	Current   string
-	Names     []string
-	CanSwitch bool
-	Switching string // non-empty while a switch is in progress
+	Current    string
+	Names      []string
+	CanSwitch  bool
+	Switching  string   // non-empty while a switch is in progress
+	CorpusName string   // bound corpus ("" = unbound)
+	Corpora    []string // corpora available to bind
 }
 
 // ThreadRow is one thread in the thread bar.

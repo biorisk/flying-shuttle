@@ -43,7 +43,9 @@ func run() error {
 		return err
 	}
 	pp := bind.Project
+	corpusName := ""
 	if bind.Corpus != nil {
+		corpusName = bind.Corpus.Name
 		log.Printf("project %q  corpus %q  (%s)", pp.Name, bind.Corpus.Name, bind.Home)
 	} else {
 		log.Printf("project %q  (unbound — no corpus; evidence/atlas/ingest hidden)", pp.Name)
@@ -195,6 +197,7 @@ func run() error {
 	deps := api.Deps{
 		Store:           s,
 		Corpus:          cs,
+		CorpusName:      corpusName,
 		Atlas:           atlasSvc,
 		UploadDir:       uploadDir,
 		ClusterEmbedder: clusterEmbedder,

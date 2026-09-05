@@ -15,17 +15,48 @@ func (h *handlers) projectBarView() viewmodel.ProjectBar {
 		Current:   h.d.ProjectName,
 		CanSwitch: h.d.SwitchProject != nil && h.d.ProjectHome != "",
 	}
+	vm.CorpusName = h.d.CorpusName
 	if h.d.ProjectHome != "" {
 		names, err := project.ListProjects(h.d.ProjectHome)
 		if err != nil {
 			log.Printf("project bar: list: %v", err)
 		}
 		vm.Names = names
+		if corpora, err := project.ListCorpora(h.d.ProjectHome); err == nil {
+			vm.Corpora = corpora
+		}
 	}
 	if len(vm.Names) == 0 && vm.Current != "" {
 		vm.Names = []string{vm.Current}
 	}
 	return vm
+}
+
+// bindCorpus writes the current project's corpus binding and restarts the
+// server so the new corpus is opened.
+//
+//	POST /project/bind-corpus?name=<corpus>
+func (h *handlers) bindCorpus(w http.ResponseWriter, r *http.Request) {
+	if h.d.SwitchProject == nil || h.d.ProjectHome == "" {
+		http.Error(w, "corpus binding disabled", http.StatusForbidden)
+		return
+	}
+	name := r.URL.Query().Get("name")
+	if !project.ValidName(name) {
+		http.Error(w, "invalid corpus name", http.StatusBadRequest)
+		return
+	}
+	if _, err := project.CreateCorpus(h.d.ProjectHome, name); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	pp := project.ProjectPathsFor(h.d.ProjectHome, h.d.ProjectName)
+	if err := project.WriteBinding(pp, name); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	// Re-exec on the same project; boot re-reads project.json.
+	h.triggerRestart(w, r, h.d.ProjectName)
 }
 
 // projectSwitch persists the target project and triggers the server restart;
@@ -63,7 +94,12 @@ func (h *handlers) doSwitch(w http.ResponseWriter, r *http.Request, name string,
 			return
 		}
 	}
+	h.triggerRestart(w, r, name)
+}
 
+// triggerRestart streams the "switching…" bar, schedules a poll-and-reload on
+// the client, and fires the server re-exec.
+func (h *handlers) triggerRestart(w http.ResponseWriter, r *http.Request, name string) {
 	sse := datastar.NewSSE(w, r)
 	vm := h.projectBarView()
 	vm.Switching = name
