@@ -6,23 +6,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/biorisk/flying-shuttle/internal/doc"
+	"github.com/biorisk/flying-shuttle/internal/corpus"
 )
 
-func newIngester(t *testing.T) (*Ingester, *doc.SQLiteStore) {
+func newIngester(t *testing.T) (*Ingester, corpus.Store) {
 	t.Helper()
-	s, err := doc.NewSQLiteStore(":memory:")
+	s, err := corpus.Open(filepath.Join(t.TempDir(), "c.db"), false)
 	if err != nil {
-		t.Fatal(err)
-	}
-	if err := s.Migrate(); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { s.Close() })
 	return &Ingester{Store: s, UploadDir: t.TempDir()}, s
 }
 
-func waitForChunks(t *testing.T, s *doc.SQLiteStore, want int) {
+func waitForChunks(t *testing.T, s corpus.Store, want int) {
 	t.Helper()
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {

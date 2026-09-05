@@ -27,8 +27,8 @@ type ExtractiveSummariser struct {
 
 	// TitleTerms / KeywordCount / AbstractSentences override the defaults
 	// (3 / 6 / 2) when non-zero.
-	TitleTerms       int
-	KeywordCount     int
+	TitleTerms        int
+	KeywordCount      int
 	AbstractSentences int
 }
 

@@ -7,23 +7,20 @@ import (
 	"testing"
 
 	"github.com/biorisk/flying-shuttle/internal/outline"
-	"github.com/biorisk/flying-shuttle/internal/doc"
+	"github.com/biorisk/flying-shuttle/internal/storetest"
 	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/go-chi/chi/v5"
 )
 
 func TestExits_addListDelete(t *testing.T) {
-	s, _ := doc.NewSQLiteStore(":memory:")
-	if err := s.Migrate(); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { s.Close() })
-	svc := &outline.Service{Store: s}
+	sp := storetest.New(t)
+	s := sp.Doc
+	svc := &outline.Service{Store: s, Corpus: sp.Corpus}
 	a, _ := svc.AddRoot("Scene A")
 	b, _ := svc.AddSibling(a.ID, "Scene B")
 
 	r := chi.NewRouter()
-	web.Mount(r, web.Deps{Store: s, Outline: svc})
+	web.Mount(r, web.Deps{Store: s, Corpus: sp.Corpus, Outline: svc})
 
 	// list exits (empty) — B is an option
 	rec := httptest.NewRecorder()

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/biorisk/flying-shuttle/internal/corpus"
-	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/ingest"
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/search"
@@ -42,15 +41,12 @@ func (f *fakeEmbedder) EmbedBatch(_ context.Context, texts []string) ([][]float3
 
 func newStore(t *testing.T) corpus.Store {
 	t.Helper()
-	s, err := doc.NewSQLiteStore(":memory:")
+	s, err := corpus.Open(filepath.Join(t.TempDir(), "c.db"), false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Migrate(); err != nil {
-		t.Fatal(err)
-	}
 	t.Cleanup(func() { s.Close() })
-	return corpus.New(s.DB())
+	return s
 }
 
 func mkChunk(t *testing.T, s corpus.Store, content string) model.Chunk {

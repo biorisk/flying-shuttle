@@ -24,35 +24,6 @@ func TestMigrate(t *testing.T) {
 	_ = newTestStore(t) // succeeds without error
 }
 
-func TestChunkCRUD(t *testing.T) {
-	s := newTestStore(t)
-
-	c := &model.Chunk{
-		ID:         uuid.NewString(),
-		SourceFile: "test.txt",
-		Content:    "hello world",
-		EndOffset:  11,
-	}
-	if err := s.CreateChunk(c); err != nil {
-		t.Fatal(err)
-	}
-	got, err := s.GetChunk(c.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Content != "hello world" {
-		t.Fatalf("got content %q", got.Content)
-	}
-
-	all, err := s.ListChunks()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(all) != 1 {
-		t.Fatalf("expected 1, got %d", len(all))
-	}
-}
-
 func TestNodeCRUD(t *testing.T) {
 	s := newTestStore(t)
 
@@ -357,7 +328,6 @@ func TestSnapshotRestore(t *testing.T) {
 	})
 
 	c := &model.Chunk{ID: uuid.NewString(), SourceFile: "a.txt", Content: "chunk content", EndOffset: 13}
-	s.CreateChunk(c)
 	s.CreateEvidence(&model.Evidence{NodeID: parent.ID, ChunkID: c.ID, SourceFile: c.SourceFile, CharEnd: len([]rune(c.Content)), Text: c.Content})
 
 	// Snapshot this state.

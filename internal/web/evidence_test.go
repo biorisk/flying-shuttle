@@ -5,22 +5,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/biorisk/flying-shuttle/internal/corpus"
-	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/search"
+	"github.com/biorisk/flying-shuttle/internal/storetest"
 	"github.com/biorisk/flying-shuttle/internal/web"
 )
 
 func TestEvidenceFinder_ranksAndResolves(t *testing.T) {
-	s, err := doc.NewSQLiteStore(":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := s.Migrate(); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { s.Close() })
+	sp := storetest.New(t)
 
 	idx := search.NewHybridIndex(nil) // BM25-only
 	chunks := []model.Chunk{
@@ -29,13 +21,13 @@ func TestEvidenceFinder_ranksAndResolves(t *testing.T) {
 		{ID: "c3", SourceFile: "iv.txt", Content: "fear gave way to resolve once I started speaking"},
 	}
 	for i := range chunks {
-		if err := s.CreateChunk(&chunks[i]); err != nil {
+		if err := sp.Corpus.CreateChunk(&chunks[i]); err != nil {
 			t.Fatal(err)
 		}
 		idx.IndexChunk(&chunks[i])
 	}
 
-	f := &web.EvidenceFinder{Index: idx, Corpus: corpus.New(s.DB())}
+	f := &web.EvidenceFinder{Index: idx, Corpus: sp.Corpus}
 
 	res, err := f.FindPage(context.Background(), "fear", "", 1, 5)
 	if err != nil {
@@ -72,9 +64,7 @@ func TestEvidenceFinder_ranksAndResolves(t *testing.T) {
 }
 
 func TestEvidenceFinder_multiSpanSnippet(t *testing.T) {
-	s, _ := doc.NewSQLiteStore(":memory:")
-	s.Migrate()
-	t.Cleanup(func() { s.Close() })
+	sp := storetest.New(t)
 
 	idx := search.NewHybridIndex(nil)
 	gap := "We then discussed the venue and catering and parking arrangements for a while. "
@@ -86,10 +76,10 @@ func TestEvidenceFinder_multiSpanSnippet(t *testing.T) {
 			"Eventually the budget dispute went to the board. " +
 			gap + gap,
 	}
-	s.CreateChunk(&c)
+	sp.Corpus.CreateChunk(&c)
 	idx.IndexChunk(&c)
 
-	f := &web.EvidenceFinder{Index: idx, Corpus: corpus.New(s.DB())}
+	f := &web.EvidenceFinder{Index: idx, Corpus: sp.Corpus}
 	res, err := f.FindPage(context.Background(), "budget", "", 1, 5)
 	got := res.Candidates
 	if err != nil || len(got) != 1 {
@@ -111,14 +101,7 @@ func TestEvidenceFinder_multiSpanSnippet(t *testing.T) {
 }
 
 func TestEvidenceFinder_marksHitsAndCentersSnippet(t *testing.T) {
-	s, err := doc.NewSQLiteStore(":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := s.Migrate(); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { s.Close() })
+	sp := storetest.New(t)
 
 	idx := search.NewHybridIndex(nil)
 	lead := "We spent the first hour on scheduling and room bookings and other logistics. "
@@ -127,12 +110,12 @@ func TestEvidenceFinder_marksHitsAndCentersSnippet(t *testing.T) {
 		SourceFile: "iv.txt",
 		Content:    lead + lead + "Then the budget shortfall came up and dominated the rest. " + lead + lead,
 	}
-	if err := s.CreateChunk(&c); err != nil {
+	if err := sp.Corpus.CreateChunk(&c); err != nil {
 		t.Fatal(err)
 	}
 	idx.IndexChunk(&c)
 
-	f := &web.EvidenceFinder{Index: idx, Corpus: corpus.New(s.DB())}
+	f := &web.EvidenceFinder{Index: idx, Corpus: sp.Corpus}
 	res, err := f.FindPage(context.Background(), "budget shortfall", "", 1, 5)
 	got := res.Candidates
 	if err != nil || len(got) != 1 {

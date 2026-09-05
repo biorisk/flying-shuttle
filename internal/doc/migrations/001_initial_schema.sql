@@ -1,17 +1,8 @@
--- Flying Shuttle: initial schema
+-- Flying Shuttle: project (document) schema. The outline and its structure.
+-- Corpus-owned tables (chunks, uploads, transcript_segments, atlas_*) live in
+-- the corpus database — see internal/corpus/migrations.
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
-
-CREATE TABLE IF NOT EXISTS chunks (
-    id          TEXT PRIMARY KEY,
-    source_file TEXT NOT NULL,
-    content     TEXT NOT NULL,
-    start_offset INTEGER NOT NULL,
-    end_offset   INTEGER NOT NULL,
-    speaker     TEXT,
-    embedding_vec BLOB,
-    created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-);
 
 CREATE TABLE IF NOT EXISTS nodes (
     id         TEXT PRIMARY KEY,
@@ -23,13 +14,6 @@ CREATE TABLE IF NOT EXISTS nodes (
     version    INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
     updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-);
-
-CREATE TABLE IF NOT EXISTS node_chunks (
-    node_id  TEXT NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
-    chunk_id TEXT NOT NULL REFERENCES chunks(id) ON DELETE RESTRICT,
-    position INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (node_id, chunk_id)
 );
 
 CREATE TABLE IF NOT EXISTS edges (

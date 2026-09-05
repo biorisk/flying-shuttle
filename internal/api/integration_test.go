@@ -13,10 +13,11 @@ import (
 	"time"
 
 	"github.com/biorisk/flying-shuttle/internal/api"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/search"
 	"github.com/biorisk/flying-shuttle/internal/stitch"
-	"github.com/biorisk/flying-shuttle/internal/doc"
+	"github.com/biorisk/flying-shuttle/internal/storetest"
 )
 
 // TestFullLoop drives the whole product loop through the real router — using
@@ -25,18 +26,12 @@ import (
 // evidence, open the transcript reader, attach a passage as a locked
 // sub-bullet, preview the stitch, download the markdown.
 func TestFullLoop(t *testing.T) {
-	s, err := doc.NewSQLiteStore(":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := s.Migrate(); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { s.Close() })
+	sp := storetest.New(t)
+	s := sp.Doc
 
 	idx := search.NewHybridIndex(nil) // BM25-only
 	dir := t.TempDir()
-	srv := httptest.NewServer(api.NewRouter(api.Deps{Store: s, UploadDir: dir, Index: idx, Stitcher: &stitch.StubStitcher{}, AfterIngest: func() {}}))
+	srv := httptest.NewServer(api.NewRouter(api.Deps{Store: s, Corpus: sp.Corpus, UploadDir: dir, Index: idx, Stitcher: &stitch.StubStitcher{}, AfterIngest: func() {}}))
 	t.Cleanup(srv.Close)
 
 	get := func(path string) string {
@@ -96,12 +91,12 @@ func TestFullLoop(t *testing.T) {
 	// wait for async chunking
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
-		if cs, _ := s.ListChunks(); len(cs) > 0 {
+		if cs, _ := sp.Corpus.ListChunks(); len(cs) > 0 {
 			break
 		}
 		time.Sleep(30 * time.Millisecond)
 	}
-	chunks, _ := s.ListChunks()
+	chunks, _ := sp.Corpus.ListChunks()
 	if len(chunks) == 0 {
 		t.Fatal("upload produced no chunks")
 	}

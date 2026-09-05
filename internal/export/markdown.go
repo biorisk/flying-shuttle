@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/biorisk/flying-shuttle/internal/dag"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/stitch"
-	"github.com/biorisk/flying-shuttle/internal/doc"
 )
 
 // ExportFormat specifies the output format.

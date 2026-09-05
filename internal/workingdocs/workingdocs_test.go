@@ -8,32 +8,25 @@ import (
 	"testing"
 	"time"
 
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/outline"
-	"github.com/biorisk/flying-shuttle/internal/doc"
+	"github.com/biorisk/flying-shuttle/internal/storetest"
 )
 
-func newStore(t *testing.T) *doc.SQLiteStore {
-	t.Helper()
-	s, err := doc.NewSQLiteStore(":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := s.Migrate(); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { s.Close() })
-	return s
-}
+func newStore(t *testing.T) doc.Store { return storetest.New(t).Doc }
 
 func TestRenderOutline(t *testing.T) {
-	s := newStore(t)
-	svc := &outline.Service{Store: s}
+	st := storetest.New(t)
+	s := st.Doc
+	svc := &outline.Service{Store: s, Corpus: st.Corpus}
 	root, _ := svc.AddRoot("Chapter one")
 	pt, _ := svc.AddChild(root.ID, "A point")
 	svc.SetLocked(pt.ID, true)
 	c := &model.Chunk{ID: "c1", SourceFile: "iv.txt", Content: "the exact words chosen"}
-	s.CreateChunk(c)
+	if err := st.Corpus.CreateChunk(c); err != nil {
+		t.Fatal(err)
+	}
 	svc.AttachEvidence(root.ID, "c1", 0, 0, "")
 
 	data, _ := s.ExportState()

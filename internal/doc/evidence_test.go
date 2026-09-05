@@ -13,7 +13,6 @@ func TestEvidenceCRUD(t *testing.T) {
 	n := &model.Node{ID: uuid.NewString(), Type: model.NodeTypeChunkRef, Title: "ref"}
 	s.CreateNode(n)
 	c := &model.Chunk{ID: uuid.NewString(), SourceFile: "a.txt", Content: "the quick brown fox", EndOffset: 19}
-	s.CreateChunk(c)
 
 	full := &model.Evidence{
 		NodeID: n.ID, ChunkID: c.ID, SourceFile: "a.txt",
@@ -68,7 +67,6 @@ func TestEvidenceSnapshotRoundTrip(t *testing.T) {
 	n := &model.Node{ID: uuid.NewString(), Type: model.NodeTypeChunkRef, Title: "ref"}
 	s.CreateNode(n)
 	c := &model.Chunk{ID: uuid.NewString(), SourceFile: "a.txt", Content: "hello there world", EndOffset: 17}
-	s.CreateChunk(c)
 	s.CreateEvidence(&model.Evidence{
 		NodeID: n.ID, ChunkID: c.ID, SourceFile: "a.txt",
 		CharStart: 6, CharEnd: 11, Text: "there", Position: 0,

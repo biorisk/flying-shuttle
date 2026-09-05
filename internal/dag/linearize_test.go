@@ -2,6 +2,7 @@ package dag
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -10,13 +11,10 @@ import (
 	"github.com/biorisk/flying-shuttle/internal/stitch"
 )
 
-func setupLinearizeStore(t *testing.T) *doc.SQLiteStore {
+func setupLinearizeStore(t *testing.T) doc.Store {
 	t.Helper()
-	s, err := doc.NewSQLiteStore(":memory:")
+	s, err := doc.Open(filepath.Join(t.TempDir(), "p.db"))
 	if err != nil {
-		t.Fatal(err)
-	}
-	if err := s.Migrate(); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { s.Close() })
@@ -119,12 +117,6 @@ func TestLinearizeAndStitch_withChunks(t *testing.T) {
 
 	c1 := &model.Chunk{ID: "c1", SourceFile: "interview.txt", Content: "I felt afraid"}
 	c2 := &model.Chunk{ID: "c2", SourceFile: "interview.txt", Content: "But I pushed through"}
-	if err := s.CreateChunk(c1); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.CreateChunk(c2); err != nil {
-		t.Fatal(err)
-	}
 	for i, c := range []*model.Chunk{c1, c2} {
 		if err := s.CreateEvidence(&model.Evidence{NodeID: "n1", ChunkID: c.ID, SourceFile: c.SourceFile, CharEnd: len([]rune(c.Content)), Text: c.Content, Position: i}); err != nil {
 			t.Fatal(err)
@@ -175,9 +167,6 @@ func TestLinearizeAndStitch_sharedChunkDedup(t *testing.T) {
 	}
 
 	c1 := &model.Chunk{ID: "c1", SourceFile: "f.txt", Content: "shared content"}
-	if err := s.CreateChunk(c1); err != nil {
-		t.Fatal(err)
-	}
 	for _, nid := range []string{"n1", "n2"} {
 		if err := s.CreateEvidence(&model.Evidence{NodeID: nid, ChunkID: c1.ID, SourceFile: c1.SourceFile, CharEnd: len([]rune(c1.Content)), Text: c1.Content}); err != nil {
 			t.Fatal(err)
@@ -303,12 +292,6 @@ func TestLinearizeAndStitch_usesExcerptNotWholeChunk(t *testing.T) {
 	if err := s.CreateNode(n1); err != nil {
 		t.Fatal(err)
 	}
-	full := "SECRET_PREAMBLE the part the writer actually chose SECRET_TAIL"
-	c := &model.Chunk{ID: "c1", SourceFile: "interview.txt", Content: full}
-	if err := s.CreateChunk(c); err != nil {
-		t.Fatal(err)
-	}
-
 	// Attach only the middle span as evidence.
 	const want = "the part the writer actually chose"
 	start := len([]rune("SECRET_PREAMBLE "))

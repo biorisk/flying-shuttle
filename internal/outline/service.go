@@ -28,17 +28,7 @@ type Service struct {
 	Corpus corpus.Reader
 }
 
-// corpus returns the corpus reader, falling back to Store when it also
-// implements corpus.Reader (Phase 1: one connection behind both stores).
-func (s *Service) corpus() corpus.Reader {
-	if s.Corpus != nil {
-		return s.Corpus
-	}
-	if cr, ok := s.Store.(corpus.Reader); ok {
-		return cr
-	}
-	return nil
-}
+func (s *Service) corpus() corpus.Reader { return s.Corpus }
 
 // Tree returns the current outline forest.
 func (s *Service) Tree() ([]*TreeNode, error) {

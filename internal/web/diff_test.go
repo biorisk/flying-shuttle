@@ -6,18 +6,15 @@ import (
 	"testing"
 
 	"github.com/biorisk/flying-shuttle/internal/outline"
-	"github.com/biorisk/flying-shuttle/internal/doc"
+	"github.com/biorisk/flying-shuttle/internal/storetest"
 	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/go-chi/chi/v5"
 )
 
 func TestDiff_renderAndRescue(t *testing.T) {
-	s, _ := doc.NewSQLiteStore(":memory:")
-	if err := s.Migrate(); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { s.Close() })
-	svc := &outline.Service{Store: s}
+	sp := storetest.New(t)
+	s := sp.Doc
+	svc := &outline.Service{Store: s, Corpus: sp.Corpus}
 	a, _ := svc.AddRoot("Kept")
 	b, _ := svc.AddChild(a.ID, "Doomed")
 
@@ -29,7 +26,7 @@ func TestDiff_renderAndRescue(t *testing.T) {
 	svc.AddRoot("Fresh")
 
 	r := chi.NewRouter()
-	web.Mount(r, web.Deps{Store: s, Outline: svc})
+	web.Mount(r, web.Deps{Store: s, Corpus: sp.Corpus, Outline: svc})
 
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, httptest.NewRequest("GET", "/outline?diff="+snap.ID, nil))

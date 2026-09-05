@@ -41,14 +41,6 @@ type Deps struct {
 // its fragment endpoints, and the /static asset tree. The JSON API lives under
 // /api/v1 and is mounted separately.
 func Mount(r chi.Router, d Deps) {
-	// Phase 1 scaffold: the corpus and document stores are the same
-	// connection, so a caller that passed only Store still has a working
-	// corpus. Removed once doc.Store is narrowed and callers pass Corpus.
-	if d.Corpus == nil {
-		if cs, ok := d.Store.(corpus.Store); ok {
-			d.Corpus = cs
-		}
-	}
 	// Fill in services derivable from the store so callers (and tests) can pass
 	// just Store.
 	if d.Outline == nil && d.Store != nil {

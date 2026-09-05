@@ -2,27 +2,25 @@ package atlas_test
 
 import (
 	"errors"
+	"path/filepath"
 	"testing"
 
 	"github.com/biorisk/flying-shuttle/internal/atlas"
+	"github.com/biorisk/flying-shuttle/internal/corpus"
 	"github.com/biorisk/flying-shuttle/internal/model"
-	"github.com/biorisk/flying-shuttle/internal/doc"
 )
 
-func newTestStore(t *testing.T) (*doc.SQLiteStore, atlas.Store) {
+func newTestStore(t *testing.T) (corpus.Store, atlas.Store) {
 	t.Helper()
-	s, err := doc.NewSQLiteStore(":memory:")
+	s, err := corpus.Open(filepath.Join(t.TempDir(), "c.db"), false)
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}
 	t.Cleanup(func() { s.Close() })
-	if err := s.Migrate(); err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
 	return s, atlas.NewStore(s.DB())
 }
 
-func seedChunks(t *testing.T, s *doc.SQLiteStore, ids ...string) {
+func seedChunks(t *testing.T, s corpus.Store, ids ...string) {
 	t.Helper()
 	chunks := make([]model.Chunk, len(ids))
 	for i, id := range ids {

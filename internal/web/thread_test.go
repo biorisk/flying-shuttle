@@ -7,23 +7,20 @@ import (
 	"testing"
 
 	"github.com/biorisk/flying-shuttle/internal/outline"
-	"github.com/biorisk/flying-shuttle/internal/doc"
+	"github.com/biorisk/flying-shuttle/internal/storetest"
 	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/go-chi/chi/v5"
 )
 
 func TestThreads_createToggleAppend(t *testing.T) {
-	s, _ := doc.NewSQLiteStore(":memory:")
-	if err := s.Migrate(); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { s.Close() })
-	svc := &outline.Service{Store: s}
+	sp := storetest.New(t)
+	s := sp.Doc
+	svc := &outline.Service{Store: s, Corpus: sp.Corpus}
 	a, _ := svc.AddRoot("a")
 	b, _ := svc.AddSibling(a.ID, "b")
 
 	r := chi.NewRouter()
-	web.Mount(r, web.Deps{Store: s, Outline: svc})
+	web.Mount(r, web.Deps{Store: s, Corpus: sp.Corpus, Outline: svc})
 
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req(t, "POST", "/threads", url.Values{"name": {"Ch1"}}))

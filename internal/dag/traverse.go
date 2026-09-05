@@ -3,8 +3,8 @@ package dag
 import (
 	"fmt"
 
-	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/doc"
+	"github.com/biorisk/flying-shuttle/internal/model"
 )
 
 // Linearize walks a thread's ordered nodes and returns them with full node data.

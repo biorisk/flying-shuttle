@@ -8,18 +8,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/biorisk/flying-shuttle/internal/doc"
+	"github.com/biorisk/flying-shuttle/internal/storetest"
 	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/go-chi/chi/v5"
 )
 
 func projectRouter(t *testing.T) (chi.Router, string, *[]string) {
 	t.Helper()
-	s, _ := doc.NewSQLiteStore(":memory:")
-	if err := s.Migrate(); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { s.Close() })
+	sp := storetest.New(t)
+	s := sp.Doc
 	home := t.TempDir()
 	os.MkdirAll(filepath.Join(home, "default"), 0o755)
 
@@ -27,6 +24,7 @@ func projectRouter(t *testing.T) (chi.Router, string, *[]string) {
 	r := chi.NewRouter()
 	web.Mount(r, web.Deps{
 		Store:         s,
+		Corpus:        sp.Corpus,
 		ProjectName:   "default",
 		ProjectHome:   home,
 		SwitchProject: func(name string) { *switched = append(*switched, name) },

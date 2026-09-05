@@ -3,8 +3,8 @@ package dag
 import (
 	"fmt"
 
-	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/doc"
+	"github.com/biorisk/flying-shuttle/internal/model"
 )
 
 // Issue represents a single graph integrity problem.

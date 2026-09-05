@@ -11,21 +11,18 @@ import (
 	"time"
 
 	"github.com/biorisk/flying-shuttle/internal/corpus"
-	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/outline"
+	"github.com/biorisk/flying-shuttle/internal/storetest"
 	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/go-chi/chi/v5"
 )
 
 func previewRouter(t *testing.T) (chi.Router, *outline.Service, corpus.Store, string) {
 	t.Helper()
-	s, _ := doc.NewSQLiteStore(":memory:")
-	if err := s.Migrate(); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { s.Close() })
-	cs := corpus.New(s.DB())
+	sp := storetest.New(t)
+	s := sp.Doc
+	cs := sp.Corpus
 	dir := t.TempDir()
 	omd := filepath.Join(dir, "outline.md")
 	os.WriteFile(omd, []byte("# my-book\n\n- Chapter one `[locked]`\n  > a quote — _iv.txt_\n"), 0o644)
@@ -112,12 +109,11 @@ func TestPreview_manuscriptHTMLandPDF(t *testing.T) {
 }
 
 func TestPreviewEvents_reloadOnBroadcast(t *testing.T) {
-	s, _ := doc.NewSQLiteStore(":memory:")
-	s.Migrate()
-	t.Cleanup(func() { s.Close() })
+	sp := storetest.New(t)
+	s := sp.Doc
 	br := web.NewBroadcaster()
 	r := chi.NewRouter()
-	web.Mount(r, web.Deps{Store: s, PreviewReload: br})
+	web.Mount(r, web.Deps{Store: s, Corpus: sp.Corpus, PreviewReload: br})
 
 	srv := httptest.NewServer(r)
 	t.Cleanup(srv.Close)

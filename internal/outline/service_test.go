@@ -2,6 +2,7 @@ package outline
 
 import (
 	"errors"
+	"path/filepath"
 	"testing"
 
 	"github.com/biorisk/flying-shuttle/internal/corpus"
@@ -18,16 +19,17 @@ func newSvc(t *testing.T) *Service {
 // connection, for tests that need to seed chunks before attaching evidence.
 func newSvcStore(t *testing.T) (*Service, corpus.Store) {
 	t.Helper()
-	s, err := doc.NewSQLiteStore(":memory:")
+	path := filepath.Join(t.TempDir(), "store.db")
+	d, err := doc.Open(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Migrate(); err != nil {
+	c, err := corpus.Open(path, false)
+	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { s.Close() })
-	cs := corpus.New(s.DB())
-	return &Service{Store: s, Corpus: cs}, cs
+	t.Cleanup(func() { c.Close(); d.Close() })
+	return &Service{Store: d, Corpus: c}, c
 }
 
 func seedChunk(t *testing.T, cs corpus.Store, c *model.Chunk) {

@@ -41,15 +41,6 @@ type Deps struct {
 // "/", plus a tiny JSON surface under /api/v1 for the offline embedding
 // pipeline (see python/README.md) and a health check.
 func NewRouter(d Deps) http.Handler {
-	// Phase 1 scaffold: corpus and doc share one connection, so a caller
-	// passing only Store still has a usable corpus. Dropped when doc.Store
-	// narrows and every caller passes Corpus.
-	if d.Corpus == nil {
-		if cs, ok := d.Store.(corpus.Store); ok {
-			d.Corpus = cs
-		}
-	}
-
 	r := chi.NewRouter()
 
 	r.Use(chimw.RequestID)

@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/biorisk/flying-shuttle/internal/dag"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/stitch"
-	"github.com/biorisk/flying-shuttle/internal/doc"
 )
 
 func setupStore(t *testing.T) doc.Store {

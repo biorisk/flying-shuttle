@@ -7,24 +7,21 @@ import (
 	"testing"
 
 	"github.com/biorisk/flying-shuttle/internal/outline"
-	"github.com/biorisk/flying-shuttle/internal/doc"
+	"github.com/biorisk/flying-shuttle/internal/storetest"
 	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/go-chi/chi/v5"
 )
 
 func TestOutlineMove_reparentAndReorder(t *testing.T) {
-	s, _ := doc.NewSQLiteStore(":memory:")
-	if err := s.Migrate(); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { s.Close() })
-	svc := &outline.Service{Store: s}
+	sp := storetest.New(t)
+	s := sp.Doc
+	svc := &outline.Service{Store: s, Corpus: sp.Corpus}
 	a, _ := svc.AddRoot("a")
 	b, _ := svc.AddSibling(a.ID, "b")
 	c, _ := svc.AddSibling(b.ID, "c")
 
 	r := chi.NewRouter()
-	web.Mount(r, web.Deps{Store: s, Outline: svc})
+	web.Mount(r, web.Deps{Store: s, Corpus: sp.Corpus, Outline: svc})
 
 	// move c under a at position 0
 	rec := httptest.NewRecorder()

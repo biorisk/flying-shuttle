@@ -10,27 +10,24 @@ import (
 
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/outline"
-	"github.com/biorisk/flying-shuttle/internal/doc"
+	"github.com/biorisk/flying-shuttle/internal/storetest"
 	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/go-chi/chi/v5"
 )
 
 func TestAttachEvidence_wholeChunkAndExcerpt(t *testing.T) {
-	s, _ := doc.NewSQLiteStore(":memory:")
-	if err := s.Migrate(); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { s.Close() })
-	svc := &outline.Service{Store: s}
+	sp := storetest.New(t)
+	s := sp.Doc
+	svc := &outline.Service{Store: s, Corpus: sp.Corpus}
 
 	bullet, _ := svc.AddRoot("the fear")
 	full := "PREAMBLE the words I chose TAIL"
-	if err := s.CreateChunk(&model.Chunk{ID: "c1", SourceFile: "iv.txt", Content: full, EndOffset: len(full)}); err != nil {
+	if err := sp.Corpus.CreateChunk(&model.Chunk{ID: "c1", SourceFile: "iv.txt", Content: full, EndOffset: len(full)}); err != nil {
 		t.Fatal(err)
 	}
 
 	r := chi.NewRouter()
-	web.Mount(r, web.Deps{Store: s, Outline: svc})
+	web.Mount(r, web.Deps{Store: s, Corpus: sp.Corpus, Outline: svc})
 
 	// whole chunk (no offsets)
 	rec := httptest.NewRecorder()
@@ -77,20 +74,17 @@ func TestAttachEvidence_wholeChunkAndExcerpt(t *testing.T) {
 }
 
 func TestAttachEvidence_fromCandidateSelection(t *testing.T) {
-	s, _ := doc.NewSQLiteStore(":memory:")
-	if err := s.Migrate(); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { s.Close() })
-	svc := &outline.Service{Store: s}
+	sp := storetest.New(t)
+	s := sp.Doc
+	svc := &outline.Service{Store: s, Corpus: sp.Corpus}
 	bullet, _ := svc.AddRoot("claim")
 	full := "Opening remarks. The witness confirmed the payment was authorized. Closing."
-	if err := s.CreateChunk(&model.Chunk{ID: "c1", SourceFile: "iv.txt", Content: full, EndOffset: len(full)}); err != nil {
+	if err := sp.Corpus.CreateChunk(&model.Chunk{ID: "c1", SourceFile: "iv.txt", Content: full, EndOffset: len(full)}); err != nil {
 		t.Fatal(err)
 	}
 
 	r := chi.NewRouter()
-	web.Mount(r, web.Deps{Store: s, Outline: svc})
+	web.Mount(r, web.Deps{Store: s, Corpus: sp.Corpus, Outline: svc})
 
 	// The candidate-card path posts only chunk_id + text (no offsets).
 	rec := httptest.NewRecorder()
@@ -112,16 +106,13 @@ func TestAttachEvidence_fromCandidateSelection(t *testing.T) {
 }
 
 func TestQuoteEditAndDelete(t *testing.T) {
-	s, _ := doc.NewSQLiteStore(":memory:")
-	if err := s.Migrate(); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { s.Close() })
-	svc := &outline.Service{Store: s}
+	sp := storetest.New(t)
+	s := sp.Doc
+	svc := &outline.Service{Store: s, Corpus: sp.Corpus}
 
 	bullet, _ := svc.AddRoot("claim")
 	full := "LEAD the decisive testimony came late TAIL"
-	if err := s.CreateChunk(&model.Chunk{ID: "c1", SourceFile: "iv.txt", Content: full, EndOffset: len(full)}); err != nil {
+	if err := sp.Corpus.CreateChunk(&model.Chunk{ID: "c1", SourceFile: "iv.txt", Content: full, EndOffset: len(full)}); err != nil {
 		t.Fatal(err)
 	}
 	quote := "the decisive testimony came late"
@@ -131,7 +122,7 @@ func TestQuoteEditAndDelete(t *testing.T) {
 	}
 
 	r := chi.NewRouter()
-	web.Mount(r, web.Deps{Store: s, Outline: svc})
+	web.Mount(r, web.Deps{Store: s, Corpus: sp.Corpus, Outline: svc})
 
 	// trim "the " off the front and " came late" off the back -> "decisive testimony"
 	rec := httptest.NewRecorder()

@@ -7,27 +7,21 @@ import (
 	"testing"
 
 	"github.com/biorisk/flying-shuttle/internal/model"
-	"github.com/biorisk/flying-shuttle/internal/doc"
+	"github.com/biorisk/flying-shuttle/internal/storetest"
 	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/go-chi/chi/v5"
 )
 
 func TestTranscriptReader_windowAndScrub(t *testing.T) {
-	s, err := doc.NewSQLiteStore(":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := s.Migrate(); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { s.Close() })
+	sp := storetest.New(t)
+	s := sp.Doc
 
 	pos := 0
 	var ids []string
 	for i := 0; i < 8; i++ {
 		txt := "seg" + string(rune('A'+i))
 		c := &model.Chunk{ID: txt, SourceFile: "iv.txt", Content: txt, StartOffset: pos, EndOffset: pos + len(txt)}
-		if err := s.CreateChunk(c); err != nil {
+		if err := sp.Corpus.CreateChunk(c); err != nil {
 			t.Fatal(err)
 		}
 		ids = append(ids, c.ID)
@@ -35,7 +29,7 @@ func TestTranscriptReader_windowAndScrub(t *testing.T) {
 	}
 
 	r := chi.NewRouter()
-	web.Mount(r, web.Deps{Store: s})
+	web.Mount(r, web.Deps{Store: s, Corpus: sp.Corpus})
 
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/evidence/transcript?chunk=segE&node=n1", nil))
@@ -57,12 +51,11 @@ func TestTranscriptReader_windowAndScrub(t *testing.T) {
 }
 
 func TestTranscriptReader_highlightsLocatedSpan(t *testing.T) {
-	s, _ := doc.NewSQLiteStore(":memory:")
-	s.Migrate()
-	t.Cleanup(func() { s.Close() })
-	s.CreateChunk(&model.Chunk{ID: "c1", SourceFile: "a.txt", Content: "alpha beta gamma delta", StartOffset: 0, EndOffset: 22})
+	sp := storetest.New(t)
+	s := sp.Doc
+	sp.Corpus.CreateChunk(&model.Chunk{ID: "c1", SourceFile: "a.txt", Content: "alpha beta gamma delta", StartOffset: 0, EndOffset: 22})
 	r := chi.NewRouter()
-	web.Mount(r, web.Deps{Store: s})
+	web.Mount(r, web.Deps{Store: s, Corpus: sp.Corpus})
 
 	rec := httptest.NewRecorder()
 	// fs/fe select "beta gamma" (runes 6..16).
@@ -84,12 +77,11 @@ func TestTranscriptReader_highlightsLocatedSpan(t *testing.T) {
 }
 
 func TestTranscriptReader_prefillsExcerptFormWithLocatedSpan(t *testing.T) {
-	s, _ := doc.NewSQLiteStore(":memory:")
-	s.Migrate()
-	t.Cleanup(func() { s.Close() })
-	s.CreateChunk(&model.Chunk{ID: "c1", SourceFile: "a.txt", Content: "alpha beta gamma delta", StartOffset: 0, EndOffset: 22})
+	sp := storetest.New(t)
+	s := sp.Doc
+	sp.Corpus.CreateChunk(&model.Chunk{ID: "c1", SourceFile: "a.txt", Content: "alpha beta gamma delta", StartOffset: 0, EndOffset: 22})
 	r := chi.NewRouter()
-	web.Mount(r, web.Deps{Store: s})
+	web.Mount(r, web.Deps{Store: s, Corpus: sp.Corpus})
 
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/evidence/transcript?chunk=c1&node=n1&fs=6&fe=16", nil))
@@ -114,12 +106,11 @@ func TestTranscriptReader_prefillsExcerptFormWithLocatedSpan(t *testing.T) {
 }
 
 func TestTranscriptReader_hasExcerptForm(t *testing.T) {
-	s, _ := doc.NewSQLiteStore(":memory:")
-	s.Migrate()
-	t.Cleanup(func() { s.Close() })
-	s.CreateChunk(&model.Chunk{ID: "c1", SourceFile: "a.txt", Content: "hello world here", StartOffset: 0, EndOffset: 16})
+	sp := storetest.New(t)
+	s := sp.Doc
+	sp.Corpus.CreateChunk(&model.Chunk{ID: "c1", SourceFile: "a.txt", Content: "hello world here", StartOffset: 0, EndOffset: 16})
 	r := chi.NewRouter()
-	web.Mount(r, web.Deps{Store: s})
+	web.Mount(r, web.Deps{Store: s, Corpus: sp.Corpus})
 
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/evidence/transcript?chunk=c1&node=n9", nil))

@@ -8,8 +8,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/doc"
+	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/google/renameio"
 )
 

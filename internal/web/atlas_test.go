@@ -11,20 +11,19 @@ import (
 	"time"
 
 	"github.com/biorisk/flying-shuttle/internal/atlas"
+	"github.com/biorisk/flying-shuttle/internal/corpus"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/ingest"
 	"github.com/biorisk/flying-shuttle/internal/model"
-	"github.com/biorisk/flying-shuttle/internal/doc"
+	"github.com/biorisk/flying-shuttle/internal/storetest"
 	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/go-chi/chi/v5"
 )
 
-func atlasTestServer(t *testing.T) (*doc.SQLiteStore, *atlas.Service, http.Handler) {
+func atlasTestServer(t *testing.T) (doc.Store, corpus.Store, *atlas.Service, http.Handler) {
 	t.Helper()
-	s, _ := doc.NewSQLiteStore(":memory:")
-	if err := s.Migrate(); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { s.Close() })
+	sp := storetest.New(t)
+	s := sp.Doc
 
 	// 3 topical blobs, each its own source file (transcript), deterministic
 	// axis-aligned vectors, StartOffset set so drill-down order is exact.
@@ -46,13 +45,13 @@ func atlasTestServer(t *testing.T) (*doc.SQLiteStore, *atlas.Service, http.Handl
 			corpus = append(corpus, atlas.CorpusChunk{ID: id, Content: body, Vec: v, SourceFile: files[g], StartOffset: i})
 		}
 	}
-	if err := s.CreateChunks(chunks); err != nil {
+	if err := sp.Corpus.CreateChunks(chunks); err != nil {
 		t.Fatal(err)
 	}
 
 	emb := &ingest.StubEmbedder{Dim: 8}
 	svc := &atlas.Service{Embedder: emb, Builder: &atlas.Builder{
-		Store:    atlas.NewStore(s.DB()),
+		Store:    atlas.NewStore(sp.Corpus.DB()),
 		Corpus:   func() ([]atlas.CorpusChunk, error) { return corpus, nil },
 		Embedder: emb,
 		Labeller: &atlas.ChunkLabeller{Complete: stubCompleter{}, ModelName: "stub"},
@@ -60,8 +59,8 @@ func atlasTestServer(t *testing.T) (*doc.SQLiteStore, *atlas.Service, http.Handl
 	}}
 
 	r := chi.NewRouter()
-	web.Mount(r, web.Deps{Store: s, Atlas: svc})
-	return s, svc, r
+	web.Mount(r, web.Deps{Store: s, Corpus: sp.Corpus, Atlas: svc})
+	return s, sp.Corpus, svc, r
 }
 
 // stubCompleter echoes one "<n>. passage label n" line per numbered passage
@@ -78,7 +77,7 @@ func (stubCompleter) Complete(_ context.Context, _, userPrompt string) (string, 
 }
 
 func TestAtlasPane_EmptyThenReady(t *testing.T) {
-	_, svc, r := atlasTestServer(t)
+	_, _, svc, r := atlasTestServer(t)
 
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, httptest.NewRequest("GET", "/atlas", nil))
@@ -102,7 +101,7 @@ func TestAtlasPane_EmptyThenReady(t *testing.T) {
 }
 
 func TestAtlasPane_GraphStaysUsableDuringRebuild(t *testing.T) {
-	_, svc, r := atlasTestServer(t)
+	_, _, svc, r := atlasTestServer(t)
 	if err := svc.Rebuild(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +147,7 @@ func TestAtlasPane_GraphStaysUsableDuringRebuild(t *testing.T) {
 }
 
 func TestAtlasRegion_DetailAndMembers(t *testing.T) {
-	_, svc, r := atlasTestServer(t)
+	_, _, svc, r := atlasTestServer(t)
 	if err := svc.Rebuild(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -179,7 +178,7 @@ func TestAtlasRegion_DetailAndMembers(t *testing.T) {
 }
 
 func TestAtlasSearch_RanksRegions(t *testing.T) {
-	_, svc, r := atlasTestServer(t)
+	_, _, svc, r := atlasTestServer(t)
 	if err := svc.Rebuild(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -208,7 +207,7 @@ func TestAtlasSearch_RanksRegions(t *testing.T) {
 }
 
 func TestAtlasGraphJSON_TopLevelIsTranscripts(t *testing.T) {
-	_, svc, r := atlasTestServer(t)
+	_, _, svc, r := atlasTestServer(t)
 	if err := svc.Rebuild(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -275,7 +274,7 @@ func TestAtlasGraphJSON_TopLevelIsTranscripts(t *testing.T) {
 }
 
 func TestAtlasGraphJSON_TranscriptDrillDown(t *testing.T) {
-	_, svc, r := atlasTestServer(t)
+	_, _, svc, r := atlasTestServer(t)
 	if err := svc.Rebuild(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -324,7 +323,7 @@ func TestAtlasGraphJSON_TranscriptDrillDown(t *testing.T) {
 }
 
 func TestAtlasChunkDetail(t *testing.T) {
-	_, svc, r := atlasTestServer(t)
+	_, _, svc, r := atlasTestServer(t)
 	if err := svc.Rebuild(context.Background()); err != nil {
 		t.Fatal(err)
 	}

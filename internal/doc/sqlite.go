@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/biorisk/flying-shuttle/internal/model"
@@ -66,16 +65,9 @@ func (s *SQLiteStore) DB() *sql.DB { return s.db }
 func (s *SQLiteStore) Migrate() error {
 	migrations := []string{
 		"migrations/001_initial_schema.sql",
-		"migrations/002_uploads.sql",
 		"migrations/003_snapshots.sql",
 		"migrations/004_branches.sql",
 		"migrations/005_evidence.sql",
-		"migrations/006_atlas.sql",
-		"migrations/007_meta.sql",
-		"migrations/008_atlas_transcript.sql",
-		"migrations/009_atlas_chunk_label.sql",
-		"migrations/010_atlas_digest.sql",
-		"migrations/011_drop_node_chunks.sql",
 	}
 	for _, name := range migrations {
 		data, err := migrationFS.ReadFile(name)
@@ -87,297 +79,6 @@ func (s *SQLiteStore) Migrate() error {
 		}
 	}
 	return nil
-}
-
-// --- Chunks (immutable) ---
-
-func (s *SQLiteStore) CreateChunk(c *model.Chunk) error {
-	now := time.Now().UTC()
-	c.CreatedAt = now
-	_, err := s.db.Exec(
-		`INSERT INTO chunks (id, source_file, content, start_offset, end_offset, speaker, embedding_vec, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		c.ID, c.SourceFile, c.Content, c.StartOffset, c.EndOffset, c.Speaker, c.EmbeddingVec,
-		now.Format(time.RFC3339Nano),
-	)
-	return err
-}
-
-func (s *SQLiteStore) CreateChunks(chunks []model.Chunk) error {
-	tx, err := s.db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	now := time.Now().UTC()
-	nowStr := now.Format(time.RFC3339Nano)
-	for i := range chunks {
-		chunks[i].CreatedAt = now
-		_, err := tx.Exec(
-			`INSERT INTO chunks (id, source_file, content, start_offset, end_offset, speaker, embedding_vec, created_at)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			chunks[i].ID, chunks[i].SourceFile, chunks[i].Content,
-			chunks[i].StartOffset, chunks[i].EndOffset, chunks[i].Speaker,
-			chunks[i].EmbeddingVec, nowStr,
-		)
-		if err != nil {
-			return err
-		}
-	}
-	return tx.Commit()
-}
-
-func (s *SQLiteStore) GetChunk(id string) (*model.Chunk, error) {
-	row := s.db.QueryRow(
-		`SELECT id, source_file, content, start_offset, end_offset, speaker, embedding_vec, created_at FROM chunks WHERE id = ?`, id)
-	return scanChunk(row)
-}
-
-func (s *SQLiteStore) ListChunks() ([]model.Chunk, error) {
-	rows, err := s.db.Query(`SELECT id, source_file, content, start_offset, end_offset, speaker, embedding_vec, created_at FROM chunks ORDER BY created_at`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []model.Chunk
-	for rows.Next() {
-		c, err := scanChunkRows(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, *c)
-	}
-	return out, rows.Err()
-}
-
-// ListChunksBySourceFile returns every chunk from one source transcript,
-// ordered by position within that transcript (start_offset).
-func (s *SQLiteStore) ListChunksBySourceFile(sourceFile string) ([]model.Chunk, error) {
-	rows, err := s.db.Query(
-		`SELECT id, source_file, content, start_offset, end_offset, speaker, embedding_vec, created_at
-		 FROM chunks WHERE source_file = ? ORDER BY start_offset, created_at`, sourceFile)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []model.Chunk
-	for rows.Next() {
-		c, err := scanChunkRows(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, *c)
-	}
-	return out, rows.Err()
-}
-
-// ListChunksPage returns a page of chunks ordered by creation time, plus the
-// total number of chunks in the store (so callers can render "N of M").
-// A limit <= 0 means "no limit" (return everything from offset onward).
-func (s *SQLiteStore) ListChunksPage(limit, offset int) ([]model.Chunk, int, error) {
-	var total int
-	if err := s.db.QueryRow(`SELECT COUNT(*) FROM chunks`).Scan(&total); err != nil {
-		return nil, 0, err
-	}
-	if offset < 0 {
-		offset = 0
-	}
-	q := `SELECT id, source_file, content, start_offset, end_offset, speaker, embedding_vec, created_at FROM chunks ORDER BY created_at LIMIT ? OFFSET ?`
-	lim := limit
-	if lim <= 0 {
-		lim = -1 // SQLite: negative LIMIT means no upper bound
-	}
-	rows, err := s.db.Query(q, lim, offset)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-	var out []model.Chunk
-	for rows.Next() {
-		c, err := scanChunkRows(rows)
-		if err != nil {
-			return nil, 0, err
-		}
-		out = append(out, *c)
-	}
-	return out, total, rows.Err()
-}
-
-// ListChunkIDs returns just the IDs of every chunk, cheaply (no content).
-// Used to reconcile the search index against the store on startup.
-func (s *SQLiteStore) ListChunkIDs() ([]string, error) {
-	rows, err := s.db.Query(`SELECT id FROM chunks`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		out = append(out, id)
-	}
-	return out, rows.Err()
-}
-
-// ListChunkIDsWithEmbedding returns the IDs of chunks that have an embedding
-// vector stored, cheaply (no content or vector data).
-func (s *SQLiteStore) ListChunkIDsWithEmbedding() ([]string, error) {
-	rows, err := s.db.Query(`SELECT id FROM chunks WHERE embedding_vec IS NOT NULL AND length(embedding_vec) > 0`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		out = append(out, id)
-	}
-	return out, rows.Err()
-}
-
-// GetChunksByIDs returns the chunks with the given IDs, in no particular order.
-func (s *SQLiteStore) GetChunksByIDs(ids []string) ([]model.Chunk, error) {
-	if len(ids) == 0 {
-		return nil, nil
-	}
-	out := make([]model.Chunk, 0, len(ids))
-	const batch = 500 // keep well under SQLite's parameter limit
-	for start := 0; start < len(ids); start += batch {
-		end := start + batch
-		if end > len(ids) {
-			end = len(ids)
-		}
-		chunk := ids[start:end]
-		ph := make([]string, len(chunk))
-		args := make([]any, len(chunk))
-		for i, id := range chunk {
-			ph[i] = "?"
-			args[i] = id
-		}
-		q := `SELECT id, source_file, content, start_offset, end_offset, speaker, embedding_vec, created_at
-		      FROM chunks WHERE id IN (` + strings.Join(ph, ",") + `)`
-		rows, err := s.db.Query(q, args...)
-		if err != nil {
-			return nil, err
-		}
-		for rows.Next() {
-			c, err := scanChunkRows(rows)
-			if err != nil {
-				rows.Close()
-				return nil, err
-			}
-			out = append(out, *c)
-		}
-		if err := rows.Err(); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		rows.Close()
-	}
-	return out, nil
-}
-
-// ListChunksMissingEmbedding returns up to limit chunks that have no embedding
-// vector yet, oldest first. limit <= 0 returns all of them.
-func (s *SQLiteStore) ListChunksMissingEmbedding(limit int) ([]model.Chunk, error) {
-	q := `SELECT id, source_file, content, start_offset, end_offset, speaker, embedding_vec, created_at
-	      FROM chunks
-	      WHERE embedding_vec IS NULL OR length(embedding_vec) = 0
-	      ORDER BY created_at`
-	var args []any
-	if limit > 0 {
-		q += ` LIMIT ?`
-		args = append(args, limit)
-	}
-	rows, err := s.db.Query(q, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []model.Chunk
-	for rows.Next() {
-		c, err := scanChunkRows(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, *c)
-	}
-	return out, rows.Err()
-}
-
-// CountChunksMissingEmbedding returns how many chunks still lack an embedding.
-func (s *SQLiteStore) CountChunksMissingEmbedding() (int, error) {
-	var n int
-	err := s.db.QueryRow(
-		`SELECT count(*) FROM chunks WHERE embedding_vec IS NULL OR length(embedding_vec) = 0`,
-	).Scan(&n)
-	return n, err
-}
-
-// SetChunkEmbedding attaches (or replaces) a chunk's embedding vector. Chunk
-// content is immutable; the embedding is derived metadata filled in
-// asynchronously once an embedder is available.
-func (s *SQLiteStore) SetChunkEmbedding(id string, vec []byte) error {
-	res, err := s.db.Exec(`UPDATE chunks SET embedding_vec = ? WHERE id = ?`, vec, id)
-	if err != nil {
-		return err
-	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return fmt.Errorf("chunk %s: %w", id, ErrNotFound)
-	}
-	return nil
-}
-
-// ClearAllEmbeddings nulls every chunk's embedding vector. Used when the
-// embedding model (and hence the vector space) changes; the backfiller then
-// re-embeds everything with the new model.
-func (s *SQLiteStore) ClearAllEmbeddings() (int64, error) {
-	res, err := s.db.Exec(`UPDATE chunks SET embedding_vec = NULL WHERE embedding_vec IS NOT NULL`)
-	if err != nil {
-		return 0, err
-	}
-	n, _ := res.RowsAffected()
-	return n, nil
-}
-
-// SampleEmbeddingDim returns the float32 dimension of the first stored
-// embedding vector, or 0 if none are stored.
-func (s *SQLiteStore) SampleEmbeddingDim() (int, error) {
-	var b []byte
-	err := s.db.QueryRow(
-		`SELECT embedding_vec FROM chunks WHERE embedding_vec IS NOT NULL LIMIT 1`).Scan(&b)
-	if err == sql.ErrNoRows {
-		return 0, nil
-	}
-	if err != nil {
-		return 0, err
-	}
-	return len(b) / 4, nil
-}
-
-// GetMeta returns meta[key], or "" if unset.
-func (s *SQLiteStore) GetMeta(key string) (string, error) {
-	var v string
-	err := s.db.QueryRow(`SELECT value FROM meta WHERE key = ?`, key).Scan(&v)
-	if err == sql.ErrNoRows {
-		return "", nil
-	}
-	return v, err
-}
-
-// SetMeta upserts meta[key] = value.
-func (s *SQLiteStore) SetMeta(key, value string) error {
-	_, err := s.db.Exec(
-		`INSERT INTO meta (key, value) VALUES (?, ?)
-		 ON CONFLICT(key) DO UPDATE SET value = excluded.value`, key, value)
-	return err
 }
 
 // --- Nodes ---
@@ -811,21 +512,6 @@ type scanner interface {
 	Scan(dest ...any) error
 }
 
-func scanChunk(s scanner) (*model.Chunk, error) {
-	var c model.Chunk
-	var ts string
-	if err := s.Scan(&c.ID, &c.SourceFile, &c.Content, &c.StartOffset, &c.EndOffset, &c.Speaker, &c.EmbeddingVec, &ts); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ErrNotFound
-		}
-		return nil, err
-	}
-	c.CreatedAt, _ = time.Parse(time.RFC3339Nano, ts)
-	return &c, nil
-}
-
-func scanChunkRows(r *sql.Rows) (*model.Chunk, error) { return scanChunk(r) }
-
 func scanNode(s scanner) (*model.Node, error) {
 	var n model.Node
 	var labelsJSON string
@@ -876,143 +562,6 @@ func scanThread(s scanner) (*model.Thread, error) {
 }
 
 func scanThreadRows(r *sql.Rows) (*model.Thread, error) { return scanThread(r) }
-
-// --- Uploads ---
-
-func (s *SQLiteStore) CreateUpload(u *model.Upload) error {
-	now := time.Now().UTC()
-	u.Status = model.UploadStatusPending
-	u.CreatedAt = now
-	u.UpdatedAt = now
-	_, err := s.db.Exec(
-		`INSERT INTO uploads (id, filename, format, size_bytes, status, error, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		u.ID, u.Filename, u.Format, u.SizeBytes, string(u.Status), u.Error,
-		now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano),
-	)
-	return err
-}
-
-func (s *SQLiteStore) GetUpload(id string) (*model.Upload, error) {
-	row := s.db.QueryRow(
-		`SELECT id, filename, format, size_bytes, status, error, created_at, updated_at FROM uploads WHERE id = ?`, id)
-	return scanUpload(row)
-}
-
-func (s *SQLiteStore) ListUploads() ([]model.Upload, error) {
-	rows, err := s.db.Query(
-		`SELECT id, filename, format, size_bytes, status, error, created_at, updated_at FROM uploads ORDER BY created_at DESC`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []model.Upload
-	for rows.Next() {
-		u, err := scanUpload(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, *u)
-	}
-	return out, rows.Err()
-}
-
-// ListUploadsPage returns a page of uploads (newest first) plus the total
-// upload count. A limit <= 0 means "no limit".
-func (s *SQLiteStore) ListUploadsPage(limit, offset int) ([]model.Upload, int, error) {
-	var total int
-	if err := s.db.QueryRow(`SELECT COUNT(*) FROM uploads`).Scan(&total); err != nil {
-		return nil, 0, err
-	}
-	if offset < 0 {
-		offset = 0
-	}
-	lim := limit
-	if lim <= 0 {
-		lim = -1
-	}
-	rows, err := s.db.Query(
-		`SELECT id, filename, format, size_bytes, status, error, created_at, updated_at FROM uploads ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-		lim, offset)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-	var out []model.Upload
-	for rows.Next() {
-		u, err := scanUpload(rows)
-		if err != nil {
-			return nil, 0, err
-		}
-		out = append(out, *u)
-	}
-	return out, total, rows.Err()
-}
-
-func (s *SQLiteStore) UpdateUploadStatus(id string, status model.UploadStatus, errMsg string) error {
-	now := time.Now().UTC()
-	res, err := s.db.Exec(
-		`UPDATE uploads SET status=?, error=?, updated_at=? WHERE id=?`,
-		string(status), errMsg, now.Format(time.RFC3339Nano), id,
-	)
-	if err != nil {
-		return err
-	}
-	affected, _ := res.RowsAffected()
-	if affected == 0 {
-		return ErrNotFound
-	}
-	return nil
-}
-
-// --- Transcript Segments ---
-
-func (s *SQLiteStore) CreateTranscriptSegment(seg *model.TranscriptSegment) error {
-	now := time.Now().UTC()
-	seg.CreatedAt = now
-	_, err := s.db.Exec(
-		`INSERT INTO transcript_segments (id, upload_id, speaker, text, start_ms, end_ms, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		seg.ID, seg.UploadID, seg.Speaker, seg.Text, seg.StartMs, seg.EndMs,
-		now.Format(time.RFC3339Nano),
-	)
-	return err
-}
-
-func (s *SQLiteStore) ListTranscriptSegments(uploadID string) ([]model.TranscriptSegment, error) {
-	rows, err := s.db.Query(
-		`SELECT id, upload_id, speaker, text, start_ms, end_ms, created_at
-		 FROM transcript_segments WHERE upload_id = ? ORDER BY start_ms`, uploadID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []model.TranscriptSegment
-	for rows.Next() {
-		var seg model.TranscriptSegment
-		var ts string
-		if err := rows.Scan(&seg.ID, &seg.UploadID, &seg.Speaker, &seg.Text, &seg.StartMs, &seg.EndMs, &ts); err != nil {
-			return nil, err
-		}
-		seg.CreatedAt, _ = time.Parse(time.RFC3339Nano, ts)
-		out = append(out, seg)
-	}
-	return out, rows.Err()
-}
-
-func scanUpload(sc scanner) (*model.Upload, error) {
-	var u model.Upload
-	var createdAt, updatedAt string
-	if err := sc.Scan(&u.ID, &u.Filename, &u.Format, &u.SizeBytes, &u.Status, &u.Error, &createdAt, &updatedAt); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ErrNotFound
-		}
-		return nil, err
-	}
-	u.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAt)
-	u.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updatedAt)
-	return &u, nil
-}
 
 func boolToInt(b bool) int {
 	if b {
@@ -1142,19 +691,14 @@ func restoreDAGState(tx *sql.Tx, data *model.SnapshotData) error {
 			return fmt.Errorf("restore evidence: %w", err)
 		}
 	}
-	// Legacy snapshots stored whole-chunk associations; carry them over as
-	// full-span evidence rows.
+	// Legacy snapshots stored whole-chunk associations (data.NodeChunks). The
+	// corpus is no longer reachable from here to expand them into evidence
+	// text, and every such snapshot predates the evidence table by years —
+	// carry over just the id + position so the citation still resolves.
 	for _, nc := range data.NodeChunks {
-		var content string
-		if err := tx.QueryRow(`SELECT content FROM chunks WHERE id = ?`, nc.ChunkID).Scan(&content); err != nil {
-			if err == sql.ErrNoRows {
-				continue
-			}
-			return fmt.Errorf("restore legacy node_chunk: %w", err)
-		}
 		if _, err := tx.Exec(
 			`INSERT INTO evidence (`+evidenceCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now'))`,
-			uuid.NewString(), nc.NodeID, nc.ChunkID, "", 0, len([]rune(content)), content, nc.Position,
+			uuid.NewString(), nc.NodeID, nc.ChunkID, "", 0, 0, "", nc.Position,
 		); err != nil {
 			return fmt.Errorf("restore legacy node_chunk: %w", err)
 		}

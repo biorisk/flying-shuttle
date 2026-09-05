@@ -12,29 +12,24 @@ import (
 	"testing"
 	"time"
 
-	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/pipeline"
+	"github.com/biorisk/flying-shuttle/internal/storetest"
 	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/go-chi/chi/v5"
 )
 
-func ingestRouter(t *testing.T) (chi.Router, *doc.SQLiteStore) {
+func ingestRouter(t *testing.T) (chi.Router, storetest.Pair) {
 	t.Helper()
-	s, err := doc.NewSQLiteStore(":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := s.Migrate(); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { s.Close() })
+	sp := storetest.New(t)
+	s := sp.Doc
 	dir := t.TempDir()
 	r := chi.NewRouter()
 	web.Mount(r, web.Deps{
 		Store:    s,
-		Ingester: &pipeline.Ingester{Store: s, UploadDir: dir},
+		Corpus:   sp.Corpus,
+		Ingester: &pipeline.Ingester{Store: sp.Corpus, UploadDir: dir},
 	})
-	return r, s
+	return r, sp
 }
 
 func TestIngestGet_empty(t *testing.T) {
@@ -47,7 +42,7 @@ func TestIngestGet_empty(t *testing.T) {
 }
 
 func TestIngestUpload_txt(t *testing.T) {
-	r, s := ingestRouter(t)
+	r, sp := ingestRouter(t)
 
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
@@ -70,7 +65,7 @@ func TestIngestUpload_txt(t *testing.T) {
 	// Processing is async; wait for it to land chunks.
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
-		cs, _ := s.ListChunks()
+		cs, _ := sp.Corpus.ListChunks()
 		if len(cs) > 0 {
 			return
 		}
@@ -80,7 +75,7 @@ func TestIngestUpload_txt(t *testing.T) {
 }
 
 func TestIngestPath_serverDirectory(t *testing.T) {
-	r, s := ingestRouter(t)
+	r, sp := ingestRouter(t)
 
 	src := t.TempDir()
 	for _, f := range []struct{ name, body string }{
@@ -110,7 +105,7 @@ func TestIngestPath_serverDirectory(t *testing.T) {
 
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
-		if cs, _ := s.ListChunks(); len(cs) >= 2 {
+		if cs, _ := sp.Corpus.ListChunks(); len(cs) >= 2 {
 			return
 		}
 		time.Sleep(30 * time.Millisecond)
@@ -131,7 +126,7 @@ func TestIngestPath_badPath(t *testing.T) {
 }
 
 func TestIngestUpload_rejectsNonText(t *testing.T) {
-	r, s := ingestRouter(t)
+	r, sp := ingestRouter(t)
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
 	fw, _ := mw.CreateFormFile("files", "audio.mp3")
@@ -144,14 +139,14 @@ func TestIngestUpload_rejectsNonText(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("status %d", rec.Code)
 	}
-	ups, _, _ := s.ListUploadsPage(10, 0)
+	ups, _, _ := sp.Corpus.ListUploadsPage(10, 0)
 	if len(ups) != 0 {
 		t.Fatalf("mp3 should have been rejected, got %d uploads", len(ups))
 	}
 }
 
 func TestIngestUpload_batchSummaryAndPoll(t *testing.T) {
-	r, s := ingestRouter(t)
+	r, sp := ingestRouter(t)
 
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
@@ -185,7 +180,7 @@ func TestIngestUpload_batchSummaryAndPoll(t *testing.T) {
 			if hasPoll {
 				t.Fatalf("poll attribute should be gone once all done:\n%s", last)
 			}
-			ups, total, _ := s.ListUploadsPage(0, 0)
+			ups, total, _ := sp.Corpus.ListUploadsPage(0, 0)
 			if total != n || len(ups) != n {
 				t.Fatalf("want %d uploads, got total=%d rows=%d", n, total, len(ups))
 			}
