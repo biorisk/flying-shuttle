@@ -185,6 +185,11 @@ func labelFromContent(nodeTitle, content string, index int) string {
 // --- LLM-based clusterer ---
 
 // LLMClusterer uses an LLM to identify sub-themes from chunks.
+//
+// NOTE: not wired into the current (templ) UI. Before wiring it to a real
+// Completer, add result caching keyed by the retrieved chunk-id set — see
+// atlas_persistence_plan.md; an un-cached per-request LLM path is a
+// regression.
 type LLMClusterer struct {
 	Complete Completer
 }

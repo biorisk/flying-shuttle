@@ -15,6 +15,12 @@
 
 * { box-sizing: border-box; }
 
+/* The [hidden] attribute must always win. Several components set display via a
+   class (.float-tools, .evidence-actions, …); a bare `[hidden]` (specificity
+   0,1,0) loses to those on source order, so JS toggling `el.hidden` wouldn't
+   actually hide them. */
+[hidden] { display: none !important; }
+
 html, body {
 	margin: 0;
 	height: 100%;
@@ -398,6 +404,7 @@ mark.mark-active { outline: 2px solid var(--accent); outline-offset: 1px; }
 .atlas-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .atlas-count { font-size: 12px; color: var(--text-dim); }
 .atlas-stale { font-size: 12px; color: #e0b050; margin: 4px 0 8px; }
+.atlas-rebuilding { font-size: 12px; color: var(--text-dim); margin: 4px 0 8px; }
 .atlas-regions { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
 .atlas-region { border: 1px solid var(--edge); border-radius: var(--radius); padding: 7px 8px; }
 .atlas-region.open { border-color: var(--accent); }
@@ -407,6 +414,12 @@ mark.mark-active { outline: 2px solid var(--accent); outline-offset: 1px; }
 }
 .atlas-region-n { flex: none; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 .atlas-region-kw { margin: 3px 0 0; font-size: 11px; color: var(--text-dim); }
+.atlas-region-title { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+/* region colour chip — matches the graph node fill */
+.atlas-swatch {
+	flex: none; width: 9px; height: 9px; border-radius: 2px;
+	border: 1px solid rgba(0,0,0,.35); display: inline-block;
+}
 .atlas-region-detail[data-show] { margin-top: 8px; }
 .atlas-abstract { font-size: 12px; line-height: 1.5; margin: 0 0 4px; }
 .atlas-source { font-size: 10px; color: var(--text-dim); margin: 0 0 6px; }
@@ -418,9 +431,11 @@ mark.mark-active { outline: 2px solid var(--accent); outline-offset: 1px; }
    $centerView === 'atlas', same flex slot as #outline/#stitch --- */
 #atlas-canvas { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .atlas-graph { flex: 1; min-height: 0; background: var(--panel-2); }
-.atlas-detail { border-top: 1px solid var(--edge); padding: 8px 12px; max-height: 45%; overflow: auto; }
-.atlas-detail:empty { display: none; }
-.atlas-detail-text { font-size: 12px; line-height: 1.5; margin: 6px 0 0; }
+/* selected passage, shown in the Atlas right pane above the region list */
+.atlas-selected { margin-bottom: 10px; }
+.atlas-selected:empty { display: none; }
+.atlas-selected-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.atlas-selected-label { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-dim); }
 .atlas-search {
 	width: 100%; margin-bottom: 8px; padding: 4px 8px; font-size: 12px;
 	background: var(--panel-2); border: 1px solid var(--edge); color: var(--text); border-radius: var(--radius);
@@ -428,5 +443,5 @@ mark.mark-active { outline: 2px solid var(--accent); outline-offset: 1px; }
 .atlas-matches { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-bottom: 10px; }
 .atlas-matches:empty { display: none; }
 .atlas-matches-label { width: 100%; font-size: 10px; color: var(--text-dim); }
-.atlas-hop { font-size: 11px; padding: 3px 7px; display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; }
-.atlas-hop-kw { font-size: 9px; color: var(--text-dim); }
+.atlas-hop { font-size: 11px; padding: 3px 7px; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 5px; text-align: left; }
+.atlas-hop-kw { flex-basis: 100%; font-size: 9px; color: var(--text-dim); }

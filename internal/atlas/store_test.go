@@ -80,6 +80,14 @@ func TestBuildRoundTrip(t *testing.T) {
 		t.Fatalf("InsertLinks: %v", err)
 	}
 
+	if err := as.InsertTranscriptDigests(b.ID, []atlas.TranscriptDigest{
+		{SourceFile: "sailing.txt", ChunkCount: 3, Digest: atlas.Digest{
+			Title: "Tacking upwind", Abstract: "How to sail close-hauled.",
+			Keywords: []string{"tack", "sail"}, Source: "extractive"}},
+	}); err != nil {
+		t.Fatalf("InsertTranscriptDigests: %v", err)
+	}
+
 	if err := as.SetRegionDigestVec(regions[0].ID, []float32{0.5, 0.5, 0.5}); err != nil {
 		t.Fatalf("SetRegionDigestVec: %v", err)
 	}
@@ -117,6 +125,15 @@ func TestBuildRoundTrip(t *testing.T) {
 	}
 	if got.Links[0].Weight != 0.73 || got.Links[0].RegionA >= got.Links[0].RegionB {
 		t.Fatalf("link round-trip / ordering: %+v", got.Links[0])
+	}
+
+	if len(got.Transcripts) != 1 {
+		t.Fatalf("transcript digest round-trip: got %d", len(got.Transcripts))
+	}
+	td := got.Transcripts[0]
+	if td.SourceFile != "sailing.txt" || td.ChunkCount != 3 ||
+		td.Digest.Title != "Tacking upwind" || len(td.Digest.Keywords) != 2 || td.Digest.Keywords[0] != "tack" {
+		t.Fatalf("transcript digest round-trip: %+v", td)
 	}
 }
 
@@ -161,5 +178,78 @@ func TestPruneExceptAndNoBuild(t *testing.T) {
 	}
 	if len(b.Regions) != 1 || len(b.Regions[0].Members) != 1 {
 		t.Fatalf("kept build body wrong: %+v", b.Regions)
+	}
+}
+
+func TestChunkLabels_RoundTripAndSurvivesPrune(t *testing.T) {
+	s, as := newTestStore(t)
+	seedChunks(t, s, "c1", "c2", "c3")
+
+	missing, err := as.ChunkLabelsMissing([]string{"c1", "c2", "c3"})
+	if err != nil {
+		t.Fatalf("ChunkLabelsMissing: %v", err)
+	}
+	if len(missing) != 3 {
+		t.Fatalf("want all 3 missing initially, got %v", missing)
+	}
+
+	if err := as.PutChunkLabels([]atlas.ChunkLabel{
+		{ChunkID: "c1", Label: "tacking upwind", Source: "llm:stub"},
+		{ChunkID: "c2", Label: "reefing the main", Source: "llm:stub"},
+	}); err != nil {
+		t.Fatalf("PutChunkLabels: %v", err)
+	}
+
+	missing, _ = as.ChunkLabelsMissing([]string{"c1", "c2", "c3"})
+	if len(missing) != 1 || missing[0] != "c3" {
+		t.Fatalf("want only c3 missing, got %v", missing)
+	}
+
+	got, err := as.GetChunkLabels([]string{"c1", "c2", "c3"})
+	if err != nil {
+		t.Fatalf("GetChunkLabels: %v", err)
+	}
+	if got["c1"] != "tacking upwind" || got["c2"] != "reefing the main" || len(got) != 2 {
+		t.Fatalf("labels round-trip: %v", got)
+	}
+
+	// A "head" fallback is shown in the drill-down but still counts as
+	// missing, so the next build re-attempts it once the LLM is back.
+	if err := as.PutChunkLabels([]atlas.ChunkLabel{{ChunkID: "c3", Label: "put a reef", Source: "head"}}); err != nil {
+		t.Fatalf("head Put: %v", err)
+	}
+	if got, _ := as.GetChunkLabels([]string{"c3"}); got["c3"] != "put a reef" {
+		t.Fatalf("head label not readable: %v", got)
+	}
+	missing, _ = as.ChunkLabelsMissing([]string{"c1", "c2", "c3"})
+	if len(missing) != 1 || missing[0] != "c3" {
+		t.Fatalf("a head row must still be reported missing, got %v", missing)
+	}
+
+	// Upsert: a later real label replaces the head fallback and clears it.
+	if err := as.PutChunkLabels([]atlas.ChunkLabel{{ChunkID: "c3", Label: "reefing early", Source: "llm:stub"}}); err != nil {
+		t.Fatalf("re-Put: %v", err)
+	}
+	got, _ = as.GetChunkLabels([]string{"c3"})
+	if got["c3"] != "reefing early" {
+		t.Fatalf("upsert didn't replace: %v", got)
+	}
+	if m, _ := as.ChunkLabelsMissing([]string{"c1", "c2", "c3"}); len(m) != 0 {
+		t.Fatalf("nothing should be missing now, got %v", m)
+	}
+
+	// A build coming and going must not touch chunk labels (no FK to atlas_build).
+	b := &atlas.Build{}
+	if err := as.CreateBuild(b); err != nil {
+		t.Fatalf("CreateBuild: %v", err)
+	}
+	b2 := &atlas.Build{}
+	_ = as.CreateBuild(b2)
+	if err := as.PruneExcept(b2.ID); err != nil {
+		t.Fatalf("PruneExcept: %v", err)
+	}
+	got, _ = as.GetChunkLabels([]string{"c1", "c2"})
+	if len(got) != 2 {
+		t.Fatalf("chunk labels lost across a build prune: %v", got)
 	}
 }

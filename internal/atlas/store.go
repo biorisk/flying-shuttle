@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/biorisk/flying-shuttle/internal/ingest"
@@ -24,6 +25,25 @@ type Store interface {
 	InsertRegions(buildID string, regions []Region) error
 	// InsertLinks bulk-inserts region links for a build, in one transaction.
 	InsertLinks(buildID string, links []Link) error
+	// InsertTranscriptDigests bulk-inserts one digest per source file for a
+	// build, in one transaction (Phase D).
+	InsertTranscriptDigests(buildID string, digests []TranscriptDigest) error
+	// ChunkLabelsMissing returns the subset of ids that still need the LLM:
+	// those with no row, or only a best-effort "head" fallback row (so a
+	// later build retries them once the LLM is back). Order is unspecified.
+	ChunkLabelsMissing(ids []string) ([]string, error)
+	// GetChunkLabels returns chunk_id -> label for the given ids (only those
+	// with a row).
+	GetChunkLabels(ids []string) (map[string]string, error)
+	// PutChunkLabels upserts chunk labels in one transaction.
+	PutChunkLabels(labels []ChunkLabel) error
+	// GetDigests returns the content-addressed digest cache rows for the
+	// given input hashes (only those present).
+	GetDigests(hashes []string) (map[string]CachedDigest, error)
+	// PutDigest upserts one digest cache row by input_hash.
+	PutDigest(d CachedDigest) error
+	// SetDigestVec stores the digest embedding for one cache row.
+	SetDigestVec(inputHash string, vec []float32) error
 	// SetRegionDigest updates a region's digest fields (Phase B).
 	SetRegionDigest(regionID string, d Digest) error
 	// SetRegionDigestVec stores a region's digest embedding (Phase C).
@@ -159,6 +179,199 @@ func (s *sqlStore) InsertLinks(buildID string, links []Link) (err error) {
 		}
 	}
 	err = tx.Commit()
+	return err
+}
+
+func (s *sqlStore) InsertTranscriptDigests(buildID string, digests []TranscriptDigest) (err error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	for _, td := range digests {
+		if td.SourceFile == "" {
+			continue
+		}
+		if _, err = tx.Exec(
+			`INSERT INTO atlas_transcript
+			   (build_id, source_file, chunk_count,
+			    digest_title, digest_abstract, digest_keywords, digest_source)
+			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			buildID, td.SourceFile, td.ChunkCount,
+			td.Digest.Title, td.Digest.Abstract, joinKeywords(td.Digest.Keywords), td.Digest.Source,
+		); err != nil {
+			return err
+		}
+	}
+	err = tx.Commit()
+	return err
+}
+
+func (s *sqlStore) ChunkLabelsMissing(ids []string) ([]string, error) {
+	// A chunk still needs the LLM if it has no row at all, OR only a
+	// best-effort "head" fallback row (LLM was down, or mangled that line).
+	// A later build re-attempts those; a real "llm:<model>" row is final.
+	done, err := s.chunkLabelsWhere(ids, "AND source LIKE 'llm:%'")
+	if err != nil {
+		return nil, err
+	}
+	var missing []string
+	for _, id := range ids {
+		if _, ok := done[id]; !ok {
+			missing = append(missing, id)
+		}
+	}
+	return missing, nil
+}
+
+// GetChunkLabels returns chunk_id -> label for the given ids that have any row
+// (LLM or head fallback) — the drill-down view shows whatever's there.
+func (s *sqlStore) GetChunkLabels(ids []string) (map[string]string, error) {
+	return s.chunkLabelsWhere(ids, "")
+}
+
+func (s *sqlStore) chunkLabelsWhere(ids []string, extra string) (map[string]string, error) {
+	out := make(map[string]string, len(ids))
+	if len(ids) == 0 {
+		return out, nil
+	}
+	// Chunk the IN list to stay well under SQLite's variable limit.
+	const batch = 400
+	for start := 0; start < len(ids); start += batch {
+		end := start + batch
+		if end > len(ids) {
+			end = len(ids)
+		}
+		chunk := ids[start:end]
+		q := `SELECT chunk_id, label FROM atlas_chunk_label WHERE chunk_id IN (?` +
+			strings.Repeat(",?", len(chunk)-1) + `) ` + extra
+		args := make([]any, len(chunk))
+		for i, id := range chunk {
+			args[i] = id
+		}
+		rows, err := s.db.Query(q, args...)
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			var id, label string
+			if err := rows.Scan(&id, &label); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			out[id] = label
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		rows.Close()
+	}
+	return out, nil
+}
+
+func (s *sqlStore) PutChunkLabels(labels []ChunkLabel) (err error) {
+	if len(labels) == 0 {
+		return nil
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	for _, l := range labels {
+		if l.ChunkID == "" {
+			continue
+		}
+		if _, err = tx.Exec(
+			`INSERT INTO atlas_chunk_label (chunk_id, label, source) VALUES (?, ?, ?)
+			 ON CONFLICT(chunk_id) DO UPDATE SET label = excluded.label, source = excluded.source`,
+			l.ChunkID, l.Label, l.Source,
+		); err != nil {
+			return err
+		}
+	}
+	err = tx.Commit()
+	return err
+}
+
+func (s *sqlStore) GetDigests(hashes []string) (map[string]CachedDigest, error) {
+	out := make(map[string]CachedDigest, len(hashes))
+	if len(hashes) == 0 {
+		return out, nil
+	}
+	const batch = 400
+	for start := 0; start < len(hashes); start += batch {
+		end := start + batch
+		if end > len(hashes) {
+			end = len(hashes)
+		}
+		chunk := hashes[start:end]
+		q := `SELECT input_hash, kind, title, abstract, keywords, vec, source
+		        FROM atlas_digest WHERE input_hash IN (?` + strings.Repeat(",?", len(chunk)-1) + `)`
+		args := make([]any, len(chunk))
+		for i, h := range chunk {
+			args[i] = h
+		}
+		rows, err := s.db.Query(q, args...)
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			var c CachedDigest
+			var kw string
+			var vec []byte
+			if err := rows.Scan(&c.InputHash, &c.Kind, &c.Digest.Title, &c.Digest.Abstract, &kw, &vec, &c.Source); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			c.Digest.Keywords = splitKeywords(kw)
+			c.Digest.Source = c.Source
+			if len(vec) > 0 {
+				c.Vec = ingest.BytesToFloat32s(vec)
+			}
+			out[c.InputHash] = c
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		rows.Close()
+	}
+	return out, nil
+}
+
+func (s *sqlStore) PutDigest(d CachedDigest) error {
+	var vec any
+	if len(d.Vec) > 0 {
+		vec = ingest.Float32sToBytes(d.Vec)
+	}
+	_, err := s.db.Exec(
+		`INSERT INTO atlas_digest (input_hash, kind, title, abstract, keywords, vec, source)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT(input_hash) DO UPDATE SET
+		   kind = excluded.kind, title = excluded.title, abstract = excluded.abstract,
+		   keywords = excluded.keywords, vec = excluded.vec, source = excluded.source`,
+		d.InputHash, d.Kind, d.Digest.Title, d.Digest.Abstract, joinKeywords(d.Digest.Keywords), vec, d.Source,
+	)
+	return err
+}
+
+func (s *sqlStore) SetDigestVec(inputHash string, vec []float32) error {
+	_, err := s.db.Exec(
+		`UPDATE atlas_digest SET vec = ? WHERE input_hash = ?`,
+		ingest.Float32sToBytes(vec), inputHash,
+	)
 	return err
 }
 
@@ -341,5 +554,28 @@ func (s *sqlStore) loadBuildBody(b *Build) error {
 		}
 		b.Links = append(b.Links, l)
 	}
-	return linkRows.Err()
+	if err := linkRows.Err(); err != nil {
+		return err
+	}
+
+	tRows, err := s.db.Query(
+		`SELECT source_file, chunk_count, digest_title, digest_abstract, digest_keywords, digest_source
+		   FROM atlas_transcript WHERE build_id = ? ORDER BY source_file`, b.ID)
+	if err != nil {
+		return err
+	}
+	defer tRows.Close()
+	for tRows.Next() {
+		var td TranscriptDigest
+		var kw string
+		if err := tRows.Scan(
+			&td.SourceFile, &td.ChunkCount,
+			&td.Digest.Title, &td.Digest.Abstract, &kw, &td.Digest.Source,
+		); err != nil {
+			return err
+		}
+		td.Digest.Keywords = splitKeywords(kw)
+		b.Transcripts = append(b.Transcripts, td)
+	}
+	return tRows.Err()
 }

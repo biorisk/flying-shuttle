@@ -47,6 +47,32 @@ type Build struct {
 	// Populated by full reads (GetBuild / CurrentBuild).
 	Regions []Region
 	Links   []Link
+
+	// Transcripts holds one digest per source file, computed from that
+	// file's own full text (not sampled from a region). Persisted and
+	// reloaded like Regions/Links; the network graph view still falls back
+	// to the filename if a transcript somehow has no digest.
+	Transcripts []TranscriptDigest
+}
+
+// TranscriptDigest is one source file's digest for the network graph's
+// top-level transcript nodes, built from the full sequence of that file's own
+// chunks — never a region-based sample of chunks from elsewhere.
+type TranscriptDigest struct {
+	SourceFile string
+	ChunkCount int
+	Digest     Digest
+}
+
+// ChunkLabel is a short label for one chunk, used as its node label in the
+// transcript drill-down view. Persisted per chunk (not per build) — see
+// migrations/009_atlas_chunk_label.sql. A row with Source "llm:<model>" is
+// final and never recomputed. A "head" row (LLM was down or mangled that
+// line) is a placeholder the next build re-attempts.
+type ChunkLabel struct {
+	ChunkID string
+	Label   string
+	Source  string // "llm:<model>" (final) | "head" (retried next build)
 }
 
 // Region is a cluster of embedding-near transcript chunks. It is NOT an

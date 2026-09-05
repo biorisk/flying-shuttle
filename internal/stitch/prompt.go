@@ -10,6 +10,10 @@ import (
 // PromptStitcher generates a structured LLM prompt and parses the response.
 // It delegates actual LLM calls to a Completer interface so it can be tested
 // with deterministic mocks.
+//
+// NOTE: production wires stitch.StubStitcher, not this. Stitching runs on
+// every preview/export; before wiring a real Completer, cache stitched output
+// keyed by (thread snapshot, glue setting) — see atlas_persistence_plan.md.
 type PromptStitcher struct {
 	Complete Completer
 }

@@ -134,6 +134,7 @@ func run() error {
 	// Shared instruct LLM (lazy — nothing loads until the first digest call).
 	// It idle-sheds itself; the supervisor restarts it on demand.
 	var atlasSummariser atlas.Summariser
+	var atlasLabeller *atlas.ChunkLabeller
 	if env("SHUTTLE_LLM_AUTOSTART", "1") != "0" {
 		llmScript, _ := filepath.Abs(env("SHUTTLE_LLM_SCRIPT", "python/llm_server.py"))
 		completer := ingest.NewPythonCompleter(ingest.PythonCompleterConfig{
@@ -143,10 +144,9 @@ func run() error {
 			Dir:    env("SHUTTLE_LLM_DIR", filepath.Dir(llmScript)),
 		})
 		completer.Gate = computeGate // never overlaps a big embed batch
-		atlasSummariser = &atlas.LLMSummariser{
-			Complete:  completer,
-			ModelName: env("SHUTTLE_LLM_MODEL", "gemma-4-e2b-it-4bit"),
-		}
+		llmModel := env("SHUTTLE_LLM_MODEL", "gemma-4-e2b-it-4bit")
+		atlasSummariser = &atlas.LLMSummariser{Complete: completer, ModelName: llmModel}
+		atlasLabeller = &atlas.ChunkLabeller{Complete: completer, ModelName: llmModel}
 	}
 
 	// Source Atlas: a derived network over the transcript corpus (see
@@ -162,6 +162,7 @@ func run() error {
 			Corpus:     func() ([]atlas.CorpusChunk, error) { return loadAtlasCorpus(s) },
 			Embedder:   embedder,
 			Summariser: atlasSummariser,
+			Labeller:   atlasLabeller,
 		},
 	}
 	if err := atlasSvc.LoadCurrent(); err != nil {
@@ -278,9 +279,11 @@ func loadAtlasCorpus(s store.Store) ([]atlas.CorpusChunk, error) {
 			continue
 		}
 		out = append(out, atlas.CorpusChunk{
-			ID:      c.ID,
-			Content: c.Content,
-			Vec:     ingest.BytesToFloat32s(c.EmbeddingVec),
+			ID:          c.ID,
+			Content:     c.Content,
+			Vec:         ingest.BytesToFloat32s(c.EmbeddingVec),
+			SourceFile:  c.SourceFile,
+			StartOffset: c.StartOffset,
 		})
 	}
 	return out, nil

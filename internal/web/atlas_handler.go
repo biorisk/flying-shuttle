@@ -3,8 +3,10 @@ package web
 import (
 	"context"
 	"encoding/json"
+	"hash/fnv"
 	"log"
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/biorisk/flying-shuttle/internal/atlas"
@@ -37,6 +39,7 @@ func atlasSignals(st atlas.Status) map[string]any {
 		"atlasRegions":    st.Regions,
 		"atlasChunkCount": st.ChunkCount,
 		"atlasError":      st.LastError,
+		"atlasBuiltAt":    st.LastBuilt.UnixMilli(), // graph reloads itself when this changes
 	}
 }
 
@@ -48,18 +51,17 @@ func (h *handlers) atlasPaneView() viewmodel.AtlasPane {
 
 	build, _ := svc.Current()
 	switch {
-	case st.Building:
-		vm.Status = "building"
-	case st.LastError != "" && build == nil:
-		vm.Status = "failed"
-	case build == nil:
-		vm.Status = "none"
-	default:
+	case build != nil:
+		// A finished build exists — keep the graph and region list usable
+		// even while a rebuild runs behind it; the pure "building" takeover
+		// is only for the very first build.
 		vm.Status = "ready"
+		vm.Rebuilding = st.Building
 		vm.ChunkCount = build.ChunkCount
 		for _, r := range build.Regions {
 			vm.Regions = append(vm.Regions, viewmodel.AtlasRegionRow{
-				ID: r.ID, Title: r.Digest.Title, Keywords: r.Digest.Keywords, ChunkCount: r.ChunkCount,
+				ID: r.ID, Title: r.Digest.Title, Keywords: r.Digest.Keywords,
+				ChunkCount: r.ChunkCount, Color: regionColor(r.ID),
 			})
 		}
 		if cur, err := h.d.Store.ListChunkIDsWithEmbedding(); err == nil {
@@ -67,6 +69,12 @@ func (h *handlers) atlasPaneView() viewmodel.AtlasPane {
 				vm.Stale, vm.Behind = true, behind
 			}
 		}
+	case st.Building:
+		vm.Status = "building"
+	case st.LastError != "":
+		vm.Status = "failed"
+	default:
+		vm.Status = "none"
 	}
 	return vm
 }
@@ -94,9 +102,14 @@ func (h *handlers) atlasPane(w http.ResponseWriter, r *http.Request) {
 	// canvas into the live one, wiping it out from under the user. The canvas
 	// shell only needs to change on a real status transition (building ->
 	// ready, etc.), which atlasRebuild patches separately.
-	if _, err := Patch(w, r, components.AtlasList(vm)); err != nil {
+	sse, err := Patch(w, r, components.AtlasList(vm))
+	if err != nil {
 		log.Printf("atlas pane: %v", err)
+		return
 	}
+	// Keep the build-state signals fresh so the rebuilding banner's poll also
+	// drives the graph's self-refresh once a rebuild lands.
+	_ = sse.MarshalAndPatchSignals(atlasSignals(h.d.Atlas.Status()))
 }
 
 // atlasAffinityFor ranks regions against a bullet's prose.
@@ -118,7 +131,8 @@ func (h *handlers) matchesView(label string, hits []atlas.RegionHit) viewmodel.A
 		}
 		if reg := h.d.Atlas.Region(hit.RegionID); reg != nil {
 			m.Regions = append(m.Regions, viewmodel.AtlasRegionRow{
-				ID: reg.ID, Title: reg.Digest.Title, Keywords: reg.Digest.Keywords, ChunkCount: reg.ChunkCount,
+				ID: reg.ID, Title: reg.Digest.Title, Keywords: reg.Digest.Keywords,
+				ChunkCount: reg.ChunkCount, Color: regionColor(reg.ID),
 			})
 		}
 	}
@@ -151,13 +165,67 @@ func (h *handlers) atlasRebuild(w http.ResponseWriter, r *http.Request) {
 	_ = sse.MarshalAndPatchSignals(atlasSignals(h.d.Atlas.Status()))
 }
 
-// --- network view (§6): graph JSON + chunk detail ---
+// --- network view (§6, thrice-revised): graph JSON + chunk-sequence drill-down ---
+//
+// Top-level nodes are TRANSCRIPTS (source files) — a disjoint, already-
+// meaningful partition, so no clustering is needed to produce it. Each is
+// labelled from its own atlas.TranscriptDigest (built from that file's full
+// text, not a region-based sample of chunks from elsewhere — see
+// buildTranscriptDigests in internal/atlas/builder.go), falling back to the
+// filename only if a transcript somehow has no digest. Edges are
+// transcript-to-transcript, aggregated from a
+// chunk-level similarity graph (atlas.BuildTranscriptEdges over
+// atlas.BuildChunkEdges): the MAX chunk-chunk weight crossing between two
+// files, not a sum or average. Regions still surface here as tags, at file
+// granularity (atlas.TagFiles) — not rendered as hulls (dropped, wasn't
+// useful), just carried so tapping a transcript can sync the right-pane
+// region list to its dominant region.
+//
+// Drill-down (?transcript=<id>) returns that transcript's own chunks in
+// document order, labelled with each chunk's short LLM label (atlas_chunk_label,
+// via atlas.ChunkLabeller — persisted per chunk, computed once), falling back
+// to a text head, and connected only by adjacency (chunk[i]-chunk[i+1]) —
+// never by embedding similarity.
 
-type graphRegion struct {
+type graphTag struct {
 	ID       string   `json:"id"`
 	Title    string   `json:"title"`
 	Keywords []string `json:"keywords"`
 	Chunks   int      `json:"chunks"`
+	Color    string   `json:"color"`
+}
+
+type graphTranscript struct {
+	ID       string   `json:"id"`
+	Label    string   `json:"label"`
+	Title    string   `json:"title"`
+	Keywords []string `json:"keywords"`
+	Chunks   int      `json:"chunks"`
+	Tags     []string `json:"tags"`
+	Color    string   `json:"color"` // primary region tag's colour
+}
+
+type graphChunkNode struct {
+	ID     string `json:"id"`
+	Label  string `json:"label"`
+	Region string `json:"region"` // the chunk's region id
+	Color  string `json:"color"`  // that region's colour
+}
+
+// regionPalette / regionColor map a region id to a stable display colour so
+// the graph nodes and the region list agree without a shared legend lookup.
+var regionPalette = []string{
+	"#6c74ff", "#ff8c5a", "#4fc9a3", "#e6be55", "#c869c8", "#5fb8e6",
+	"#e66e8c", "#96c85a", "#b58cff", "#e0a24f", "#5ad0b0", "#d9737d",
+}
+
+func regionColor(regionID string) string {
+	if regionID == "" {
+		return "#4a5578"
+	}
+	h := fnv.New32a()
+	h.Write([]byte(regionID))
+	return regionPalette[h.Sum32()%uint32(len(regionPalette))]
 }
 
 type graphEdge struct {
@@ -166,101 +234,157 @@ type graphEdge struct {
 	W float64 `json:"w"`
 }
 
-type graphChunk struct {
-	ID     string `json:"id"`
-	Label  string `json:"label"`
-	Source string `json:"source"`
-}
-
-// atlasGraphJSON serves the network-view payload. With ?region=<id> it returns
-// that region's member chunks + intra-region similarity edges; otherwise the
-// whole region graph. The client lays it out with a force sim — no coordinates
-// are sent (see source_atlas_plan.md §12).
+// atlasGraphJSON serves the network-view payload. With no query it's the
+// top-level transcript graph; with ?transcript=<id> it's that transcript's
+// chunk sequence. The client lays it out with a force sim (top level) or an
+// explicit sequential layout (drill-down) — no coordinates are sent (see
+// source_atlas_plan.md §12).
 func (h *handlers) atlasGraphJSON(w http.ResponseWriter, r *http.Request) {
-	build, _ := h.d.Atlas.Current()
 	w.Header().Set("Content-Type", "application/json")
+
+	build, _ := h.d.Atlas.Current()
 	if build == nil {
-		json.NewEncoder(w).Encode(map[string]any{"regions": []any{}, "links": []any{}})
+		json.NewEncoder(w).Encode(map[string]any{"tags": []any{}, "transcripts": []any{}, "edges": []any{}})
 		return
 	}
 
-	if rid := r.URL.Query().Get("region"); rid != "" {
-		h.writeRegionGraph(w, build, rid)
+	regionByChunk := make(map[string]string, build.ChunkCount)
+	for i := range build.Regions {
+		for _, m := range build.Regions[i].Members {
+			regionByChunk[m.ChunkID] = build.Regions[i].ID
+		}
+	}
+
+	if file := r.URL.Query().Get("transcript"); file != "" {
+		h.writeTranscriptChunks(w, file, regionByChunk)
 		return
 	}
 
-	regions := make([]graphRegion, 0, len(build.Regions))
-	for _, reg := range build.Regions {
-		regions = append(regions, graphRegion{
-			ID: reg.ID, Title: reg.Digest.Title, Keywords: reg.Digest.Keywords, Chunks: reg.ChunkCount,
+	ids := make([]string, 0, build.ChunkCount)
+	tags := make([]graphTag, 0, len(build.Regions))
+	for i := range build.Regions {
+		reg := &build.Regions[i]
+		tags = append(tags, graphTag{
+			ID: reg.ID, Title: reg.Digest.Title, Keywords: reg.Digest.Keywords,
+			Chunks: reg.ChunkCount, Color: regionColor(reg.ID),
+		})
+		for _, m := range reg.Members {
+			ids = append(ids, m.ChunkID)
+		}
+	}
+
+	chunks, _ := h.d.Store.GetChunksByIDs(ids)
+	fileOf := make(map[string]string, len(chunks))  // chunk id -> source file
+	fileChunks := make(map[string]int, len(chunks)) // source file -> chunk count
+	vecByID := make(map[string][]float32, len(chunks))
+	for i := range chunks {
+		fileOf[chunks[i].ID] = chunks[i].SourceFile
+		fileChunks[chunks[i].SourceFile]++
+		if len(chunks[i].EmbeddingVec) > 0 {
+			vecByID[chunks[i].ID] = ingest.BytesToFloat32s(chunks[i].EmbeddingVec)
+		}
+	}
+
+	fileTags := atlas.TagFiles(build.Regions, fileOf, atlas.FileTagParams{})
+	digestByFile := make(map[string]atlas.TranscriptDigest, len(build.Transcripts))
+	for _, td := range build.Transcripts {
+		digestByFile[td.SourceFile] = td
+	}
+
+	vecs := make([][]float32, len(ids))
+	for i, id := range ids {
+		vecs[i] = vecByID[id]
+	}
+	// atlas.BuildChunkEdges' output is never sent to the client here — it's
+	// only the substrate BuildTranscriptEdges aggregates up to file weights.
+	chunkEdges := atlas.BuildChunkEdges(ids, vecs, atlas.GraphEdgeParams{KeepTopFraction: 0.25})
+	transcriptEdges := atlas.BuildTranscriptEdges(chunkEdges, fileOf, atlas.TranscriptEdgeParams{K: 4})
+
+	files := make([]string, 0, len(fileChunks))
+	for f := range fileChunks {
+		files = append(files, f)
+	}
+	sort.Strings(files)
+
+	transcripts := make([]graphTranscript, 0, len(files))
+	for _, f := range files {
+		tagIDs := make([]string, 0, len(fileTags[f]))
+		for _, t := range fileTags[f] {
+			tagIDs = append(tagIDs, t.RegionID)
+		}
+		var primary string
+		if len(tagIDs) > 0 {
+			primary = tagIDs[0]
+		}
+		d := digestByFile[f].Digest
+		transcripts = append(transcripts, graphTranscript{
+			ID: f, Label: transcriptLabel(d, f), Title: d.Title, Keywords: d.Keywords,
+			Chunks: fileChunks[f], Tags: tagIDs, Color: regionColor(primary),
 		})
 	}
-	links := make([]graphEdge, 0, len(build.Links))
-	for _, l := range build.Links {
-		links = append(links, graphEdge{A: l.RegionA, B: l.RegionB, W: l.Weight})
+
+	edges := make([]graphEdge, 0, len(transcriptEdges))
+	for _, e := range transcriptEdges {
+		edges = append(edges, graphEdge{A: e.A, B: e.B, W: e.Weight})
 	}
-	json.NewEncoder(w).Encode(map[string]any{"regions": regions, "links": links})
+
+	json.NewEncoder(w).Encode(map[string]any{
+		"tags": tags, "transcripts": transcripts, "edges": edges,
+		"buildAt": h.d.Atlas.Status().LastBuilt.UnixMilli(),
+	})
 }
 
-func (h *handlers) writeRegionGraph(w http.ResponseWriter, build *atlas.Build, rid string) {
-	var region *atlas.Region
-	for i := range build.Regions {
-		if build.Regions[i].ID == rid {
-			region = &build.Regions[i]
+// transcriptLabel prefers the digest's keywords (top 3), falls back to its
+// title, and falls back to the filename when there's no digest at all yet.
+func transcriptLabel(d atlas.Digest, filename string) string {
+	if len(d.Keywords) > 0 {
+		kw := d.Keywords
+		if len(kw) > 3 {
+			kw = kw[:3]
 		}
+		return strings.Join(kw, " · ")
 	}
-	if region == nil {
-		http.Error(w, "region not found", http.StatusNotFound)
+	if d.Title != "" {
+		return d.Title
+	}
+	return filename
+}
+
+// writeTranscriptChunks serves one transcript's chunks in document order,
+// labelled with each chunk's persisted LLM label, coloured by the region each
+// chunk belongs to, and connected only by adjacency — the drill-down view has
+// no embedding edges.
+func (h *handlers) writeTranscriptChunks(w http.ResponseWriter, file string, regionByChunk map[string]string) {
+	chunks, err := h.d.Store.ListChunksBySourceFile(file)
+	if err != nil || len(chunks) == 0 {
+		http.Error(w, "transcript not found", http.StatusNotFound)
 		return
 	}
 
-	ids := make([]string, len(region.Members))
-	for i, m := range region.Members {
-		ids[i] = m.ChunkID
+	ids := make([]string, len(chunks))
+	for i, c := range chunks {
+		ids[i] = c.ID
 	}
-	chunks, _ := h.d.Store.GetChunksByIDs(ids)
+	labels := h.d.Atlas.ChunkLabels(ids)
 
-	nodes := make([]graphChunk, 0, len(chunks))
-	vecs := make(map[string][]float32, len(chunks))
-	byID := map[string]bool{}
-	for i := range chunks {
-		c := &chunks[i]
-		byID[c.ID] = true
-		nodes = append(nodes, graphChunk{ID: c.ID, Label: chunkLabel(c.Content), Source: c.SourceFile})
-		if len(c.EmbeddingVec) > 0 {
-			vecs[c.ID] = ingest.BytesToFloat32s(c.EmbeddingVec)
+	nodes := make([]graphChunkNode, len(chunks))
+	for i, c := range chunks {
+		label := labels[c.ID]
+		if label == "" {
+			label = chunkLabel(c.Content) // no persisted label yet (LLM off, or not rebuilt)
 		}
+		region := regionByChunk[c.ID]
+		nodes[i] = graphChunkNode{ID: c.ID, Label: label, Region: region, Color: regionColor(region)}
 	}
-	// Per-chunk keyword labels are better than a text head when we have them.
-	for _, m := range region.Members {
-		if len(m.Keywords) > 0 && byID[m.ChunkID] {
-			for i := range nodes {
-				if nodes[i].ID == m.ChunkID {
-					nodes[i].Label = strings.Join(m.Keywords, " · ")
-				}
-			}
-		}
+	edges := make([]graphEdge, 0, len(chunks)-1)
+	for i := 0; i+1 < len(chunks); i++ {
+		edges = append(edges, graphEdge{A: chunks[i].ID, B: chunks[i+1].ID, W: 1})
 	}
 
-	var edges []graphEdge
-	const simThreshold = 0.35
-	for i := 0; i < len(nodes); i++ {
-		for j := i + 1; j < len(nodes); j++ {
-			a, b := vecs[nodes[i].ID], vecs[nodes[j].ID]
-			if a == nil || b == nil {
-				continue
-			}
-			if s := ingest.CosineSimilarity(a, b); s >= simThreshold {
-				edges = append(edges, graphEdge{A: nodes[i].ID, B: nodes[j].ID, W: s})
-			}
-		}
-	}
-
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{
-		"region": map[string]string{"id": region.ID, "title": region.Digest.Title},
-		"chunks": nodes,
-		"edges":  edges,
+		"transcript": map[string]any{"id": file, "label": file, "chunks": len(chunks)},
+		"chunks":     nodes,
+		"edges":      edges,
 	})
 }
 
@@ -269,7 +393,8 @@ func chunkLabel(content string) string {
 	return s
 }
 
-// atlasChunk renders a chunk-detail fragment for the network view's right pane.
+// atlasChunk renders the selected passage into the Atlas right pane, as an
+// evidence-style card (#atlas-selected-chunk in AtlasList).
 func (h *handlers) atlasChunk(w http.ResponseWriter, r *http.Request) {
 	c, err := h.d.Store.GetChunk(chi.URLParam(r, "id"))
 	if err != nil {
@@ -278,7 +403,7 @@ func (h *handlers) atlasChunk(w http.ResponseWriter, r *http.Request) {
 	}
 	vm := viewmodel.Candidate{ChunkID: c.ID, SourceFile: c.SourceFile, Snippet: c.Content}
 	sse := datastar.NewSSE(w, r)
-	if err := sse.PatchElementTempl(components.AtlasChunkDetail(vm)); err != nil {
+	if err := sse.PatchElementTempl(components.AtlasSelectedChunk(vm)); err != nil {
 		log.Printf("atlas chunk: %v", err)
 	}
 }
@@ -332,7 +457,7 @@ func (h *handlers) atlasRegion(w http.ResponseWriter, r *http.Request) {
 		default:
 			continue
 		}
-		vm.Neighbours = append(vm.Neighbours, viewmodel.AtlasRegionRow{ID: other, Title: titleByID[other]})
+		vm.Neighbours = append(vm.Neighbours, viewmodel.AtlasRegionRow{ID: other, Title: titleByID[other], Color: regionColor(other)})
 	}
 
 	sse := datastar.NewSSE(w, r)

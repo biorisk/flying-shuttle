@@ -167,6 +167,17 @@ func (s *Service) Region(id string) *Region {
 	return nil
 }
 
+// ChunkLabels returns chunk_id -> drill-down label for the given ids (only
+// those with a persisted label). Safe to call any time; independent of the
+// current build.
+func (s *Service) ChunkLabels(ids []string) map[string]string {
+	m, err := s.Builder.Store.GetChunkLabels(ids)
+	if err != nil {
+		return nil
+	}
+	return m
+}
+
 // Status returns a UI-facing snapshot.
 func (s *Service) Status() Status {
 	s.mu.Lock()

@@ -57,6 +57,9 @@ func (s *SQLiteStore) Migrate() error {
 		"migrations/005_evidence.sql",
 		"migrations/006_atlas.sql",
 		"migrations/007_meta.sql",
+		"migrations/008_atlas_transcript.sql",
+		"migrations/009_atlas_chunk_label.sql",
+		"migrations/010_atlas_digest.sql",
 	}
 	for _, name := range migrations {
 		data, err := migrationFS.ReadFile(name)

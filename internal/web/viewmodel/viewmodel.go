@@ -288,6 +288,7 @@ type AtlasPane struct {
 	ChunkCount int
 	Stale      bool         // corpus has grown noticeably since this build
 	Behind     int          // chunks added since the build (when Stale)
+	Rebuilding bool         // a rebuild is running behind this (still-usable) build
 	Matches    AtlasMatches // regions ranked for the focused bullet (may be empty)
 }
 
@@ -304,6 +305,7 @@ type AtlasRegionRow struct {
 	Title      string
 	Keywords   []string
 	ChunkCount int
+	Color      string // stable per-region colour, matches the graph nodes
 }
 
 // AtlasRegionDetail is the render model for #atlas-region: one region's digest,
