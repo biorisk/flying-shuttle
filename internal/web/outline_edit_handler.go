@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/biorisk/flying-shuttle/internal/outline"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/web/components"
 	"github.com/go-chi/chi/v5"
 	datastar "github.com/starfederation/datastar-go/datastar"
@@ -69,7 +69,7 @@ func (h *handlers) persistAnchorTitle(r *http.Request, id string) {
 		return
 	}
 	version, _ := strconv.Atoi(r.FormValue("version"))
-	if _, err := h.d.Outline.SetTitle(id, r.FormValue("title"), version); err != nil && !errors.Is(err, store.ErrConflict) {
+	if _, err := h.d.Outline.SetTitle(id, r.FormValue("title"), version); err != nil && !errors.Is(err, doc.ErrConflict) {
 		log.Printf("outline edit: persist anchor title %s: %v", id, err)
 	}
 }
@@ -192,7 +192,7 @@ func (h *handlers) outlineSetTitle(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case err == nil:
 		w.WriteHeader(http.StatusNoContent)
-	case errors.Is(err, store.ErrConflict):
+	case errors.Is(err, doc.ErrConflict):
 		// Client was stale — resend the whole outline.
 		h.patchOutline(w, r, "")
 	default:
@@ -203,7 +203,7 @@ func (h *handlers) outlineSetTitle(w http.ResponseWriter, r *http.Request) {
 // editError maps store errors to statuses for the structural endpoints.
 func (h *handlers) editError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
-	case errors.Is(err, store.ErrNotFound):
+	case errors.Is(err, doc.ErrNotFound):
 		http.Error(w, "not found", http.StatusNotFound)
 	default:
 		log.Printf("outline edit: %v", err)

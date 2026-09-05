@@ -6,7 +6,7 @@ import (
 
 	"github.com/biorisk/flying-shuttle/internal/ingest"
 	"github.com/biorisk/flying-shuttle/internal/search"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 )
 
 // LoadAndReconcile brings a fresh HybridIndex up to date at startup:
@@ -18,7 +18,7 @@ import (
 //
 // After a clean shutdown steps 2–3 are no-ops, so boot stays fast regardless
 // of corpus size.
-func LoadAndReconcile(s store.Store, idx *search.HybridIndex, bm25Path, hnswPath string) error {
+func LoadAndReconcile(s doc.Store, idx *search.HybridIndex, bm25Path, hnswPath string) error {
 	start := time.Now()
 
 	if ok, err := idx.LoadBM25(bm25Path); err != nil {

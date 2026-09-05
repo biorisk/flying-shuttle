@@ -16,7 +16,7 @@ import (
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/search"
 	"github.com/biorisk/flying-shuttle/internal/stitch"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 )
 
 // TestFullLoop drives the whole product loop through the real router — using
@@ -25,7 +25,7 @@ import (
 // evidence, open the transcript reader, attach a passage as a locked
 // sub-bullet, preview the stitch, download the markdown.
 func TestFullLoop(t *testing.T) {
-	s, err := store.NewSQLiteStore(":memory:")
+	s, err := doc.NewSQLiteStore(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +168,7 @@ func firstMatch(t *testing.T, s, pat string) string {
 	return m[1]
 }
 
-func onlyRoot(t *testing.T, s store.Store) string {
+func onlyRoot(t *testing.T, s doc.Store) string {
 	t.Helper()
 	nodes, _ := s.ListNodes()
 	edges, _ := s.ListEdges()
@@ -190,7 +190,7 @@ func onlyRoot(t *testing.T, s store.Store) string {
 	return roots[0]
 }
 
-func childrenOf(t *testing.T, s store.Store, id string) []string {
+func childrenOf(t *testing.T, s doc.Store, id string) []string {
 	t.Helper()
 	edges, _ := s.ListEdgesFrom(id)
 	var out []string

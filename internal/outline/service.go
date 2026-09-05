@@ -7,7 +7,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/biorisk/flying-shuttle/internal/model"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/google/uuid"
 )
 
@@ -21,7 +21,7 @@ var ErrNoop = errors.New("outline: operation has no effect")
 // via the store's atomic MoveNode / CreateNode. A crash between the two
 // leaves at worst an orphan root node (recoverable), never a corrupt graph.
 type Service struct {
-	Store store.Store
+	Store doc.Store
 }
 
 // Tree returns the current outline forest.
@@ -44,7 +44,7 @@ func (s *Service) treeAndNode(id string) ([]*TreeNode, *TreeNode, error) {
 	}
 	tn := Find(forest, id)
 	if tn == nil {
-		return nil, nil, store.ErrNotFound
+		return nil, nil, doc.ErrNotFound
 	}
 	return forest, tn, nil
 }
@@ -179,7 +179,7 @@ func (s *Service) Delete(nodeID string) error {
 }
 
 // SetTitle updates a bullet's title. version, when > 0, is checked for
-// optimistic concurrency (store.ErrConflict on mismatch).
+// optimistic concurrency (doc.ErrConflict on mismatch).
 func (s *Service) SetTitle(id, title string, version int) (*model.Node, error) {
 	n, err := s.Store.GetNode(id)
 	if err != nil {
@@ -305,7 +305,7 @@ func (s *Service) EditQuote(nodeID string, op QuoteOp, start, end int) (*model.N
 		return nil, err
 	}
 	if len(evs) == 0 {
-		return nil, store.ErrNotFound
+		return nil, doc.ErrNotFound
 	}
 	ev := evs[0]
 
@@ -444,7 +444,7 @@ func (s *Service) Move(nodeID, newParentID string, position int) error {
 			return ErrNoop // target is a descendant of the node being moved
 		}
 		if Find(forest, newParentID) == nil {
-			return store.ErrNotFound
+			return doc.ErrNotFound
 		}
 	}
 	if position < 0 {

@@ -11,12 +11,12 @@ import (
 	"github.com/biorisk/flying-shuttle/internal/ingest/embedfile"
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/search"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/google/uuid"
 )
 
 type ingestHandler struct {
-	store store.Store
+	store doc.Store
 	idx   *search.HybridIndex
 }
 

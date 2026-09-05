@@ -4,12 +4,12 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 )
 
 func newSvc(t *testing.T) *Service {
 	t.Helper()
-	s, err := store.NewSQLiteStore(":memory:")
+	s, err := doc.NewSQLiteStore(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}

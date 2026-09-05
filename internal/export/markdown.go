@@ -9,7 +9,7 @@ import (
 	"github.com/biorisk/flying-shuttle/internal/dag"
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/stitch"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 )
 
 // ExportFormat specifies the output format.
@@ -139,7 +139,7 @@ func Slugify(s string) string {
 }
 
 // GenerateMarkdown is the high-level export function that linearizes and converts.
-func GenerateMarkdown(s store.Store, stitcher stitch.Stitcher, req ExportRequest) (*ExportResult, error) {
+func GenerateMarkdown(s doc.Store, stitcher stitch.Stitcher, req ExportRequest) (*ExportResult, error) {
 	mode := dag.ModeManuscript
 	if req.ThreadID != "" {
 		mode = dag.ModeThread

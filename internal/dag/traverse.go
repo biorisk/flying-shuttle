@@ -4,11 +4,11 @@ import (
 	"fmt"
 
 	"github.com/biorisk/flying-shuttle/internal/model"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 )
 
 // Linearize walks a thread's ordered nodes and returns them with full node data.
-func Linearize(s store.Store, threadID string) ([]model.Node, error) {
+func Linearize(s doc.Store, threadID string) ([]model.Node, error) {
 	tns, err := s.GetThreadNodes(threadID)
 	if err != nil {
 		return nil, err
@@ -28,7 +28,7 @@ func Linearize(s store.Store, threadID string) ([]model.Node, error) {
 // edges whose conditions are satisfied by the given EvalContext. Nodes are
 // visited in the order they are reached, skipping already-visited nodes.
 // This enables audience-aware navigation through the DAG.
-func ConditionalWalk(s store.Store, startIDs []string, ctx *EvalContext) ([]model.Node, error) {
+func ConditionalWalk(s doc.Store, startIDs []string, ctx *EvalContext) ([]model.Node, error) {
 	if ctx == nil {
 		ctx = &EvalContext{}
 	}
@@ -82,7 +82,7 @@ func ConditionalWalk(s store.Store, startIDs []string, ctx *EvalContext) ([]mode
 
 // TopologicalSort returns all nodes in topological order (Kahn's algorithm).
 // Returns an error if the graph contains a cycle.
-func TopologicalSort(s store.Store) ([]model.Node, error) {
+func TopologicalSort(s doc.Store) ([]model.Node, error) {
 	allNodes, err := s.ListNodes()
 	if err != nil {
 		return nil, err

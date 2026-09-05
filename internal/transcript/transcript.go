@@ -7,7 +7,7 @@ package transcript
 
 import (
 	"github.com/biorisk/flying-shuttle/internal/model"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 )
 
 // DefaultRadius is how many chunks on each side of the focus a window includes.
@@ -39,9 +39,9 @@ type Window struct {
 	NextChunk string `json:"next_chunk,omitempty"`
 }
 
-// Service reads transcript windows from the store.
+// Service reads transcript windows from the doc.
 type Service struct {
-	Store store.Store
+	Store doc.Store
 }
 
 // WindowAround returns a window centered on chunkID with `radius` chunks of
@@ -96,7 +96,7 @@ func (s *Service) window(sourceFile, focusID string, radius int) (*Window, error
 		}
 	}
 	if fi < 0 {
-		return nil, store.ErrNotFound
+		return nil, doc.ErrNotFound
 	}
 
 	lo := fi - radius

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/biorisk/flying-shuttle/internal/model"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 )
 
 // Issue represents a single graph integrity problem.
@@ -25,7 +25,7 @@ type Report struct {
 //   - Self-links (edge where from == to)
 //   - Dangling edge references (edges pointing to non-existent nodes)
 //   - Dangling thread node references (thread_nodes pointing to non-existent nodes)
-func ValidateGraph(s store.Store) (*Report, error) {
+func ValidateGraph(s doc.Store) (*Report, error) {
 	report := &Report{Valid: true}
 
 	nodes, err := s.ListNodes()
@@ -93,13 +93,13 @@ func (r *Report) addIssue(typ, id, msg string) {
 // WouldCreateCycle returns true if adding an edge from→to would create a cycle.
 // It performs a DFS from "to" following existing edges; if "from" is reachable
 // from "to", adding from→to would close a loop.
-func WouldCreateCycle(s store.Store, from, to string) (bool, error) {
+func WouldCreateCycle(s doc.Store, from, to string) (bool, error) {
 	visited := map[string]bool{}
 	return dfsReaches(s, to, from, visited)
 }
 
 // dfsReaches returns true if target is reachable from current via outgoing edges.
-func dfsReaches(s store.Store, current, target string, visited map[string]bool) (bool, error) {
+func dfsReaches(s doc.Store, current, target string, visited map[string]bool) (bool, error) {
 	if current == target {
 		return true, nil
 	}
@@ -125,7 +125,7 @@ func dfsReaches(s store.Store, current, target string, visited map[string]bool) 
 }
 
 // FindRoots returns all nodes with no incoming edges (DAG entry points).
-func FindRoots(s store.Store) ([]model.Node, error) {
+func FindRoots(s doc.Store) ([]model.Node, error) {
 	nodes, err := s.ListNodes()
 	if err != nil {
 		return nil, err

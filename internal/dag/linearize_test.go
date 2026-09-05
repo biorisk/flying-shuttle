@@ -7,12 +7,12 @@ import (
 
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/stitch"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 )
 
-func setupLinearizeStore(t *testing.T) store.Store {
+func setupLinearizeStore(t *testing.T) doc.Store {
 	t.Helper()
-	s, err := store.NewSQLiteStore(":memory:")
+	s, err := doc.NewSQLiteStore(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}

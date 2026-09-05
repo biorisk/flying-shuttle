@@ -7,14 +7,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/go-chi/chi/v5"
 )
 
 func testRouter(t *testing.T) chi.Router {
 	t.Helper()
-	s, err := store.NewSQLiteStore(":memory:")
+	s, err := doc.NewSQLiteStore(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}

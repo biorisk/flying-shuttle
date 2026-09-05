@@ -7,13 +7,13 @@ import (
 	"testing"
 
 	"github.com/biorisk/flying-shuttle/internal/model"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/go-chi/chi/v5"
 )
 
 func TestTranscriptReader_windowAndScrub(t *testing.T) {
-	s, err := store.NewSQLiteStore(":memory:")
+	s, err := doc.NewSQLiteStore(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestTranscriptReader_windowAndScrub(t *testing.T) {
 }
 
 func TestTranscriptReader_highlightsLocatedSpan(t *testing.T) {
-	s, _ := store.NewSQLiteStore(":memory:")
+	s, _ := doc.NewSQLiteStore(":memory:")
 	s.Migrate()
 	t.Cleanup(func() { s.Close() })
 	s.CreateChunk(&model.Chunk{ID: "c1", SourceFile: "a.txt", Content: "alpha beta gamma delta", StartOffset: 0, EndOffset: 22})
@@ -84,7 +84,7 @@ func TestTranscriptReader_highlightsLocatedSpan(t *testing.T) {
 }
 
 func TestTranscriptReader_prefillsExcerptFormWithLocatedSpan(t *testing.T) {
-	s, _ := store.NewSQLiteStore(":memory:")
+	s, _ := doc.NewSQLiteStore(":memory:")
 	s.Migrate()
 	t.Cleanup(func() { s.Close() })
 	s.CreateChunk(&model.Chunk{ID: "c1", SourceFile: "a.txt", Content: "alpha beta gamma delta", StartOffset: 0, EndOffset: 22})
@@ -114,7 +114,7 @@ func TestTranscriptReader_prefillsExcerptFormWithLocatedSpan(t *testing.T) {
 }
 
 func TestTranscriptReader_hasExcerptForm(t *testing.T) {
-	s, _ := store.NewSQLiteStore(":memory:")
+	s, _ := doc.NewSQLiteStore(":memory:")
 	s.Migrate()
 	t.Cleanup(func() { s.Close() })
 	s.CreateChunk(&model.Chunk{ID: "c1", SourceFile: "a.txt", Content: "hello world here", StartOffset: 0, EndOffset: 16})

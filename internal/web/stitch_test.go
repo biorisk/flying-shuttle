@@ -8,13 +8,13 @@ import (
 
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/outline"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/go-chi/chi/v5"
 )
 
 func TestStitchPreview_manuscript(t *testing.T) {
-	s, _ := store.NewSQLiteStore(":memory:")
+	s, _ := doc.NewSQLiteStore(":memory:")
 	if err := s.Migrate(); err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestStitchPreview_manuscript(t *testing.T) {
 }
 
 func TestStitchPreview_exportLink(t *testing.T) {
-	s, _ := store.NewSQLiteStore(":memory:")
+	s, _ := doc.NewSQLiteStore(":memory:")
 	s.Migrate()
 	t.Cleanup(func() { s.Close() })
 	r := chi.NewRouter()

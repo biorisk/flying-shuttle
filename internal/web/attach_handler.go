@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/web/components"
 	"github.com/go-chi/chi/v5"
 	datastar "github.com/starfederation/datastar-go/datastar"
@@ -38,7 +38,7 @@ func (h *handlers) outlineAttachEvidence(w http.ResponseWriter, r *http.Request)
 	text := r.FormValue("text")
 
 	if _, err := h.d.Outline.AttachEvidence(parentID, chunkID, start, end, text); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
+		if errors.Is(err, doc.ErrNotFound) {
 			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}

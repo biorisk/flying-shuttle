@@ -13,14 +13,14 @@ import (
 	"github.com/biorisk/flying-shuttle/internal/atlas"
 	"github.com/biorisk/flying-shuttle/internal/ingest"
 	"github.com/biorisk/flying-shuttle/internal/model"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/go-chi/chi/v5"
 )
 
-func atlasTestServer(t *testing.T) (*store.SQLiteStore, *atlas.Service, http.Handler) {
+func atlasTestServer(t *testing.T) (*doc.SQLiteStore, *atlas.Service, http.Handler) {
 	t.Helper()
-	s, _ := store.NewSQLiteStore(":memory:")
+	s, _ := doc.NewSQLiteStore(":memory:")
 	if err := s.Migrate(); err != nil {
 		t.Fatal(err)
 	}

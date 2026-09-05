@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/biorisk/flying-shuttle/internal/model"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 )
 
 func TestEvalCondition_empty(t *testing.T) {
@@ -137,9 +137,9 @@ func TestConditionalWalk_hasReadGating(t *testing.T) {
 
 // --- helpers ---
 
-func setupStore(t *testing.T) store.Store {
+func setupStore(t *testing.T) doc.Store {
 	t.Helper()
-	s, err := store.NewSQLiteStore(":memory:")
+	s, err := doc.NewSQLiteStore(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +150,7 @@ func setupStore(t *testing.T) store.Store {
 	return s
 }
 
-func createNodes(t *testing.T, s store.Store, ids ...string) {
+func createNodes(t *testing.T, s doc.Store, ids ...string) {
 	t.Helper()
 	for _, id := range ids {
 		if err := s.CreateNode(&model.Node{ID: id, Type: "outline", Title: id}); err != nil {
@@ -159,7 +159,7 @@ func createNodes(t *testing.T, s store.Store, ids ...string) {
 	}
 }
 
-func createEdge(t *testing.T, s store.Store, id, from, to string, typ model.EdgeType, cond *string, weight int) {
+func createEdge(t *testing.T, s doc.Store, id, from, to string, typ model.EdgeType, cond *string, weight int) {
 	t.Helper()
 	if err := s.CreateEdge(&model.Edge{ID: id, FromNode: from, ToNode: to, Type: typ, Condition: cond, Weight: weight}); err != nil {
 		t.Fatal(err)

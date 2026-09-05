@@ -7,12 +7,12 @@ import (
 
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/search"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/web"
 )
 
 func TestEvidenceFinder_ranksAndResolves(t *testing.T) {
-	s, err := store.NewSQLiteStore(":memory:")
+	s, err := doc.NewSQLiteStore(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestEvidenceFinder_ranksAndResolves(t *testing.T) {
 }
 
 func TestEvidenceFinder_multiSpanSnippet(t *testing.T) {
-	s, _ := store.NewSQLiteStore(":memory:")
+	s, _ := doc.NewSQLiteStore(":memory:")
 	s.Migrate()
 	t.Cleanup(func() { s.Close() })
 
@@ -110,7 +110,7 @@ func TestEvidenceFinder_multiSpanSnippet(t *testing.T) {
 }
 
 func TestEvidenceFinder_marksHitsAndCentersSnippet(t *testing.T) {
-	s, err := store.NewSQLiteStore(":memory:")
+	s, err := doc.NewSQLiteStore(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}

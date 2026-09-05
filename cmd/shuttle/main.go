@@ -21,7 +21,7 @@ import (
 	"github.com/biorisk/flying-shuttle/internal/project"
 	"github.com/biorisk/flying-shuttle/internal/search"
 	"github.com/biorisk/flying-shuttle/internal/stitch"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/biorisk/flying-shuttle/internal/workingdocs"
 )
@@ -43,7 +43,7 @@ func run() error {
 	}
 	log.Printf("project %q  (%s)", paths.Name, paths.Dir)
 
-	s, err := store.NewSQLiteStore(paths.DB)
+	s, err := doc.NewSQLiteStore(paths.DB)
 	if err != nil {
 		return err
 	}
@@ -234,7 +234,7 @@ const embedModelID = "embeddinggemma-300m-768"
 // reconcileEmbeddingModel clears stored embeddings and the HNSW snapshot when
 // the embedding model has changed since the last run (or when a pre-marker DB
 // holds vectors of the wrong dimension). The backfiller then re-embeds.
-func reconcileEmbeddingModel(s *store.SQLiteStore, hnswPath string) error {
+func reconcileEmbeddingModel(s *doc.SQLiteStore, hnswPath string) error {
 	prev, err := s.GetMeta("embed_model")
 	if err != nil {
 		return err
@@ -261,7 +261,7 @@ func reconcileEmbeddingModel(s *store.SQLiteStore, hnswPath string) error {
 
 // loadAtlasCorpus pulls every embedded chunk (content + vector) for an Atlas
 // build.
-func loadAtlasCorpus(s store.Store) ([]atlas.CorpusChunk, error) {
+func loadAtlasCorpus(s doc.Store) ([]atlas.CorpusChunk, error) {
 	ids, err := s.ListChunkIDsWithEmbedding()
 	if err != nil {
 		return nil, err
@@ -289,7 +289,7 @@ func loadAtlasCorpus(s store.Store) ([]atlas.CorpusChunk, error) {
 	return out, nil
 }
 
-func storeIsEmpty(s store.Store) (bool, error) {
+func storeIsEmpty(s doc.Store) (bool, error) {
 	n, err := s.ListNodes()
 	if err != nil {
 		return false, err

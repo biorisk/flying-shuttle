@@ -1,4 +1,4 @@
-package store
+package doc
 
 import "github.com/biorisk/flying-shuttle/internal/model"
 

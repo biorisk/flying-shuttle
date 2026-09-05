@@ -10,7 +10,7 @@ import (
 	"github.com/biorisk/flying-shuttle/internal/pipeline"
 	"github.com/biorisk/flying-shuttle/internal/search"
 	"github.com/biorisk/flying-shuttle/internal/stitch"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/transcript"
 	"github.com/biorisk/flying-shuttle/internal/web/components"
 	"github.com/biorisk/flying-shuttle/internal/web/viewmodel"
@@ -20,7 +20,7 @@ import (
 // Deps are the services the server-rendered UI needs. Fields are added as
 // tasks require them.
 type Deps struct {
-	Store      store.Store
+	Store      doc.Store
 	Outline    *outline.Service
 	Transcript *transcript.Service
 	Ingester   *pipeline.Ingester

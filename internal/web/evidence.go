@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/biorisk/flying-shuttle/internal/search"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/web/viewmodel"
 )
 
@@ -14,7 +14,7 @@ import (
 // single retrieval path for the outline editor — there is no separate search.
 type EvidenceFinder struct {
 	Index *search.HybridIndex
-	Store store.Store
+	Store doc.Store
 }
 
 // DefaultPageSize is how many passages the evidence pane shows per page.

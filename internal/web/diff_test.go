@@ -6,13 +6,13 @@ import (
 	"testing"
 
 	"github.com/biorisk/flying-shuttle/internal/outline"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/go-chi/chi/v5"
 )
 
 func TestDiff_renderAndRescue(t *testing.T) {
-	s, _ := store.NewSQLiteStore(":memory:")
+	s, _ := doc.NewSQLiteStore(":memory:")
 	if err := s.Migrate(); err != nil {
 		t.Fatal(err)
 	}

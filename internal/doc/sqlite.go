@@ -1,4 +1,4 @@
-package store
+package doc
 
 import (
 	"database/sql"

@@ -6,12 +6,12 @@ import (
 
 	"github.com/biorisk/flying-shuttle/internal/atlas"
 	"github.com/biorisk/flying-shuttle/internal/model"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 )
 
-func newTestStore(t *testing.T) (*store.SQLiteStore, atlas.Store) {
+func newTestStore(t *testing.T) (*doc.SQLiteStore, atlas.Store) {
 	t.Helper()
-	s, err := store.NewSQLiteStore(":memory:")
+	s, err := doc.NewSQLiteStore(":memory:")
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}
@@ -22,7 +22,7 @@ func newTestStore(t *testing.T) (*store.SQLiteStore, atlas.Store) {
 	return s, atlas.NewStore(s.DB())
 }
 
-func seedChunks(t *testing.T, s *store.SQLiteStore, ids ...string) {
+func seedChunks(t *testing.T, s *doc.SQLiteStore, ids ...string) {
 	t.Helper()
 	chunks := make([]model.Chunk, len(ids))
 	for i, id := range ids {

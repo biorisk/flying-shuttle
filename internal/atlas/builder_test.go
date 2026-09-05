@@ -9,12 +9,12 @@ import (
 	"github.com/biorisk/flying-shuttle/internal/atlas"
 	"github.com/biorisk/flying-shuttle/internal/ingest"
 	"github.com/biorisk/flying-shuttle/internal/model"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 )
 
 // buildCorpus makes N chunks split across `groups` topics, each with a
 // deterministic embedding pointing along one axis, and persists them.
-func buildCorpus(t *testing.T, s *store.SQLiteStore, groups, per, dim int) func() ([]atlas.CorpusChunk, error) {
+func buildCorpus(t *testing.T, s *doc.SQLiteStore, groups, per, dim int) func() ([]atlas.CorpusChunk, error) {
 	t.Helper()
 	var chunks []model.Chunk
 	var corpus []atlas.CorpusChunk

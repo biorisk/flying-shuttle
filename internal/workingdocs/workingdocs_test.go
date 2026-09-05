@@ -10,12 +10,12 @@ import (
 
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/outline"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 )
 
-func newStore(t *testing.T) *store.SQLiteStore {
+func newStore(t *testing.T) *doc.SQLiteStore {
 	t.Helper()
-	s, err := store.NewSQLiteStore(":memory:")
+	s, err := doc.NewSQLiteStore(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +80,7 @@ func TestFlusher_writesAndRecovers(t *testing.T) {
 		}
 	}
 
-	// Recover into a fresh store.
+	// Recover into a fresh doc.
 	st, err := LoadState(sj)
 	if err != nil {
 		t.Fatal(err)

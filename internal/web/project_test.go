@@ -8,14 +8,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/go-chi/chi/v5"
 )
 
 func projectRouter(t *testing.T) (chi.Router, string, *[]string) {
 	t.Helper()
-	s, _ := store.NewSQLiteStore(":memory:")
+	s, _ := doc.NewSQLiteStore(":memory:")
 	if err := s.Migrate(); err != nil {
 		t.Fatal(err)
 	}

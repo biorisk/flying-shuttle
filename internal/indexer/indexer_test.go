@@ -9,7 +9,7 @@ import (
 	"github.com/biorisk/flying-shuttle/internal/ingest"
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/search"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/google/uuid"
 )
 
@@ -39,9 +39,9 @@ func (f *fakeEmbedder) EmbedBatch(_ context.Context, texts []string) ([][]float3
 	return out, nil
 }
 
-func newStore(t *testing.T) store.Store {
+func newStore(t *testing.T) doc.Store {
 	t.Helper()
-	s, err := store.NewSQLiteStore(":memory:")
+	s, err := doc.NewSQLiteStore(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +52,7 @@ func newStore(t *testing.T) store.Store {
 	return s
 }
 
-func mkChunk(t *testing.T, s store.Store, content string) model.Chunk {
+func mkChunk(t *testing.T, s doc.Store, content string) model.Chunk {
 	t.Helper()
 	c := model.Chunk{ID: uuid.NewString(), SourceFile: "f.txt", Content: content, EndOffset: len(content)}
 	if err := s.CreateChunk(&c); err != nil {

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/biorisk/flying-shuttle/internal/model"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/google/renameio"
 )
 
@@ -22,8 +22,8 @@ type State struct {
 	Branches []model.BranchSummary `json:"branches"`
 }
 
-// gather reads the full project state from the store.
-func gather(s store.Store, project string) (*State, error) {
+// gather reads the full project state from the doc.
+func gather(s doc.Store, project string) (*State, error) {
 	data, err := s.ExportState()
 	if err != nil {
 		return nil, err
@@ -61,11 +61,11 @@ func LoadState(stateJSON string) (*State, error) {
 	return &st, nil
 }
 
-// Flusher keeps outline.md + state.json in sync with the store. It polls
+// Flusher keeps outline.md + state.json in sync with the doc. It polls
 // (cheap for a book-sized DAG), writes only when the content changed, and does
 // a final write when ctx is cancelled.
 type Flusher struct {
-	Store     store.Store
+	Store     doc.Store
 	Project   string
 	OutlineMD string
 	StateJSON string

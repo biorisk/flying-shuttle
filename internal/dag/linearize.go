@@ -6,7 +6,7 @@ import (
 
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/stitch"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 )
 
 // LinearizeMode controls which nodes are included and their order.
@@ -36,7 +36,7 @@ type LinearizeResult struct {
 // chunks, and passes them through the stitcher to produce a continuous document.
 // Shared chunks that appear in multiple nodes are included only once (first
 // occurrence), preserving attribution while avoiding duplication.
-func LinearizeAndStitch(ctx context.Context, s store.Store, stitcher stitch.Stitcher, req LinearizeRequest) (*LinearizeResult, error) {
+func LinearizeAndStitch(ctx context.Context, s doc.Store, stitcher stitch.Stitcher, req LinearizeRequest) (*LinearizeResult, error) {
 	var nodes []model.Node
 	var err error
 
@@ -76,7 +76,7 @@ func LinearizeAndStitch(ctx context.Context, s store.Store, stitcher stitch.Stit
 // stitched manuscript only ever contains text the writer explicitly chose.
 // A node with no evidence falls back to its body text. Identical spans
 // (same chunk + same offsets) appearing under multiple nodes are emitted once.
-func collectChunks(s store.Store, nodes []model.Node) []stitch.ChunkInput {
+func collectChunks(s doc.Store, nodes []model.Node) []stitch.ChunkInput {
 	var chunks []stitch.ChunkInput
 	seenSpan := make(map[string]bool)
 	seenBody := make(map[string]bool)

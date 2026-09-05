@@ -10,7 +10,7 @@ import (
 	"github.com/biorisk/flying-shuttle/internal/project"
 	"github.com/biorisk/flying-shuttle/internal/search"
 	"github.com/biorisk/flying-shuttle/internal/stitch"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/transcript"
 	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/go-chi/chi/v5"
@@ -19,7 +19,7 @@ import (
 
 // Deps is everything NewRouter needs.
 type Deps struct {
-	Store           store.Store
+	Store           doc.Store
 	UploadDir       string
 	ClusterEmbedder ingest.Embedder // backs cluster suggestions; may be a stub
 	Index           *search.HybridIndex

@@ -12,7 +12,7 @@ import (
 )
 
 // Store is the Atlas persistence surface. It is deliberately separate from
-// store.Store: the Atlas is a self-contained, disposable subsystem and does not
+// doc.Store: the Atlas is a self-contained, disposable subsystem and does not
 // belong in the main domain interface.
 type Store interface {
 	// CreateBuild inserts a new build in "building" status and fills b.ID /
@@ -64,7 +64,7 @@ type Store interface {
 }
 
 // sqlStore implements Store against the shared *sql.DB. Obtain the handle from
-// store.SQLiteStore.DB().
+// doc.SQLiteStore.DB().
 type sqlStore struct{ db *sql.DB }
 
 // NewStore returns a SQLite-backed Atlas store over an existing connection.

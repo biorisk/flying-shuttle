@@ -4,13 +4,13 @@ import (
 	"testing"
 
 	"github.com/biorisk/flying-shuttle/internal/model"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/google/uuid"
 )
 
-func newTestStore(t *testing.T) store.Store {
+func newTestStore(t *testing.T) doc.Store {
 	t.Helper()
-	s, err := store.NewSQLiteStore(":memory:")
+	s, err := doc.NewSQLiteStore(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -21,7 +21,7 @@ func newTestStore(t *testing.T) store.Store {
 	return s
 }
 
-func makeNode(t *testing.T, s store.Store, title string) *model.Node {
+func makeNode(t *testing.T, s doc.Store, title string) *model.Node {
 	t.Helper()
 	n := &model.Node{ID: uuid.NewString(), Type: model.NodeTypeOutline, Title: title}
 	if err := s.CreateNode(n); err != nil {
@@ -30,7 +30,7 @@ func makeNode(t *testing.T, s store.Store, title string) *model.Node {
 	return n
 }
 
-func makeEdge(t *testing.T, s store.Store, from, to string) {
+func makeEdge(t *testing.T, s doc.Store, from, to string) {
 	t.Helper()
 	e := &model.Edge{ID: uuid.NewString(), FromNode: from, ToNode: to, Type: model.EdgeTypeLinear}
 	if err := s.CreateEdge(e); err != nil {

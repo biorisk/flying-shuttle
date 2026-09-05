@@ -12,14 +12,14 @@ import (
 
 	"github.com/biorisk/flying-shuttle/internal/model"
 	"github.com/biorisk/flying-shuttle/internal/outline"
-	"github.com/biorisk/flying-shuttle/internal/store"
+	"github.com/biorisk/flying-shuttle/internal/doc"
 	"github.com/biorisk/flying-shuttle/internal/web"
 	"github.com/go-chi/chi/v5"
 )
 
 func previewRouter(t *testing.T) (chi.Router, *outline.Service, string) {
 	t.Helper()
-	s, _ := store.NewSQLiteStore(":memory:")
+	s, _ := doc.NewSQLiteStore(":memory:")
 	if err := s.Migrate(); err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestPreview_manuscriptHTMLandPDF(t *testing.T) {
 }
 
 func TestPreviewEvents_reloadOnBroadcast(t *testing.T) {
-	s, _ := store.NewSQLiteStore(":memory:")
+	s, _ := doc.NewSQLiteStore(":memory:")
 	s.Migrate()
 	t.Cleanup(func() { s.Close() })
 	br := web.NewBroadcaster()
