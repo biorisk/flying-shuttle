@@ -38,36 +38,45 @@ func main() {
 func run() error {
 	addr := env("SHUTTLE_ADDR", ":8080")
 
-	paths, err := project.Resolve()
+	bind, err := project.Resolve()
 	if err != nil {
 		return err
 	}
-	log.Printf("project %q  (%s)", paths.Name, paths.Dir)
+	pp := bind.Project
+	if bind.Corpus != nil {
+		log.Printf("project %q  corpus %q  (%s)", pp.Name, bind.Corpus.Name, bind.Home)
+	} else {
+		log.Printf("project %q  (unbound — no corpus; evidence/atlas/ingest hidden)", pp.Name)
+	}
 
-	s, err := doc.NewSQLiteStore(paths.DB)
+	s, err := doc.Open(pp.DB)
 	if err != nil {
 		return err
 	}
 	defer s.Close()
-	if err := s.Migrate(); err != nil {
-		return err
-	}
 
-	// The corpus half. In Phase 1 it wraps the same connection as the
-	// document store; Phase 2 opens a separate corpus.db.
-	cs := corpus.New(s.DB())
-	if err := reconcileEmbeddingModel(cs, paths.HNSW); err != nil {
-		return err
+	// The corpus half: a separate corpus.db, opened read-write. nil when the
+	// project is unbound or its corpus directory is missing.
+	var cs corpus.Store
+	if bind.Corpus != nil {
+		cs, err = corpus.Open(bind.Corpus.DB, false)
+		if err != nil {
+			return err
+		}
+		defer cs.Close()
+		if err := reconcileEmbeddingModel(cs, bind.Corpus.HNSW); err != nil {
+			return err
+		}
 	}
 
 	// Recovery: a fresh DB but a working-doc state.json present -> re-import it.
 	if empty, _ := storeIsEmpty(s); empty {
-		if st, err := workingdocs.LoadState(paths.StateJSON); err == nil && st.Data != nil {
+		if st, err := workingdocs.LoadState(pp.StateJSON); err == nil && st.Data != nil {
 			if err := s.ImportState(st.Data); err != nil {
 				log.Printf("recovery: import state.json: %v", err)
 			} else {
 				n, _ := s.ListNodes()
-				log.Printf("recovery: restored %d nodes from %s", len(n), paths.StateJSON)
+				log.Printf("recovery: restored %d nodes from %s", len(n), pp.StateJSON)
 			}
 		}
 	}
@@ -107,33 +116,37 @@ func run() error {
 		}
 	}
 
-	if err := indexer.LoadAndReconcile(cs, idx, paths.BM25, paths.HNSW); err != nil {
-		return err
-	}
-	log.Printf("index ready: %d docs (BM25), %d vectors (HNSW)", idx.BM25.Len(), idx.Vector.Len())
-
 	var wg sync.WaitGroup
 	spawn := func(fn func(context.Context)) {
 		wg.Add(1)
 		go func() { defer wg.Done(); fn(ctx) }()
 	}
 
-	snap := indexer.NewSnapshotter(idx, paths.BM25, paths.HNSW, 15*time.Second)
-	spawn(snap.Run)
-
 	previewReload := web.NewBroadcaster()
 	docs := &workingdocs.Flusher{
-		Store: s, Project: paths.Name,
-		OutlineMD: paths.OutlineMD, StateJSON: paths.StateJSON,
+		Store: s, Project: pp.Name,
+		OutlineMD: pp.OutlineMD, StateJSON: pp.StateJSON,
 		OnWrite: previewReload.Notify,
 	}
 	spawn(docs.Run)
 
+	// Corpus-backed subsystems: the search index, its snapshotter, and the
+	// embedding backfiller only exist when a corpus is bound.
 	afterIngest := func() {}
-	if embedder != nil {
-		bf := indexer.NewBackfiller(cs, embedder, idx, 16, 30*time.Second)
-		spawn(bf.Run)
-		afterIngest = bf.Trigger
+	if cs != nil {
+		if err := indexer.LoadAndReconcile(cs, idx, bind.Corpus.BM25, bind.Corpus.HNSW); err != nil {
+			return err
+		}
+		log.Printf("index ready: %d docs (BM25), %d vectors (HNSW)", idx.BM25.Len(), idx.Vector.Len())
+
+		snap := indexer.NewSnapshotter(idx, bind.Corpus.BM25, bind.Corpus.HNSW, 15*time.Second)
+		spawn(snap.Run)
+
+		if embedder != nil {
+			bf := indexer.NewBackfiller(cs, embedder, idx, 16, 30*time.Second)
+			spawn(bf.Run)
+			afterIngest = bf.Trigger
+		}
 	}
 
 	// Shared instruct LLM (lazy — nothing loads until the first digest call).
@@ -159,32 +172,37 @@ func run() error {
 	// nothing runs in the background here. A nil embedder means digest search
 	// / bullet affinity are unavailable but browsing still works. A nil
 	// summariser (or an unreachable LLM) falls back to extractive digests.
-	atlasSvc := &atlas.Service{
-		BaseCtx:  ctx,
-		Embedder: embedder,
-		Builder: &atlas.Builder{
-			Store:      atlas.NewStore(cs.DB()),
-			Corpus:     func() ([]atlas.CorpusChunk, error) { return loadAtlasCorpus(cs) },
-			Embedder:   embedder,
-			Summariser: atlasSummariser,
-			Labeller:   atlasLabeller,
-		},
-	}
-	if err := atlasSvc.LoadCurrent(); err != nil {
-		log.Printf("atlas: load current build: %v", err)
+	var atlasSvc *atlas.Service
+	uploadDir := ""
+	if cs != nil {
+		uploadDir = bind.Corpus.UploadDir
+		atlasSvc = &atlas.Service{
+			BaseCtx:  ctx,
+			Embedder: embedder,
+			Builder: &atlas.Builder{
+				Store:      atlas.NewStore(cs.DB()),
+				Corpus:     func() ([]atlas.CorpusChunk, error) { return loadAtlasCorpus(cs) },
+				Embedder:   embedder,
+				Summariser: atlasSummariser,
+				Labeller:   atlasLabeller,
+			},
+		}
+		if err := atlasSvc.LoadCurrent(); err != nil {
+			log.Printf("atlas: load current build: %v", err)
+		}
 	}
 
 	deps := api.Deps{
 		Store:           s,
 		Corpus:          cs,
 		Atlas:           atlasSvc,
-		UploadDir:       paths.UploadDir,
+		UploadDir:       uploadDir,
 		ClusterEmbedder: clusterEmbedder,
 		Index:           idx,
 		Stitcher:        &stitch.StubStitcher{},
 		AfterIngest:     afterIngest,
-		ProjectName:     paths.Name,
-		OutlineMDPath:   paths.OutlineMD,
+		ProjectName:     pp.Name,
+		OutlineMDPath:   pp.OutlineMD,
 		PreviewReload:   previewReload,
 		Restart:         func(name string) { trySend(restart, name) },
 	}

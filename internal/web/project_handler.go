@@ -16,7 +16,7 @@ func (h *handlers) projectBarView() viewmodel.ProjectBar {
 		CanSwitch: h.d.SwitchProject != nil && h.d.ProjectHome != "",
 	}
 	if h.d.ProjectHome != "" {
-		names, err := project.List(h.d.ProjectHome)
+		names, err := project.ListProjects(h.d.ProjectHome)
 		if err != nil {
 			log.Printf("project bar: list: %v", err)
 		}
@@ -58,7 +58,7 @@ func (h *handlers) doSwitch(w http.ResponseWriter, r *http.Request, name string,
 		return
 	}
 	if create {
-		if _, err := project.Create(h.d.ProjectHome, name); err != nil {
+		if _, err := project.CreateProject(h.d.ProjectHome, name, name); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

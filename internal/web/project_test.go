@@ -74,7 +74,7 @@ func TestProjectNew_createsDir(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("new: %d %s", rec.Code, rec.Body.String())
 	}
-	if fi, err := os.Stat(filepath.Join(home, "fresh-book")); err != nil || !fi.IsDir() {
+	if fi, err := os.Stat(filepath.Join(home, "projects", "fresh-book")); err != nil || !fi.IsDir() {
 		t.Fatalf("project dir not created")
 	}
 	deadlineWait(t, func() bool { return len(*switched) == 1 && (*switched)[0] == "fresh-book" })
