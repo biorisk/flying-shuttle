@@ -171,11 +171,17 @@ type ProjectBar struct {
 	Current        string
 	Names          []string
 	CanSwitch      bool
-	Switching      string   // non-empty while a switch is in progress
-	CorpusName     string   // bound corpus ("" = unbound)
-	Corpora        []string // corpora available to bind
+	Switching      string      // non-empty while a switch is in progress
+	CorpusName     string      // bound corpus ("" = unbound)
+	Corpora        []CorpusRow // corpora available to bind (name + chunk count)
 	CorpusReadOnly bool
 	CorpusHolder   string
+}
+
+// CorpusRow is one selectable corpus in the bind picker.
+type CorpusRow struct {
+	Name   string
+	Chunks int
 }
 
 // ThreadRow is one thread in the thread bar.

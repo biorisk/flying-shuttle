@@ -25,7 +25,12 @@ func (h *handlers) projectBarView() viewmodel.ProjectBar {
 		}
 		vm.Names = names
 		if corpora, err := project.ListCorpora(h.d.ProjectHome); err == nil {
-			vm.Corpora = corpora
+			for _, c := range corpora {
+				vm.Corpora = append(vm.Corpora, viewmodel.CorpusRow{
+					Name:   c,
+					Chunks: project.CorpusChunkCount(project.CorpusPathsFor(h.d.ProjectHome, c).DB),
+				})
+			}
 		}
 	}
 	if len(vm.Names) == 0 && vm.Current != "" {

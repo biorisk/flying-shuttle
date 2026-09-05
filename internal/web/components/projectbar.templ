@@ -1,6 +1,10 @@
 package components
 
-import "github.com/biorisk/flying-shuttle/internal/web/viewmodel"
+import (
+	"fmt"
+
+	"github.com/biorisk/flying-shuttle/internal/web/viewmodel"
+)
 
 // ProjectBar is the top-left project picker. Switching a project restarts the
 // server (see main.go), so the fragment shows a "switching…" state and the
@@ -49,7 +53,7 @@ templ ProjectBar(vm viewmodel.ProjectBar) {
 					<ul>
 						for _, c := range vm.Corpora {
 							<li>
-								<button type="button" data-on:click={ "@post('/project/bind-corpus?name=' + encodeURIComponent('" + c + "'))" }>{ c }</button>
+								<button type="button" data-on:click={ "@post('/project/bind-corpus?name=' + encodeURIComponent('" + c.Name + "'))" }>{ c.Name } <span class="corpus-chunks">{ fmt.Sprintf("(%d passages)", c.Chunks) }</span></button>
 							</li>
 						}
 						<li>
