@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/biorisk/flying-shuttle/internal/model"
+	_ "modernc.org/sqlite"
 )
 
 // sqlStore implements Store against a *sql.DB. The handle is injected: in
@@ -16,10 +17,64 @@ type sqlStore struct {
 }
 
 // New wraps an existing database handle as a corpus.Store. It does not open
-// or migrate anything — the caller owns the connection lifecycle.
+// or migrate anything — the caller owns the connection lifecycle. Used in
+// tests and wherever the corpus shares the document connection.
 func New(db *sql.DB) Store { return &sqlStore{db: db} }
 
 var _ Store = (*sqlStore)(nil)
+
+// Open opens (or creates) the corpus database at path. When readOnly, it is
+// opened without write access and migrations are skipped — the caller is a
+// non-lock-holding session (see corpus_separation_plan.md §5.3).
+func Open(path string, readOnly bool) (Store, error) {
+	dsn := path
+	if readOnly {
+		dsn += "?mode=ro&_pragma=busy_timeout(5000)"
+	} else {
+		dsn += "?_pragma=busy_timeout(5000)"
+	}
+	db, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("open corpus %q: %w", path, err)
+	}
+	db.SetMaxOpenConns(1)
+	pragmas := []string{"PRAGMA foreign_keys = ON"}
+	if !readOnly {
+		pragmas = append([]string{"PRAGMA journal_mode = WAL"}, pragmas...)
+	}
+	for _, p := range pragmas {
+		if _, err := db.Exec(p); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("corpus exec %q: %w", p, err)
+		}
+	}
+	s := &sqlStore{db: db}
+	if !readOnly {
+		if err := s.Migrate(); err != nil {
+			db.Close()
+			return nil, err
+		}
+	}
+	return s, nil
+}
+
+// Migrate applies the corpus migration set. Idempotent (every statement is
+// CREATE ... IF NOT EXISTS).
+func (s *sqlStore) Migrate() error {
+	for _, name := range migrations {
+		data, err := migrationFS.ReadFile(name)
+		if err != nil {
+			return fmt.Errorf("read %s: %w", name, err)
+		}
+		if _, err := s.db.Exec(string(data)); err != nil {
+			return fmt.Errorf("exec %s: %w", name, err)
+		}
+	}
+	return nil
+}
+
+// Close closes the underlying handle. A no-op-safe double close is fine.
+func (s *sqlStore) Close() error { return s.db.Close() }
 
 // DB returns the underlying database handle.
 func (s *sqlStore) DB() *sql.DB { return s.db }

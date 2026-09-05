@@ -41,6 +41,21 @@ func NewSQLiteStore(dsn string) (*SQLiteStore, error) {
 	return &SQLiteStore{db: db}, nil
 }
 
+// Open opens (or creates) the project database at path and applies migrations.
+// Phase 2 entry point; NewSQLiteStore stays for tests and callers that
+// migrate separately.
+func Open(path string) (Store, error) {
+	s, err := NewSQLiteStore(path)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.Migrate(); err != nil {
+		s.Close()
+		return nil, err
+	}
+	return s, nil
+}
+
 func (s *SQLiteStore) Close() error { return s.db.Close() }
 
 // DB returns the underlying database handle. It is exposed so self-contained

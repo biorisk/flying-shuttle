@@ -27,6 +27,9 @@ type Reader interface {
 type Store interface {
 	Reader
 
+	Migrate() error
+	Close() error
+
 	// Chunks (content is immutable; the embedding vector is derived
 	// metadata and may be filled in later via SetChunkEmbedding).
 	CreateChunk(c *model.Chunk) error
