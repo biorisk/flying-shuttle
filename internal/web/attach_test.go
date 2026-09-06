@@ -105,6 +105,53 @@ func TestAttachEvidence_fromCandidateSelection(t *testing.T) {
 	}
 }
 
+func TestAttachEvidence_newBullet(t *testing.T) {
+	sp := storetest.New(t)
+	s := sp.Doc
+	svc := &outline.Service{Store: s, Corpus: sp.Corpus}
+	existing, _ := svc.AddRoot("already here")
+	full := "Opening. The clause was struck before the vote. Closing."
+	if err := sp.Corpus.CreateChunk(&model.Chunk{ID: "c1", SourceFile: "iv.txt", Content: full, EndOffset: len(full)}); err != nil {
+		t.Fatal(err)
+	}
+
+	r := chi.NewRouter()
+	web.Mount(r, web.Deps{Store: s, Corpus: sp.Corpus, Outline: svc})
+
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req(t, "POST", "/outline/evidence-new", url.Values{
+		"chunk_id": {"c1"},
+		"text":     {"The clause was struck before the vote."},
+	}))
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), "datastar-patch-signals") {
+		t.Fatalf("evidence-new: %d %s", rec.Code, rec.Body.String())
+	}
+
+	forest, _ := svc.Tree()
+	if len(forest) != 2 {
+		t.Fatalf("want 2 roots (existing + new), got %d", len(forest))
+	}
+	// The new bullet is appended at the end and is empty apart from its quote.
+	newRoot := forest[1]
+	if newRoot.Node.ID == existing.ID || newRoot.Node.Title != "" {
+		t.Fatalf("new root is not a fresh empty bullet: %+v", newRoot.Node)
+	}
+	if len(newRoot.Children) != 1 || newRoot.Children[0].Node.Type != model.NodeTypeChunkRef {
+		t.Fatalf("passage not attached under the new bullet: %+v", newRoot)
+	}
+	evs, _ := s.ListNodeEvidence(newRoot.Children[0].Node.ID)
+	if len(evs) != 1 || evs[0].Text != "The clause was struck before the vote." {
+		t.Fatalf("evidence row wrong: %+v", evs)
+	}
+
+	// chunk_id is required.
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req(t, "POST", "/outline/evidence-new", url.Values{}))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("missing chunk_id: %d", rec.Code)
+	}
+}
+
 func TestQuoteEditAndDelete(t *testing.T) {
 	sp := storetest.New(t)
 	s := sp.Doc

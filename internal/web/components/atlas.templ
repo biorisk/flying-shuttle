@@ -168,9 +168,15 @@ templ atlasPassage(c viewmodel.Candidate, showSource bool) {
 			<button
 				type="button"
 				class="atlas-attach"
-				data-attr:disabled="!$focusId"
+				data-show="$focusId"
 				data-on:click={ "@post('/outline/nodes/' + ($focusId||'') + '/evidence?chunk_id=" + c.ChunkID + "')" }
 			>Add as evidence</button>
+			<button
+				type="button"
+				class="atlas-attach"
+				data-show="!$focusId"
+				data-on:click={ "@post('/outline/evidence-new?chunk_id=" + c.ChunkID + "')" }
+			>Add selection (new bullet)</button>
 		</div>
 		if c.Summary != "" {
 			<details class="atlas-member-quote">

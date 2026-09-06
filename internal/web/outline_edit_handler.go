@@ -17,6 +17,7 @@ import (
 // route list in Mount stays readable.
 func (h *handlers) mountOutlineEdit(r chi.Router) {
 	r.Post("/outline/roots", h.outlineAddRoot)
+	r.Post("/outline/evidence-new", h.outlineAttachEvidenceNewBullet)
 	r.Post("/outline/move", h.outlineMove)
 	r.Post("/outline/quote-edit", h.outlineQuoteEdit)
 	r.Post("/outline/quote-text", h.outlineQuoteText)
