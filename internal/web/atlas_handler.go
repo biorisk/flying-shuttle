@@ -28,8 +28,8 @@ func (h *handlers) mountAtlas(r chi.Router) {
 	r.Get("/atlas/status", h.atlasStatus)
 	r.Get("/atlas/search", h.atlasSearch)
 	r.Get("/atlas/regions/{id}", h.atlasRegion)
+	r.Get("/atlas/transcript", h.atlasTranscript)
 	r.Get("/atlas/graph.json", h.atlasGraphJSON)
-	r.Get("/atlas/chunk/{id}", h.atlasChunk)
 	r.Post("/atlas/rebuild", h.atlasRebuild)
 }
 
@@ -179,7 +179,7 @@ func (h *handlers) atlasRebuild(w http.ResponseWriter, r *http.Request) {
 	_ = sse.MarshalAndPatchSignals(atlasSignals(h.d.Atlas.Status()))
 }
 
-// --- network view (§6, thrice-revised): graph JSON + chunk-sequence drill-down ---
+// --- network view (§6, thrice-revised): transcript graph JSON ---
 //
 // Top-level nodes are TRANSCRIPTS (source files) — a disjoint, already-
 // meaningful partition, so no clustering is needed to produce it. Each is
@@ -190,16 +190,15 @@ func (h *handlers) atlasRebuild(w http.ResponseWriter, r *http.Request) {
 // transcript-to-transcript, aggregated from a
 // chunk-level similarity graph (atlas.BuildTranscriptEdges over
 // atlas.BuildChunkEdges): the MAX chunk-chunk weight crossing between two
-// files, not a sum or average. Regions still surface here as tags, at file
-// granularity (atlas.TagFiles) — not rendered as hulls (dropped, wasn't
-// useful), just carried so tapping a transcript can sync the right-pane
-// region list to its dominant region.
+// files, not a sum or average. Edges are sent strongest-first and in full
+// (a generous per-transcript K); the client renders only the top N of them,
+// controlled by the "links" slider, re-running the layout on each change.
+// Regions surface here only as each transcript node's fill colour (its
+// dominant region, via atlas.TagFiles) and an informational `tags` list in
+// the payload — not as hulls.
 //
-// Drill-down (?transcript=<id>) returns that transcript's own chunks in
-// document order, labelled with each chunk's short LLM label (atlas_chunk_label,
-// via atlas.ChunkLabeller — persisted per chunk, computed once), falling back
-// to a text head, and connected only by adjacency (chunk[i]-chunk[i+1]) —
-// never by embedding similarity.
+// There is no in-graph drill-down: tapping a transcript loads its chunk
+// sequence into the right pane instead (see atlasTranscript).
 
 type graphTag struct {
 	ID       string   `json:"id"`
@@ -217,13 +216,6 @@ type graphTranscript struct {
 	Chunks   int      `json:"chunks"`
 	Tags     []string `json:"tags"`
 	Color    string   `json:"color"` // primary region tag's colour
-}
-
-type graphChunkNode struct {
-	ID     string `json:"id"`
-	Label  string `json:"label"`
-	Region string `json:"region"` // the chunk's region id
-	Color  string `json:"color"`  // that region's colour
 }
 
 // regionPalette / regionColor map a region id to a stable display colour so
@@ -259,18 +251,6 @@ func (h *handlers) atlasGraphJSON(w http.ResponseWriter, r *http.Request) {
 	build, _ := h.d.Atlas.Current()
 	if build == nil {
 		json.NewEncoder(w).Encode(map[string]any{"tags": []any{}, "transcripts": []any{}, "edges": []any{}})
-		return
-	}
-
-	regionByChunk := make(map[string]string, build.ChunkCount)
-	for i := range build.Regions {
-		for _, m := range build.Regions[i].Members {
-			regionByChunk[m.ChunkID] = build.Regions[i].ID
-		}
-	}
-
-	if file := r.URL.Query().Get("transcript"); file != "" {
-		h.writeTranscriptChunks(w, file, regionByChunk)
 		return
 	}
 
@@ -311,8 +291,11 @@ func (h *handlers) atlasGraphJSON(w http.ResponseWriter, r *http.Request) {
 	}
 	// atlas.BuildChunkEdges' output is never sent to the client here — it's
 	// only the substrate BuildTranscriptEdges aggregates up to file weights.
-	chunkEdges := atlas.BuildChunkEdges(ids, vecs, atlas.GraphEdgeParams{KeepTopFraction: 0.25})
-	transcriptEdges := atlas.BuildTranscriptEdges(chunkEdges, fileOf, atlas.TranscriptEdgeParams{K: 4})
+	// No KeepTopFraction trim and generous Ks: the "clump" problem is now the
+	// client's "links" slider to solve (it draws only the strongest N), so we
+	// hand it the full candidate set to slide through, not a pre-thinned one.
+	chunkEdges := atlas.BuildChunkEdges(ids, vecs, atlas.GraphEdgeParams{K: 10, MinWeight: 0.3})
+	transcriptEdges := atlas.BuildTranscriptEdges(chunkEdges, fileOf, atlas.TranscriptEdgeParams{K: 12})
 
 	files := make([]string, 0, len(fileChunks))
 	for f := range fileChunks {
@@ -364,11 +347,16 @@ func transcriptLabel(d atlas.Digest, filename string) string {
 	return filename
 }
 
-// writeTranscriptChunks serves one transcript's chunks in document order,
-// labelled with each chunk's persisted LLM label, coloured by the region each
-// chunk belongs to, and connected only by adjacency — the drill-down view has
-// no embedding edges.
-func (h *handlers) writeTranscriptChunks(w http.ResponseWriter, file string, regionByChunk map[string]string) {
+// atlasTranscript renders one source file's chunks, in document order, into
+// the Atlas right pane (#atlas-transcript, AtlasTranscript): each chunk as its
+// short summary label (atlas_chunk_label — the same phrase the region member
+// list shows), expandable in place to the passage text, with the shared
+// read-in-transcript / attach actions. This is the linear read of a
+// transcript, replacing the old in-graph chunk drill-down.
+//
+//	GET /atlas/transcript?file=<source file>
+func (h *handlers) atlasTranscript(w http.ResponseWriter, r *http.Request) {
+	file := r.URL.Query().Get("file")
 	chunks, err := h.d.Corpus.ListChunksBySourceFile(file)
 	if err != nil || len(chunks) == 0 {
 		http.Error(w, "transcript not found", http.StatusNotFound)
@@ -381,44 +369,31 @@ func (h *handlers) writeTranscriptChunks(w http.ResponseWriter, file string, reg
 	}
 	labels := h.d.Atlas.ChunkLabels(ids)
 
-	nodes := make([]graphChunkNode, len(chunks))
-	for i, c := range chunks {
-		label := labels[c.ID]
-		if label == "" {
-			label = chunkLabel(c.Content) // no persisted label yet (LLM off, or not rebuilt)
+	vm := viewmodel.AtlasTranscriptDetail{File: file}
+	if build, _ := h.d.Atlas.Current(); build != nil {
+		for _, td := range build.Transcripts {
+			if td.SourceFile == file {
+				vm.Keywords = td.Digest.Keywords
+				break
+			}
 		}
-		region := regionByChunk[c.ID]
-		nodes[i] = graphChunkNode{ID: c.ID, Label: label, Region: region, Color: regionColor(region)}
 	}
-	edges := make([]graphEdge, 0, len(chunks)-1)
-	for i := 0; i+1 < len(chunks); i++ {
-		edges = append(edges, graphEdge{A: chunks[i].ID, B: chunks[i+1].ID, W: 1})
+	for _, c := range chunks {
+		summary := labels[c.ID]
+		if summary == "" {
+			summary = trimRunes(c.Content, 60) // no persisted label yet (LLM off, or not rebuilt)
+		}
+		vm.Members = append(vm.Members, viewmodel.Candidate{
+			ChunkID:    c.ID,
+			SourceFile: c.SourceFile,
+			Snippet:    trimRunes(c.Content, snippetRunes),
+			Summary:    summary,
+		})
 	}
 
-	json.NewEncoder(w).Encode(map[string]any{
-		"transcript": map[string]any{"id": file, "label": file, "chunks": len(chunks)},
-		"chunks":     nodes,
-		"edges":      edges,
-	})
-}
-
-func chunkLabel(content string) string {
-	s := trimRunes(content, 48)
-	return s
-}
-
-// atlasChunk renders the selected passage into the Atlas right pane, as an
-// evidence-style card (#atlas-selected-chunk in AtlasList).
-func (h *handlers) atlasChunk(w http.ResponseWriter, r *http.Request) {
-	c, err := h.d.Corpus.GetChunk(chi.URLParam(r, "id"))
-	if err != nil {
-		http.Error(w, "chunk not found", http.StatusNotFound)
-		return
-	}
-	vm := viewmodel.Candidate{ChunkID: c.ID, SourceFile: c.SourceFile, Snippet: c.Content}
 	sse := datastar.NewSSE(w, r)
-	if err := sse.PatchElementTempl(components.AtlasSelectedChunk(vm)); err != nil {
-		log.Printf("atlas chunk: %v", err)
+	if err := sse.PatchElementTempl(components.AtlasTranscript(vm)); err != nil {
+		log.Printf("atlas transcript: %v", err)
 	}
 }
 
@@ -446,6 +421,11 @@ func (h *handlers) atlasRegion(w http.ResponseWriter, r *http.Request) {
 		ID: region.ID, Title: region.Digest.Title, Abstract: region.Digest.Abstract,
 		Keywords: region.Digest.Keywords, Source: region.Digest.Source,
 	}
+	memberIDs := make([]string, 0, len(region.Members))
+	for _, m := range region.Members {
+		memberIDs = append(memberIDs, m.ChunkID)
+	}
+	labels := h.d.Atlas.ChunkLabels(memberIDs) // chunk id -> short LLM label; same as the graph drill-down
 	for _, m := range region.Members {
 		c, err := h.d.Corpus.GetChunk(m.ChunkID)
 		if err != nil {
@@ -455,6 +435,7 @@ func (h *handlers) atlasRegion(w http.ResponseWriter, r *http.Request) {
 			ChunkID:    c.ID,
 			SourceFile: c.SourceFile,
 			Snippet:    trimRunes(c.Content, snippetRunes),
+			Summary:    labels[c.ID],
 		})
 	}
 	titleByID := map[string]string{}

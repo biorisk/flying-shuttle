@@ -96,7 +96,7 @@ func Page(c PageContent) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"shell\" class=\"shell\" data-signals=\"{ focusId: '', drawerOpen: false, centerView: 'outline', threadId: '', evidenceWidth: 420, collapsed: {}, readerChunk: '', glue: 50, brushMode: false, exits: {}, diffAgainst: '', atlasOpen: false, atlasRegionId: '', atlasChunkId: '', atlasBuilding: false, atlasBuiltAt: 0, atlasRegions: 0, atlasChunkCount: 0, atlasError: '', atlasQuery: '', searchMode: 'hybrid', evidenceQuery: '', evidencePage: 1, evidencePageSize: 12 }\" data-class=\"{ 'drawer-open': $drawerOpen }\" data-style:grid-template-columns=\"($drawerOpen ? '300px ' : '0 ') + '1fr ' + $evidenceWidth + 'px'\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"shell\" class=\"shell\" data-signals=\"{ focusId: '', drawerOpen: false, centerView: 'outline', threadId: '', evidenceWidth: 420, collapsed: {}, readerChunk: '', glue: 50, brushMode: false, exits: {}, diffAgainst: '', atlasOpen: false, atlasRegionId: '', atlasTranscriptId: '', atlasBuilding: false, atlasBuiltAt: 0, atlasRegions: 0, atlasChunkCount: 0, atlasError: '', atlasQuery: '', searchMode: 'hybrid', evidenceQuery: '', evidencePage: 1, evidencePageSize: 12 }\" data-class=\"{ 'drawer-open': $drawerOpen }\" data-style:grid-template-columns=\"($drawerOpen ? '300px ' : '0 ') + '1fr ' + $evidenceWidth + 'px'\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

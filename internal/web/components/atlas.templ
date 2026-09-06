@@ -17,10 +17,10 @@ templ AtlasList(vm viewmodel.AtlasPane) {
 	<section id="atlas" class="atlas-pane" aria-label="Source atlas" data-show="$atlasOpen">
 		<header class="atlas-head">
 			<strong>Source atlas</strong>
-			<button type="button" class="atlas-close" data-on:click="$atlasOpen = false; $atlasRegionId = ''; $atlasChunkId = ''; $centerView = ($centerView === 'atlas' ? 'outline' : $centerView)">×</button>
+			<button type="button" class="atlas-close" data-on:click="$atlasOpen = false; $atlasRegionId = ''; $atlasTranscriptId = ''; $centerView = ($centerView === 'atlas' ? 'outline' : $centerView)">×</button>
 		</header>
 		<div class="atlas-scroll">
-			<div id="atlas-selected-chunk" class="atlas-selected"></div>
+			<div id="atlas-transcript" class="atlas-selected"></div>
 			switch vm.Status {
 				case "ready":
 					@atlasRegionList(vm)
@@ -45,18 +45,25 @@ templ AtlasList(vm viewmodel.AtlasPane) {
 // AtlasCanvas is the #atlas-canvas fragment: the Source Atlas network graph
 // (Cytoscape, via atlas_graph.js). It takes over the main column, replacing
 // #outline/#stitch, while $centerView === 'atlas'. The top-level graph nodes
-// are transcripts (source files), coloured by their dominant region; tapping
-// one fires 'atlasnode' for its primary region tag (loading that region's
-// detail into AtlasList in the right pane) and drills into that transcript's
-// own chunks in document order, each coloured by its region. Tapping a chunk
-// fires 'atlaschunk', which loads the passage into #atlas-selected-chunk in
-// the right pane — same place any other evidence would appear.
+// are transcripts (source files), coloured by their dominant region. Tapping
+// one fires 'atlastranscript' with the source file, which loads that
+// transcript's chunks — in document order, as summary labels — into
+// #atlas-transcript in the right pane (AtlasTranscript). Edges are
+// transcript-to-transcript similarity; there is no in-graph drill-down. The
+// "links" slider caps how many of the strongest edges are drawn — fewer
+// links lets the force layout spread the clusters apart.
 templ AtlasCanvas(vm viewmodel.AtlasPane) {
 	<section id="atlas-canvas" data-show="$centerView === 'atlas'">
 		if vm.Status == "ready" {
-			<div id="atlas-graph" class="atlas-graph"
-				data-on:atlasnode="$atlasRegionId = evt.detail.id; @get('/atlas/regions/' + evt.detail.id)"
-				data-on:atlaschunk="$atlasChunkId = evt.detail.id; @get('/atlas/chunk/' + evt.detail.id)"></div>
+			<div class="atlas-graph-wrap">
+				<div id="atlas-graph" class="atlas-graph"
+					data-on:atlastranscript="$atlasTranscriptId = evt.detail.id; $atlasRegionId = ''; @get('/atlas/transcript?file=' + encodeURIComponent(evt.detail.id))"></div>
+				<div class="atlas-graph-controls" title="How many of the strongest transcript-to-transcript links to draw. The layout re-runs after each change.">
+					<label for="atlas-edge-slider">links</label>
+					<input id="atlas-edge-slider" type="range" min="0" max="100" step="1" value="0"/>
+					<span id="atlas-edge-readout" class="atlas-edge-readout">—</span>
+				</div>
+			</div>
 			// When a rebuild finishes ($atlasBuiltAt changes, $atlasBuilding
 			// false), reload the graph in place so it swaps to the new build.
 			<div hidden data-on-signal-patch="!$atlasBuilding && window.atlasGraph && window.atlasGraph.syncTo && window.atlasGraph.syncTo($atlasBuiltAt)"></div>
@@ -94,7 +101,7 @@ templ atlasRegionList(vm viewmodel.AtlasPane) {
 				<button
 					type="button"
 					class="atlas-region-head"
-					data-on:click={ fmt.Sprintf("$atlasRegionId = ($atlasRegionId === %q ? '' : %q); @get('/atlas/regions/%s')", r.ID, r.ID, r.ID) }
+					data-on:click={ fmt.Sprintf("$atlasTranscriptId = ''; $atlasRegionId = ($atlasRegionId === %q ? '' : %q); @get('/atlas/regions/%s')", r.ID, r.ID, r.ID) }
 				>
 					<span class="atlas-region-title">
 						<span class="atlas-swatch" style={ swatch(r.Color) }></span>
@@ -120,23 +127,7 @@ templ AtlasRegion(vm viewmodel.AtlasRegionDetail) {
 		if len(vm.Members) > 0 {
 			<ul class="atlas-members candidate-list">
 				for _, c := range vm.Members {
-					<li class="candidate" data-chunk={ c.ChunkID } data-source={ c.SourceFile }>
-						<div class="candidate-meta">
-							<span class="candidate-source">{ c.SourceFile }</span>
-							<button
-								type="button"
-								class="candidate-open"
-								data-on:click={ "@get('/evidence/transcript?node=' + ($focusId||'') + '&chunk=" + c.ChunkID + "')" }
-							>Read in transcript →</button>
-							<button
-								type="button"
-								class="atlas-attach"
-								data-attr:disabled="!$focusId"
-								data-on:click={ "@post('/outline/nodes/' + ($focusId||'') + '/evidence?chunk_id=" + c.ChunkID + "')" }
-							>Add as evidence</button>
-						</div>
-						<p class="candidate-text">{ c.Snippet }</p>
-					</li>
+					@atlasPassage(c, true)
 				}
 			</ul>
 		}
@@ -155,6 +146,65 @@ templ AtlasRegion(vm viewmodel.AtlasRegionDetail) {
 				}
 			</div>
 		}
+	</div>
+}
+
+// atlasPassage is one passage row, shared by the region member list and the
+// transcript linear view: the meta actions (read in transcript / attach) and
+// the chunk's summary label, which expands in place to the passage text on
+// click. showSource adds the source-file chip — wanted in a region's mixed
+// list, redundant in a single-transcript list.
+templ atlasPassage(c viewmodel.Candidate, showSource bool) {
+	<li class="candidate" data-chunk={ c.ChunkID } data-source={ c.SourceFile }>
+		<div class="candidate-meta">
+			if showSource {
+				<span class="candidate-source">{ c.SourceFile }</span>
+			}
+			<button
+				type="button"
+				class="candidate-open"
+				data-on:click={ "@get('/evidence/transcript?node=' + ($focusId||'') + '&chunk=" + c.ChunkID + "'); $atlasOpen = false; $atlasTranscriptId = ''" }
+			>Read in transcript →</button>
+			<button
+				type="button"
+				class="atlas-attach"
+				data-attr:disabled="!$focusId"
+				data-on:click={ "@post('/outline/nodes/' + ($focusId||'') + '/evidence?chunk_id=" + c.ChunkID + "')" }
+			>Add as evidence</button>
+		</div>
+		if c.Summary != "" {
+			<details class="atlas-member-quote">
+				<summary>
+					<span class="atlas-member-summary">{ c.Summary }</span>
+					<span class="atlas-member-full candidate-text">{ c.Snippet }</span>
+				</summary>
+			</details>
+		} else {
+			<p class="candidate-text">{ c.Snippet }</p>
+		}
+	</li>
+}
+
+// AtlasTranscript is the #atlas-transcript fragment: one source file's chunks
+// in document order, each shown as its summary label (click to reveal the
+// passage text), with the shared read/attach actions. Loaded into the Atlas
+// right pane when a transcript node is tapped in the graph — the linear read
+// of a transcript, styled like the region member list.
+templ AtlasTranscript(vm viewmodel.AtlasTranscriptDetail) {
+	<div id="atlas-transcript" class="atlas-selected atlas-transcript" data-show={ fmt.Sprintf("$atlasTranscriptId === %q", vm.File) }>
+		<div class="atlas-selected-head">
+			<span class="atlas-selected-label">{ fmt.Sprintf("transcript · %d passages", len(vm.Members)) }</span>
+			<button type="button" class="atlas-close" data-on:click="$atlasTranscriptId = ''">×</button>
+		</div>
+		<p class="atlas-transcript-file">{ vm.File }</p>
+		if len(vm.Keywords) > 0 {
+			<p class="atlas-region-kw">{ strings.Join(vm.Keywords, " · ") }</p>
+		}
+		<ul class="atlas-members candidate-list">
+			for _, c := range vm.Members {
+				@atlasPassage(c, false)
+			}
+		</ul>
 	</div>
 }
 
@@ -178,36 +228,6 @@ templ AtlasMatches(vm viewmodel.AtlasMatches) {
 				</button>
 			}
 		}
-	</div>
-}
-
-// AtlasSelectedChunk is the #atlas-selected-chunk fragment: the passage tapped
-// in the network graph, shown in the Atlas right pane as an evidence-style
-// card with the shared Read / Attach actions — the same place any other
-// evidence appears.
-templ AtlasSelectedChunk(c viewmodel.Candidate) {
-	<div id="atlas-selected-chunk" class="atlas-selected" data-show={ fmt.Sprintf("$atlasChunkId === %q", c.ChunkID) }>
-		<div class="atlas-selected-head">
-			<span class="atlas-selected-label">selected passage</span>
-			<button type="button" class="atlas-close" data-on:click="$atlasChunkId = ''">×</button>
-		</div>
-		<div class="candidate" data-chunk={ c.ChunkID } data-source={ c.SourceFile }>
-			<div class="candidate-meta">
-				<span class="candidate-source">{ c.SourceFile }</span>
-				<button
-					type="button"
-					class="candidate-open"
-					data-on:click={ "@get('/evidence/transcript?node=' + ($focusId||'') + '&chunk=" + c.ChunkID + "'); $atlasOpen = false; $atlasChunkId = ''" }
-				>Read in transcript →</button>
-				<button
-					type="button"
-					class="atlas-attach"
-					data-attr:disabled="!$focusId"
-					data-on:click={ "@post('/outline/nodes/' + ($focusId||'') + '/evidence?chunk_id=" + c.ChunkID + "')" }
-				>Add as evidence</button>
-			</div>
-			<p class="candidate-text">{ c.Snippet }</p>
-		</div>
 	</div>
 }
 

@@ -169,6 +169,18 @@ func TestAtlasRegion_DetailAndMembers(t *testing.T) {
 	if !strings.Contains(body, "/evidence?chunk_id=") {
 		t.Fatalf("attach wiring missing: %s", body)
 	}
+	// Members show the chunk's LLM summary label; clicking it reveals the text.
+	if !strings.Contains(body, "atlas-member-quote") || !strings.Contains(body, "atlas-member-summary") {
+		t.Fatalf("member summary disclosure missing: %s", body)
+	}
+	if !strings.Contains(body, "passage label") {
+		t.Fatalf("stub chunk label not rendered as summary: %s", body)
+	}
+	// "Read in transcript" must close the atlas pane so the reader (which lives
+	// in #evidence, behind the atlas pane) becomes visible.
+	if !strings.Contains(body, "$atlasOpen = false") {
+		t.Fatalf("read-in-transcript does not close the atlas pane: %s", body)
+	}
 
 	rec = httptest.NewRecorder()
 	r.ServeHTTP(rec, httptest.NewRequest("GET", "/atlas/regions/nope", nil))
@@ -273,74 +285,41 @@ func TestAtlasGraphJSON_TopLevelIsTranscripts(t *testing.T) {
 	_ = g.Edges
 }
 
-func TestAtlasGraphJSON_TranscriptDrillDown(t *testing.T) {
+func TestAtlasTranscriptPane(t *testing.T) {
 	_, _, svc, r := atlasTestServer(t)
 	if err := svc.Rebuild(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, httptest.NewRequest("GET", "/atlas/graph.json?transcript=sailing.txt", nil))
+	r.ServeHTTP(rec, httptest.NewRequest("GET", "/atlas/transcript?file=sailing.txt", nil))
+	body := rec.Body.String()
 	if rec.Code != 200 {
-		t.Fatalf("transcript drill-down: %d %s", rec.Code, rec.Body.String())
+		t.Fatalf("transcript pane: %d %s", rec.Code, body)
 	}
-	var g struct {
-		Transcript map[string]any                              `json:"transcript"`
-		Chunks     []struct{ ID, Label, Region, Color string } `json:"chunks"`
-		Edges      []struct{ A, B string }                     `json:"edges"`
-	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &g); err != nil {
-		t.Fatalf("decode: %v — %s", err, rec.Body.String())
-	}
-	if len(g.Chunks) != 8 {
-		t.Fatalf("want 8 chunks for sailing.txt, got %d", len(g.Chunks))
-	}
-	// Labels come from the (stub) LLM labeller and are persisted per chunk,
-	// never the old text-head snippet; each chunk carries its region + colour.
-	for _, c := range g.Chunks {
-		if !strings.HasPrefix(c.Label, "passage label ") {
-			t.Fatalf("chunk %s label is not the persisted LLM label: %q", c.ID, c.Label)
-		}
-		if c.Region == "" || c.Color == "" || c.Color[0] != '#' {
-			t.Fatalf("chunk %s missing region/colour: region=%q color=%q", c.ID, c.Region, c.Color)
+	// Renders into #atlas-transcript, gated on $atlasTranscriptId, as the
+	// shared passage list: summary label + expand-in-place text + read/attach.
+	for _, want := range []string{
+		`id="atlas-transcript"`, "$atlasTranscriptId === ", "atlas-members",
+		"atlas-member-summary", "Read in transcript", "/evidence?chunk_id=",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("missing %q in transcript pane: %s", want, body)
 		}
 	}
-	// Strictly sequential: 8 chunks -> 7 adjacency edges, chunk[i]-chunk[i+1].
-	if len(g.Edges) != 7 {
-		t.Fatalf("want 7 sequential edges, got %d: %+v", len(g.Edges), g.Edges)
+	// One row per chunk of sailing.txt (8), each an expand-in-place quote whose
+	// summary is the persisted (stub) LLM label, never a raw text head.
+	if n := strings.Count(body, "atlas-member-quote"); n != 8 {
+		t.Fatalf("want 8 passages for sailing.txt, got %d", n)
 	}
-	for i, e := range g.Edges {
-		if e.A != g.Chunks[i].ID || e.B != g.Chunks[i+1].ID {
-			t.Fatalf("edge %d = %+v, want %s-%s (document order)", i, e, g.Chunks[i].ID, g.Chunks[i+1].ID)
-		}
+	if !strings.Contains(body, "passage label ") {
+		t.Fatalf("summary is not the persisted LLM label: %s", body)
 	}
 
 	rec = httptest.NewRecorder()
-	r.ServeHTTP(rec, httptest.NewRequest("GET", "/atlas/graph.json?transcript=nope.txt", nil))
+	r.ServeHTTP(rec, httptest.NewRequest("GET", "/atlas/transcript?file=nope.txt", nil))
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("unknown transcript: %d", rec.Code)
 	}
 }
 
-func TestAtlasChunkDetail(t *testing.T) {
-	_, _, svc, r := atlasTestServer(t)
-	if err := svc.Rebuild(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	build, _ := svc.Current()
-	cid := build.Regions[0].Members[0].ChunkID
-
-	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, httptest.NewRequest("GET", "/atlas/chunk/"+cid, nil))
-	body := rec.Body.String()
-	// Renders into the right pane (#atlas-selected-chunk) as an evidence-style
-	// candidate card, gated on $atlasChunkId, with the shared attach action.
-	if rec.Code != 200 {
-		t.Fatalf("chunk detail: %d %s", rec.Code, body)
-	}
-	for _, want := range []string{`id="atlas-selected-chunk"`, "$atlasChunkId === ", "candidate-text", "/evidence?chunk_id="} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("chunk detail missing %q: %s", want, body)
-		}
-	}
-}

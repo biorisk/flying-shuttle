@@ -33,6 +33,11 @@ type Candidate struct {
 	Match string
 	// ScoreNorm is Score scaled to 0..1 against the top result of this render.
 	ScoreNorm float64
+	// Summary is the chunk's short LLM label (atlas_chunk_label) — the same
+	// phrase the atlas graph drill-down shows on each chunk node. Used by the
+	// Atlas region list to show a summary in place of the passage text until
+	// the reader clicks it. Empty when no label has been computed.
+	Summary string
 }
 
 // HasMore reports whether an expand-in-place toggle should be offered.
@@ -331,4 +336,15 @@ type AtlasRegionDetail struct {
 	Source     string // "extractive" | "llm:<model>" | ...
 	Members    []Candidate
 	Neighbours []AtlasRegionRow // linked regions, strongest link first
+}
+
+// AtlasTranscriptDetail is the render model for #atlas-transcript: one source
+// file's chunks in document order, each an evidence Candidate carrying its
+// short summary label (Summary) and the passage text (Snippet). Loaded into
+// the Atlas right pane when a transcript node is tapped in the graph — the
+// linear read of a transcript, styled like the region member list.
+type AtlasTranscriptDetail struct {
+	File     string
+	Keywords []string // from the transcript digest, for a one-line header
+	Members  []Candidate
 }

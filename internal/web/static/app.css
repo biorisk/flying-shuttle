@@ -53,6 +53,7 @@ button:hover { border-color: var(--accent); }
 }
 
 .drawer {
+	grid-column: 1;
 	background: var(--panel-2);
 	border-right: 1px solid var(--edge);
 	overflow: hidden auto;
@@ -72,6 +73,10 @@ button:hover { border-color: var(--accent); }
 .drawer-body { padding: 12px; }
 
 .center {
+	/* Pinned to the middle track: the ingest drawer (grid-column 1) is absent
+	   in a read-only-corpus session, and without an explicit column .center
+	   would auto-place into the 0-width first track and vanish. */
+	grid-column: 2;
 	display: flex;
 	flex-direction: column;
 	min-width: 0;
@@ -92,6 +97,7 @@ button:hover { border-color: var(--accent); }
 .outline-pane, .preview-pane { flex: 1; overflow: auto; padding: 16px 20px; }
 
 .evidence-pane {
+	grid-column: 3; /* explicit so it can't drift when the drawer is absent */
 	background: var(--panel);
 	border-left: 1px solid var(--edge);
 	overflow: hidden;
@@ -424,18 +430,37 @@ mark.mark-active { outline: 2px solid var(--accent); outline-offset: 1px; }
 .atlas-abstract { font-size: 12px; line-height: 1.5; margin: 0 0 4px; }
 .atlas-source { font-size: 10px; color: var(--text-dim); margin: 0 0 6px; }
 .atlas-members { margin: 6px 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+/* region member: show the chunk's summary label; clicking it swaps in the
+   passage text in place (and clicking the text swaps back). */
+.atlas-member-quote > summary { list-style: none; cursor: pointer; }
+.atlas-member-quote > summary::-webkit-details-marker { display: none; }
+.atlas-member-quote:not([open]) .atlas-member-full { display: none; }
+.atlas-member-quote[open] .atlas-member-summary { display: none; }
+.atlas-member-summary { font-size: 13px; color: var(--text-dim); font-style: italic; }
+.atlas-member-quote > summary:hover .atlas-member-summary { color: var(--text); }
 .atlas-neighbours { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 6px; }
 .atlas-neighbours-label { font-size: 10px; color: var(--text-dim); width: 100%; }
 
 /* --- atlas network view: #atlas-canvas takes over the main column while
    $centerView === 'atlas', same flex slot as #outline/#stitch --- */
 #atlas-canvas { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.atlas-graph-wrap { position: relative; flex: 1; min-height: 0; display: flex; }
 .atlas-graph { flex: 1; min-height: 0; background: var(--panel-2); }
+.atlas-graph-controls {
+	position: absolute; top: 8px; left: 8px; z-index: 6;
+	display: flex; align-items: center; gap: 8px;
+	padding: 4px 10px; font-size: 11px; color: var(--text-dim);
+	background: var(--panel); border: 1px solid var(--edge); border-radius: var(--radius);
+}
+.atlas-graph-controls input[type="range"] { width: 140px; accent-color: var(--accent); }
+.atlas-edge-readout { font-variant-numeric: tabular-nums; color: var(--text); }
 /* selected passage, shown in the Atlas right pane above the region list */
 .atlas-selected { margin-bottom: 10px; }
 .atlas-selected:empty { display: none; }
 .atlas-selected-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
 .atlas-selected-label { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-dim); }
+/* transcript linear view: one file's chunks as summary labels, in the right pane */
+.atlas-transcript-file { font-size: 11px; color: var(--text-dim); margin: 0 0 6px; word-break: break-all; }
 .atlas-search {
 	width: 100%; margin-bottom: 8px; padding: 4px 8px; font-size: 12px;
 	background: var(--panel-2); border: 1px solid var(--edge); color: var(--text); border-radius: var(--radius);
