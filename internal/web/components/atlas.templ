@@ -57,7 +57,7 @@ templ AtlasCanvas(vm viewmodel.AtlasPane) {
 		if vm.Status == "ready" {
 			<div class="atlas-graph-wrap">
 				<div id="atlas-graph" class="atlas-graph"
-					data-on:atlastranscript="$atlasTranscriptId = evt.detail.id; $atlasRegionId = ''; @get('/atlas/transcript?file=' + encodeURIComponent(evt.detail.id))"></div>
+					data-on:atlastranscript="$atlasOpen = true; $readerChunk = ''; $atlasTranscriptId = evt.detail.id; $atlasRegionId = ''; @get('/atlas/transcript?file=' + encodeURIComponent(evt.detail.id))"></div>
 				<div class="atlas-graph-controls" title="How many of the strongest transcript-to-transcript links to draw. The layout re-runs after each change.">
 					<label for="atlas-edge-slider">links</label>
 					<input id="atlas-edge-slider" type="range" min="0" max="100" step="1" value="0"/>
